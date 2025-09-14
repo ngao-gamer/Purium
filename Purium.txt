@@ -1,0 +1,180 @@
+local ScreenGui = Instance.new("ScreenGui")
+local ImageButton = Instance.new("ImageButton")
+local UICorner = Instance.new("UICorner")
+
+ScreenGui.Parent = game.CoreGui
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+ImageButton.Parent = ScreenGui
+ImageButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+ImageButton.BorderSizePixel = 0
+ImageButton.Position = UDim2.new(0.10615778, 0, 0.16217947, 0)
+ImageButton.Size = UDim2.new(0, 40, 0, 40)
+ImageButton.Draggable = true
+ImageButton.Image = "http://www.roblox.com/asset/?id=99453878197751"
+
+UICorner.CornerRadius = UDim.new(1, 10) 
+UICorner.Parent = ImageButton
+
+ImageButton.MouseButton1Down:Connect(function()
+    game:GetService("VirtualInputManager"):SendKeyEvent(true, Enum.KeyCode.End, false, game)
+end)
+
+local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
+repeat wait() until game:IsLoaded()
+local Window = Fluent:CreateWindow({
+    Title = "TBoy Roblox Tổng Hợp",
+    SubTitle = "Blox Fruit",
+    TabWidth = 157,
+    Size = UDim2.fromOffset(450, 300),
+    Acrylic = true,
+    Theme = "Dark",
+    MinimizeKey = Enum.KeyCode.End
+})
+local Tabs = {
+        Main0=Window:AddTab({ Title="Thông Tin" }),
+        Main1=Window:AddTab({ Title="Blox Fruit" }),
+        Main2=Window:AddTab({ Title="Grow a Garden" }),
+        Main3=Window:AddTab({ Title="Tsb" }),
+        Main4=Window:AddTab({ Title="Fisch" }),
+       Main5=Window:AddTab({ Title="Comming Soon" }),
+}
+    Tabs.Main0:AddButton({
+    Title = "Discord",
+    Description = "Purium",
+    Callback = function()
+        setclipboard("https://discord.gg/3fbA4kNZtJ")
+    end
+})
+
+    Tabs.Main0:AddButton({
+    Title = "Youtuber",
+    Description = "Noob Gamer",
+    Callback = function()
+        setclipboard("https://www.youtube.com/@noobthegamer-123")
+    end
+})
+
+    Tabs.Main0:AddButton({
+    Title = "Youtuber",
+    Description = "Noob Gamer",
+    Callback = function()
+        setclipboard("https://www.youtube.com/@noobthegamer-123")
+    end
+})
+    
+    Tabs.Main1:AddButton({
+    Title="Teddy Hub",
+    Description="",
+    Callback=function()
+	  repeat wait() until game:IsLoaded() and game.Players.LocalPlayer 
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Teddyseetink/Haidepzai/refs/heads/main/TeddyHub.lua"))()
+  end
+})
+
+Tabs.Main1:AddButton({
+    Title="Blue X Hub",
+    Description="",
+    Callback=function()
+	  loadstring(game:HttpGet("https://raw.githubusercontent.com/Dev-BlueX/BlueX-Hub/refs/heads/main/Main.lua"))()
+  end
+})
+
+Tabs.Main1:AddButton({
+    Title="Zinner Hub (Freeium)",
+    Description="",
+    Callback=function()
+	  getgenv().Team = "Pirates"
+loadstring(game:HttpGet("https://raw.githubusercontent.com/HoangNguyenk8/Roblox/refs/heads/main/BF-Main.luau"))()
+  end
+})
+
+Tabs.Main1:AddButton({
+    Title="Quantum Hub",
+    Description="",
+    Callback=function()
+	  loadstring(game:HttpGet("https://raw.githubusercontent.com/flazhy/QuantumOnyx/refs/heads/main/QuantumOnyx.lua"))()
+  end
+})
+
+    Tabs.Main1:AddButton({
+    Title="Cokka Hub",
+    Description="",
+    Callback=function()
+	  loadstring(game:HttpGet"https://raw.githubusercontent.com/UserDevEthical/Loadstring/main/CokkaHub.lua")()
+  end
+})
+
+Tabs.Main1:AddButton({
+    Title="Vector Hub",
+    Description="",
+    Callback=function()
+	  loadstring(game:HttpGet("https://raw.githubusercontent.com/AAwful/Vector_Hub/0/v2"))()
+  end
+})
+
+Tabs.Main1:AddButton({
+    Title="Than Hub",
+    Description="",
+    Callback=function()
+	  loadstring(game:HttpGet("https://raw.githubusercontent.com/thantzy/thanhub/refs/heads/main/thanv1"))()
+  end
+})
+
+Tabs.Main1:AddButton({
+    Title="LTD Hub",
+    Description="",
+    Callback=function()
+	  loadstring(game:HttpGet("https://raw.githubusercontent.com/thohihi312-coder/ldt-hub/refs/heads/main/main.lua.txt"))()
+  end
+})
+
+Tabs.Main1:AddButton({
+    Title="Aurora Hub",
+    Description="",
+    Callback=function()
+	  loadstring(game:HttpGet("https://raw.githubusercontent.com/Jadelly261/BloxFruits/main/Aurora", true))()
+  end
+})
+
+Tabs.Main1:AddButton({
+    Title="Astral Hub",
+    Description="",
+    Callback=function()
+	  loadstring(game:HttpGet("https://raw.githubusercontent.com/Overgustx2/Main/refs/heads/main/BloxFruits_25.html"))()
+  end
+})
+
+Tabs.Main1:AddButton({
+    Title="W-Azure Hub",
+    Description="",
+    Callback=function()
+	  getgenv().Team = "Marines"
+getgenv().AutoLoad = false --Will Load Script On Server Hop
+loadstring(game:HttpGet("https://api.luarmor.net/files/v3/loaders/3b2169cf53bc6104dabe8e19562e5cc2.lua"))()
+  end
+})
+
+Tabs.Main2:AddButton({
+    Title="No-Lag Hub",
+    Description="",
+    Callback=function()
+loadstring(game:HttpGet("https://rawscripts.net/raw/Grow-a-Garden-NoLag-Hub-no-key-38699"))()
+  end
+})
+
+Tabs.Main2:AddButton({
+    Title="Nat Hub",
+    Description="",
+    Callback=function()
+	  loadstring(game:HttpGet("https://raw.githubusercontent.com/ArdyBotzz/NatHub/refs/heads/master/NatHub.lua"))();
+  end
+})
+
+Tabs.Main2:AddButton({
+    Title="Thunder Z Hub",
+    Description="",
+    Callback=function()
+          loadstring(game:HttpGet('https://raw.githubusercontent.com/ThundarZ/Welcome/refs/heads/main/Main/GaG/Main.lua'))()
+  end
+})
