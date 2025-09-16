@@ -189,10 +189,10 @@ Tabs.Main2:AddButton({
 })
 
 Tabs.Main3:AddButton({
-    Title="Void-Ware Hub",
+    Title="Speed-X Hub",
     Description="",
     Callback=function()
-           loadstring(game:HttpGet("https://raw.githubusercontent.com/VapeVoidware/VW-Add/main/nightsintheforest.lua", true))()
+           loadstring(game:HttpGet("https://raw.githubusercontent.com/AhmadV99/Speed-Hub-X/main/Speed%20Hub%20X.lua", true))()
   end
 })
 
@@ -233,6 +233,14 @@ Tabs.Main5:AddButton({
     Description="",
     Callback=function()
            loadstring(game:HttpGet("https://raw.githubusercontent.com/wefwef127382/inkgames.github.io/refs/heads/main/ringta.lua"))()
+  end
+})
+
+Tabs.Main5:AddButton({
+    Title="Void-Ware Hub",
+    Description="",
+    Callback=function()
+           loadstring(game:HttpGet("https://raw.githubusercontent.com/VapeVoidware/VW-Add/main/nightsintheforest.lua", true))()
   end
 })
 
