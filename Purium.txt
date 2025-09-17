@@ -75,17 +75,10 @@ Tabs.Main1:AddButton({
   end
 })
 
-Tabs.Main1:AddButton({
-    Title="Andepzai Hub",
-    Description="GUESS WHO IS BACK BRO",
-    Callback=function()
-	  loadstring(game:HttpGet("https://raw.githubusercontent.com/h6hbii/AnDepZaiHub/refs/heads/main/AndepzaiHub.lua"))()
-  end
-})
 
 Tabs.Main1:AddButton({
     Title="Redz Hub (Maybe Working)",
-    Description="",
+    Description="GUESS WHO'S IS BACK 🗣️🔥",
     Callback=function()
 local Settings = {
   JoinTeam = "Pirates"; -- Pirates/Marines
