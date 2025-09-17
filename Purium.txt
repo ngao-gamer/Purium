@@ -206,7 +206,7 @@ Tabs.Main4:AddButton({
 })
 
 Tabs.Main5:AddButton({
-    Title="Siff Hub(Pc,key)",
+    Title="Siff Hub(Pc key)",
     Description="",
     Callback=function()
            loadstring(game:HttpGet("https://raw.githubusercontent.com/NysaDanielle/loader/refs/heads/main/auth"))()
@@ -214,7 +214,7 @@ Tabs.Main5:AddButton({
 })
 
 Tabs.Main5:AddButton({
-    Title="Siff Hub(Mobile,key)",
+    Title="Siff Hub(Mobile key)",
     Description="",
     Callback=function()
            loadstring(game:HttpGet("https://raw.githubusercontent.com/NysaDanielle/loader/refs/heads/main/auth"))()
@@ -264,9 +264,15 @@ Tabs.Main6:AddButton({
 Tabs.Main6:AddButton({
     Title="DUDE",
     Description="I Don't Know anymore about these 2 script LOL",
+    Callback=function()
+           print("BRUH")
+  end
 })
 
 Tabs.Main7:AddButton({
     Title="Nothing here",
     Description="Still Watching??? Fuck you bitch pls get out",
+    Callback=function()
+           warn("Stop BRO DUDE")
+  end
 })
