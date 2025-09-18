@@ -166,7 +166,7 @@ Tabs.Main1:AddButton({
     Title="DatThg Hub",
     Description="This is cracked script not real yet",
     Callback=function()
-	  lloadstring(game:HttpGet("https://raw.githubusercontent.com/LuaCrack/DatThg/refs/heads/main/DatThgV2"))()
+	  loadstring(game:HttpGet("https://raw.githubusercontent.com/LuaCrack/DatThg/refs/heads/main/DatThgV2"))()
   end
 })
 
