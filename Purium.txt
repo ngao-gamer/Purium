@@ -39,9 +39,8 @@ local Tabs = {
         Main4=Window:AddTab({ Title="99 in the forest" }),
         Main5=Window:AddTab({ Title="Ink Game" }),
         Main6=Window:AddTab({ Title="Hunty Zombies" }),
-        Main7=Window:AddTab({ Title="Steal A Brainrot" });
-        Main8=Window:AddTab({ Title="Universal" }),        
-        Main9=Window:AddTab({ Title="Comming Soon" }),
+        Main7=Window:AddTab({ Title="Universal" }),        
+        Main8=Window:AddTab({ Title="Comming Soon" }),
 }
     Tabs.Main0:AddButton({
     Title = "Discord",
@@ -51,13 +50,6 @@ local Tabs = {
     end
 })
 
-    Tabs.Main0:AddButton({
-    Title = "Script need get key",
-    Description = "Speed Hub and nat maybe need get key to use",
-    Callback = function()
-        setclipboard("Velocity , any good executor")
-    end
-})
 
     Tabs.Main0:AddButton({
     Title = "Supported",
@@ -72,7 +64,7 @@ local Tabs = {
     Description="",
     Callback=function()
 	  repeat wait() until game:IsLoaded() and game.Players.LocalPlayer 
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Teddyseetink/Haidepzai/refs/heads/main/TeddyHub.lua"))()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/Teddyseetink/Haidepzai/refs/heads/main/TeddyHub.lua"))()
   end
 })
 
@@ -103,7 +95,7 @@ Tabs.Main1:AddButton({
     Description="",
     Callback=function()
 	  getgenv().Team = "Pirates"
-loadstring(game:HttpGet("https://raw.githubusercontent.com/HoangNguyenk8/Roblox/refs/heads/main/BF-Main.luau"))()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/HoangNguyenk8/Roblox/refs/heads/main/BF-Main.luau"))()
   end
 })
 
@@ -111,7 +103,7 @@ Tabs.Main1:AddButton({
     Title="Quantum Hub",
     Description="",
     Callback=function()
-	  loadstring(game:HttpGet("https://raw.githubusercontent.com/flazhy/QuantumOnyx/refs/heads/main/QuantumOnyx.lua"))()
+	     loadstring(game:HttpGet("https://raw.githubusercontent.com/flazhy/QuantumOnyx/refs/heads/main/QuantumOnyx.lua"))()
   end
 })
 
@@ -119,7 +111,7 @@ Tabs.Main1:AddButton({
     Title="Cokka Hub",
     Description="",
     Callback=function()
-	  loadstring(game:HttpGet"https://raw.githubusercontent.com/UserDevEthical/Loadstring/main/CokkaHub.lua")()
+	     loadstring(game:HttpGet"https://raw.githubusercontent.com/UserDevEthical/Loadstring/main/CokkaHub.lua")()
   end
 })
 
@@ -127,7 +119,7 @@ Tabs.Main1:AddButton({
     Title="Vector Hub",
     Description="",
     Callback=function()
-	  loadstring(game:HttpGet("https://raw.githubusercontent.com/AAwful/Vector_Hub/0/v2"))()
+	     loadstring(game:HttpGet("https://raw.githubusercontent.com/AAwful/Vector_Hub/0/v2"))()
   end
 })
 
@@ -135,7 +127,7 @@ Tabs.Main1:AddButton({
     Title="Than Hub",
     Description="",
     Callback=function()
-	  loadstring(game:HttpGet("https://raw.githubusercontent.com/thantzy/thanhub/refs/heads/main/thanv1"))()
+	     loadstring(game:HttpGet("https://raw.githubusercontent.com/thantzy/thanhub/refs/heads/main/thanv1"))()
   end
 })
 
@@ -143,7 +135,7 @@ Tabs.Main1:AddButton({
     Title="LTD Hub",
     Description="",
     Callback=function()
-	  loadstring(game:HttpGet("https://raw.githubusercontent.com/thohihi312-coder/ldt-hub/refs/heads/main/main.lua.txt"))()
+	     loadstring(game:HttpGet("https://raw.githubusercontent.com/thohihi312-coder/ldt-hub/refs/heads/main/main.lua.txt"))()
   end
 })
 
@@ -151,7 +143,7 @@ Tabs.Main1:AddButton({
     Title="Aurora Hub",
     Description="",
     Callback=function()
-	  loadstring(game:HttpGet("https://raw.githubusercontent.com/Jadelly261/BloxFruits/main/Aurora", true))()
+	     loadstring(game:HttpGet("https://raw.githubusercontent.com/Jadelly261/BloxFruits/main/Aurora", true))()
   end
 })
 
@@ -159,7 +151,7 @@ Tabs.Main1:AddButton({
     Title="Astral Hub",
     Description="",
     Callback=function()
-	  loadstring(game:HttpGet("https://raw.githubusercontent.com/Overgustx2/Main/refs/heads/main/BloxFruits_25.html"))()
+	     loadstring(game:HttpGet("https://raw.githubusercontent.com/Overgustx2/Main/refs/heads/main/BloxFruits_25.html"))()
   end
 })
 
@@ -167,7 +159,7 @@ Tabs.Main1:AddButton({
     Title="Xeter Hub",
     Description="This is cracked script not real yet(dont ask me how i now)",
     Callback=function()
-	  loadstring(game:HttpGet("https://raw.githubusercontent.com/LuaCrack/Beta/refs/heads/main/Xeter.luau"))()
+	     loadstring(game:HttpGet("https://raw.githubusercontent.com/LuaCrack/Beta/refs/heads/main/Xeter.luau"))()
   end
 })
 
@@ -175,7 +167,7 @@ Tabs.Main1:AddButton({
     Title="Ego Hub",
     Description="OH GOD I FOUND AN STUPID EGOIST🗣️🔥"
     Callback=function()
-	  loadstring(game:HttpGet("https://raw.githubusercontent.com/SuperIkka/Main/main/EgoLoaderMain", true))()
+	     loadstring(game:HttpGet("https://raw.githubusercontent.com/SuperIkka/Main/main/EgoLoaderMain", true))()
   end
 })
 
@@ -183,7 +175,7 @@ Tabs.Main1:AddButton({
     Title="Volcano Hub",
     Description="",
     Callback=function()
-	  loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/indexeduu/BF-NewVer/refs/heads/main/V3New.lua"))()
+	     loadstring(game:HttpGetAsync("https://raw.githubusercontent.com/indexeduu/BF-NewVer/refs/heads/main/V3New.lua"))()
   end
 })
 
@@ -191,7 +183,7 @@ Tabs.Main1:AddButton({
     Title="Thunder Z Hub",
     Description="",
     Callback=function()
-	  loadstring(game:HttpGet('https://raw.githubusercontent.com/ThundarZ/Welcome/refs/heads/main/Main/Loader/AllGame.lua'))()
+	     loadstring(game:HttpGet('https://raw.githubusercontent.com/ThundarZ/Welcome/refs/heads/main/Main/Loader/AllGame.lua'))()
   end
 })
 
@@ -200,7 +192,7 @@ Tabs.Main1:AddButton({
     Description="",
     Callback=function()
 	  getgenv().Team = "Pirates"
-loadstring(game:HttpGet("https://raw.githubusercontent.com/LuaStupid/Source/main/HiruHubVeriV2.lua"))()
+    loadstring(game:HttpGet("https://raw.githubusercontent.com/LuaStupid/Source/main/HiruHubVeriV2.lua"))()
   end
 })
 
@@ -208,7 +200,7 @@ Tabs.Main1:AddButton({
     Title="Zen Hub",
     Description="",
     Callback=function()
-	  loadstring(game:HttpGet("https://raw.githubusercontent.com/Zenhubtop/zen_hub_pr/main/zennewwwwui.lua", true))()
+	     loadstring(game:HttpGet("https://raw.githubusercontent.com/Zenhubtop/zen_hub_pr/main/zennewwwwui.lua", true))()
   end
 })
 
@@ -216,7 +208,7 @@ Tabs.Main1:AddButton({
     Title="buttlerfly Hub",
     Description="butter gay",
     Callback=function()
-	  loadstring(game:HttpGet("https://raw.githubusercontent.com/GoblinKun009/Script/refs/heads/main/ButterflyHub", true))()
+	     loadstring(game:HttpGet("https://raw.githubusercontent.com/GoblinKun009/Script/refs/heads/main/ButterflyHub", true))()
   end
 })
 
@@ -226,8 +218,8 @@ Tabs.Main1:AddButton({
     Description="",
     Callback=function()
 	  getgenv().Team = "Marines"
-getgenv().AutoLoad = false --Will Load Script On Server Hop
-loadstring(game:HttpGet("https://api.luarmor.net/files/v3/loaders/3b2169cf53bc6104dabe8e19562e5cc2.lua"))()
+    getgenv().AutoLoad = false --Will Load Script On Server Hop
+    loadstring(game:HttpGet("https://api.luarmor.net/files/v3/loaders/3b2169cf53bc6104dabe8e19562e5cc2.lua"))()
   end
 })
 
@@ -235,7 +227,7 @@ Tabs.Main2:AddButton({
     Title="No-Lag Hub",
     Description="",
     Callback=function()
-loadstring(game:HttpGet("https://rawscripts.net/raw/Grow-a-Garden-NoLag-Hub-no-key-38699"))()
+       loadstring(game:HttpGet("https://rawscripts.net/raw/Grow-a-Garden-NoLag-Hub-no-key-38699"))()
   end
 })
 
@@ -243,7 +235,7 @@ Tabs.Main2:AddButton({
     Title="Nat Hub",
     Description="",
     Callback=function()
-	  loadstring(game:HttpGet("https://raw.githubusercontent.com/ArdyBotzz/NatHub/refs/heads/master/NatHub.lua"))();
+	     loadstring(game:HttpGet("https://raw.githubusercontent.com/ArdyBotzz/NatHub/refs/heads/master/NatHub.lua"))();
   end
 })
 
@@ -251,7 +243,7 @@ Tabs.Main2:AddButton({
     Title="Thunder Z Hub",
     Description="",
     Callback=function()
-          loadstring(game:HttpGet('https://raw.githubusercontent.com/ThundarZ/Welcome/refs/heads/main/Main/GaG/Main.lua'))()
+        loadstring(game:HttpGet('https://raw.githubusercontent.com/ThundarZ/Welcome/refs/heads/main/Main/GaG/Main.lua'))()
   end
 })
 
@@ -259,7 +251,7 @@ Tabs.Main2:AddButton({
     Title="Speed-X Hub",
     Description="",
     Callback=function()
-          loadstring(game:HttpGet("https://raw.githubusercontent.com/AhmadV99/Speed-Hub-X/main/Speed%20Hub%20X.lua", true))()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/AhmadV99/Speed-Hub-X/main/Speed%20Hub%20X.lua", true))()
   end
 })
 
@@ -267,7 +259,7 @@ Tabs.Main3:AddButton({
     Title="Speed-X Hub",
     Description="",
     Callback=function()
-           loadstring(game:HttpGet("https://raw.githubusercontent.com/AhmadV99/Speed-Hub-X/main/Speed%20Hub%20X.lua", true))()
+       loadstring(game:HttpGet("https://raw.githubusercontent.com/AhmadV99/Speed-Hub-X/main/Speed%20Hub%20X.lua", true))()
   end
 })
 
@@ -275,7 +267,7 @@ Tabs.Main3:AddButton({
     Title="Nat Hub",
     Description="Even Speed, than,nat is the most support game lil",
     Callback=function()
-           loadstring(game:HttpGet("https://raw.githubusercontent.com/ArdyBotzz/NatHub/refs/heads/master/NatHub.lua"))()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/ArdyBotzz/NatHub/refs/heads/master/NatHub.lua"))()
   end
 })
 
@@ -283,7 +275,7 @@ Tabs.Main3:AddButton({
     Title="Than Hub",
     Description="",
     Callback=function()
-           loadstring(game:HttpGet("https://raw.githubusercontent.com/thantzy/thanhub/refs/heads/main/thanv1"))()
+      loadstring(game:HttpGet("https://raw.githubusercontent.com/thantzy/thanhub/refs/heads/main/thanv1"))()
   end
 })
 
@@ -423,40 +415,8 @@ Tabs.Main6:AddButton({
   end
 })
 
-Tabs.Main7:AddButton({
-    Title="Chilli Hub",
-    Description="AHH IM SO SPICY",
-    Callback=function()
-          loadstring(game:HttpGet("https://raw.githubusercontent.com/tienkhanh1/spicy/main/Chilli.lua"))()
-  end
-})
 
 Tabs.Main7:AddButton({
-    Title="Fadhen Hub",
-    Description="",
-    Callback=function()
-          loadstring(game:HttpGet("https://raw.githubusercontent.com/Akbar123s/Script-Roblox-/refs/heads/main/nabaruBrainrot"))()
-  end
-})
-
-Tabs.Main7:AddButton({
-    Title="Ajjan Hub",
-    Description="",
-    Callback=function()
-          loadstring(game:HttpGet("https://raw.githubusercontent.com/onliengamerop/Steal-a-brainrot/refs/heads/main/Protected_3771863424757750.lua.txt"))()
-  end
-})
-
-Tabs.Main7:AddButton({
-    Title="Makal Hub",
-    Description="maybe working",
-    Callback=function()
-          loadstring(game:HttpGet("https://raw.githubusercontent.com/DoliScriptz/loader/refs/heads/main/main.lua",true))()
-  end
-})
-
-
-Tabs.Main8:AddButton({
     Title="Test UNC",
     Description="press F9 To check console",
     Callback=function()
@@ -465,7 +425,7 @@ Tabs.Main8:AddButton({
 })
 
 
-Tabs.Main8:AddButton({
+Tabs.Main7:AddButton({
     Title="Infinite Yield",
     Description="",
     Callback=function()
@@ -473,7 +433,7 @@ Tabs.Main8:AddButton({
   end
 })
 
-Tabs.Main8:AddButton({
+Tabs.Main7:AddButton({
     Title="DUDE",
     Description="I Don't Know anymore about these 2 script LOL",
     Callback=function()
@@ -482,7 +442,7 @@ Tabs.Main8:AddButton({
 })
 
 
-Tabs.Main9:AddButton({
+Tabs.Main8:AddButton({
     Title="Nothing here",
     Description="Pleaze bro why did you still watch for no reasson huh?",
     Callback=function()
