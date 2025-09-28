@@ -1,8 +1,15 @@
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui") -- Đã sửa để an toàn hơn
+
 local ScreenGui = Instance.new("ScreenGui")
 local ImageButton = Instance.new("ImageButton")
 local UICorner = Instance.new("UICorner")
 
-ScreenGui.Parent = game.Players.LocalPlayer.PlayerGui
+-- ===================================
+-- == TOGGLE BUTTON SETUP (Purium.txt) ==
+-- ===================================
+ScreenGui.Parent = PlayerGui -- Sử dụng PlayerGui đã chờ sẵn
 ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 
 ImageButton.Parent = ScreenGui
@@ -11,7 +18,7 @@ ImageButton.BorderSizePixel = 0
 ImageButton.Position = UDim2.new(0.10615778, 0, 0.16217947, 0)
 ImageButton.Size = UDim2.new(0, 40, 0, 40)
 ImageButton.Draggable = true
-ImageButton.Image = "http://www.roblox.com/asset/?id=86136114987380"
+ImageButton.Image = "rbxassetid://87658344298139" -- Đã chuyển sang rbxassetid://
 
 UICorner.CornerRadius = UDim.new(1, 10) 
 UICorner.Parent = ImageButton
@@ -20,55 +27,66 @@ ImageButton.MouseButton1Down:Connect(function()
     game:GetService("VirtualInputManager"):SendKeyEvent(true, Enum.KeyCode.End, false, game)
 end)
 
+-- ===================================
+-- == FLUENT UI SETUP (Purium.txt) ==
+-- ===================================
 local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
-repeat wait() until game:IsLoaded()
+repeat task.wait() until game:IsLoaded() -- Đã sửa wait() thành task.wait()
+
 local Window = Fluent:CreateWindow({
-    Title = "Purium Hub (V beta)",
-    SubTitle = "Blox Fruit",
+    Title = "Purium Hub (Version : 1.0.0)",
+    SubTitle = "All in one",
     TabWidth = 157,
     Size = UDim2.fromOffset(450, 300),
     Acrylic = true,
     Theme = "Dark",
     MinimizeKey = Enum.KeyCode.End
 })
+
 local Tabs = {
-        Main0=Window:AddTab({ Title="Info" }),
-        Main1=Window:AddTab({ Title="Blox Fruit" }),
-        Main2=Window:AddTab({ Title="Grow a Garden" }),
-        Main3=Window:AddTab({ Title="Fisch" }),
-        Main4=Window:AddTab({ Title="99 in the forest" }),
-        Main5=Window:AddTab({ Title="Ink Game" }),
-        Main6=Window:AddTab({ Title="Hunty Zombies" }),
-        Main7=Window:AddTab({ Title="Steal A Brainrot" }), 
-        Main8=Window:AddTab({ Title="Universal" }),
-        Main9=Window:AddTab({ Title="Forsaken" }),  
-        Main10=Window:AddTab({ Title="Doors" }), 
-        Main11=Window:AddTab({ Title="Plants Vs Brainrot" }),     
-        Main12=Window:AddTab({ Title="Fisch It" }),  
-        Main13=Window:AddTab({ Title="Comming Soon" }),
+    Main0=Window:AddTab({ Title="Info" }),
+    Main1=Window:AddTab({ Title="Blox Fruit" }),
+    Main2=Window:AddTab({ Title="Grow a Garden" }),
+    Main3=Window:AddTab({ Title="Fisch" }),
+    Main4=Window:AddTab({ Title="99 in the forest" }),
+    Main5=Window:AddTab({ Title="Ink Game" }),
+    Main6=Window:AddTab({ Title="Hunty Zombies" }),
+    Main7=Window:AddTab({ Title="Steal A Brainrot" }), 
+    Main8=Window:AddTab({ Title="Universal" }),
+    Main9=Window:AddTab({ Title="Forsaken" }),  
+    Main10=Window:AddTab({ Title="Doors" }), 
+    Main11=Window:AddTab({ Title="Plants Vs Brainrot" }),     
+    Main12=Window:AddTab({ Title="Fisch It" }),  
+    Main13=Window:AddTab({ Title="Comming Soon" }),
 }
-    Tabs.Main0:AddButton({
+
+-- ===================================
+-- == BUTTONS (Giữ Nguyên Nội dung) ==
+-- ===================================
+
+-- Tabs.Main0
+Tabs.Main0:AddButton({
     Title = "Discord",
     Description = "Join Ours discord for support",
     Callback = function()
-        setclipboard("https://discord.gg/3fbA4kNZtJ")
+      setclipboard("https://discord.gg/3fbA4kNZtJ")
     end
 })
 
-
-    Tabs.Main0:AddButton({
+Tabs.Main0:AddButton({
     Title = "Supported",
     Description = "Some Script Might crash user who using purium executor idk",
     Callback = function()
         setclipboard("Niggaaaaaarra")
     end
 })
-    
-    Tabs.Main1:AddButton({
+
+-- Tabs.Main1
+Tabs.Main1:AddButton({
     Title="Teddy Hub",
     Description="",
     Callback=function()
-	  repeat wait() until game:IsLoaded() and game.Players.LocalPlayer 
+	  repeat task.wait() until game:IsLoaded() and game.Players.LocalPlayer -- Đã sửa wait()
     loadstring(game:HttpGet("https://raw.githubusercontent.com/Teddyseetink/Haidepzai/refs/heads/main/TeddyHub.lua"))()
   end
 })
@@ -87,7 +105,8 @@ Tabs.Main1:AddButton({
     Description="GUESS WHO'S IS BACK 🗣️🔥",
     Callback=function()
 local Settings = {
-  JoinTeam = "Pirates"; -- Pirates/Marines
+  JoinTeam = "Pirates";
+-- Pirates/Marines
   Translator = true; -- true/false
 }
 getgenv().BETA_VERSION = true
@@ -112,7 +131,7 @@ Tabs.Main1:AddButton({
   end
 })
 
-    Tabs.Main1:AddButton({
+Tabs.Main1:AddButton({
     Title="Cokka Hub",
     Description="",
     Callback=function()
@@ -165,9 +184,9 @@ Tabs.Main1:AddButton({
     Description="",
     Callback=function()
 	     getgenv().Version = "V3"
-getgenv().Team = "Marines"
-loadstring(game:HttpGet("https://raw.githubusercontent.com/TlDinhKhoi/Xeter/refs/heads/main/Main.lua"))()
-  end
+         getgenv().Team = "Marines"
+         loadstring(game:HttpGet("https://raw.githubusercontent.com/TlDinhKhoi/Xeter/refs/heads/main/Main.lua"))()
+    end
 })
 
 Tabs.Main1:AddButton({
@@ -235,6 +254,7 @@ Tabs.Main1:AddButton({
   end
 })
 
+-- Tabs.Main2
 Tabs.Main2:AddButton({
     Title="No-Lag Hub",
     Description="",
@@ -248,7 +268,7 @@ Tabs.Main2:AddButton({
     Description="",
     Callback=function()
 	     loadstring(game:HttpGet("https://raw.githubusercontent.com/ArdyBotzz/NatHub/refs/heads/master/NatHub.lua"))();
-  end
+ end
 })
 
 Tabs.Main2:AddButton({
@@ -267,6 +287,7 @@ Tabs.Main2:AddButton({
   end
 })
 
+-- Tabs.Main3
 Tabs.Main3:AddButton({
     Title="Speed-X Hub",
     Description="",
@@ -304,7 +325,7 @@ Tabs.Main3:AddButton({
     Description="",
     Callback=function()
       script_key="PASTEKEYHERE";
-(loadstring or load)(game:HttpGet("https://getnative.cc/script/loader"))()
+      (loadstring or load)(game:HttpGet("https://getnative.cc/script/loader"))()
   end
 })
 
@@ -317,19 +338,11 @@ Tabs.Main3:AddButton({
 })
 
 Tabs.Main3:AddButton({
-    Title="Ice Hub",
-    Description="No Key",
-    Callback=function()
-       loadstring(game:HttpGet("https://raw.githubusercontent.com/SundayN10/Iced-Hub/refs/heads/main/IČ̣ƏƊ%20Hub"))()
-  end
-})
-
-Tabs.Main3:AddButton({
     Title="Noble Hub",
     Description="",
     Callback=function()
        if not game:IsLoaded() then repeat game.Loaded:Wait() until game:IsLoaded() end
-loadstring(game:HttpGet("https://raw.githubusercontent.com/djaXlua/Noble/refs/heads/main/Noble%20Hub%20Fish.txt"))()
+       loadstring(game:HttpGet("https://raw.githubusercontent.com/djaXlua/Noble/refs/heads/main/Noble%20Hub%20Fish.txt"))()
   end
 })
 
@@ -337,10 +350,11 @@ Tabs.Main3:AddButton({
     Title="Ronix Hub",
     Description="",
     Callback=function()
-loadstring(game:HttpGet("https://api.luarmor.net/files/v3/loaders/578c696a8d914279642068745713a73e.lua"))()
+       loadstring(game:HttpGet("https://api.luarmor.net/files/v3/loaders/578c696a8d914279642068745713a73e.lua"))()
   end
 })
 
+-- Tabs.Main4
 Tabs.Main4:AddButton({
     Title="Speed-X Hub",
     Description="",
@@ -389,6 +403,7 @@ Tabs.Main4:AddButton({
   end
 })
 
+-- Tabs.Main5
 Tabs.Main5:AddButton({
     Title="Siff Hub(Pc)",
     Description=" key requird ",
@@ -437,6 +452,7 @@ Tabs.Main5:AddButton({
   end
 })
 
+-- Tabs.Main6
 Tabs.Main6:AddButton({
     Title="Solix Hub",
     Description="",
@@ -477,6 +493,7 @@ Tabs.Main6:AddButton({
   end
 })
 
+-- Tabs.Main7
 Tabs.Main7:AddButton({
     Title="Lumin Hub",
     Description="",
@@ -551,6 +568,7 @@ Tabs.Main7:AddButton({
 })
 
 
+-- Tabs.Main8
 Tabs.Main8:AddButton({
     Title="Test UNC",
     Description="press F9 To check unc on console(pc) (pe)type /console on chat",
@@ -576,6 +594,7 @@ Tabs.Main8:AddButton({
   end
 })
 
+-- Tabs.Main9
 Tabs.Main9:AddButton({
     Title="Hutao Hub",
     Description="best script i found",
@@ -584,12 +603,13 @@ Tabs.Main9:AddButton({
   end
 })
 
+-- Tabs.Main10
 Tabs.Main10:AddButton({
     Title="Black Hub",
     Description="best script i found",
     Callback=function()
            -- Black Hub
-            loadstring(game:HttpGet("https://raw.githubusercontent.com/scriptpastebin/raw/main/Doors"))()
+           loadstring(game:HttpGet("https://raw.githubusercontent.com/scriptpastebin/raw/main/Doors"))()
   end
 })
 
@@ -602,6 +622,7 @@ Tabs.Main10:AddButton({
   end
 })
 
+-- Tabs.Main11
 Tabs.Main11:AddButton({
     Title="Lumin Hub",
     Description="",
@@ -611,7 +632,7 @@ Tabs.Main11:AddButton({
 })
 
 Tabs.Main11:AddButton({
-    Title="Lunor  Hub",
+    Title="Lunor Hub",
     Description="maybe working",
     Callback=function()
            loadstring(game:HttpGet("https://lunor.dev/loader"))()
@@ -646,7 +667,7 @@ Tabs.Main11:AddButton({
     Title="Nat Hub",
     Description="",
     Callback=function()
-           loadstring(game:HttpGet("https://raw.githubusercontent.com/dy1zn4t/NatHub/refs/heads/main/loader"))();
+       loadstring(game:HttpGet("https://raw.githubusercontent.com/dy1zn4t/NatHub/refs/heads/main/loader"))();
   end
 })
 
@@ -658,6 +679,7 @@ Tabs.Main11:AddButton({
   end
 })
 
+-- Tabs.Main12
 Tabs.Main12:AddButton({
     Title="Lime Hub",
     Description="",
@@ -666,6 +688,7 @@ Tabs.Main12:AddButton({
   end
 })
 
+-- Tabs.Main13
 Tabs.Main13:AddButton({
     Title="Nothing here",
     Description="Pleaze bro why did you still watch for no reasson huh?",
