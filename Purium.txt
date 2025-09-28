@@ -477,10 +477,83 @@ Tabs.Main6:AddButton({
   end
 })
 
+Tabs.Main7:AddButton({
+    Title="Lumin Hub",
+    Description="",
+    Callback=function()
+           loadstring(game:HttpGet("https://lumin-hub.lol/loader.lua",true))()
+  end
+})
+
+Tabs.Main7:AddButton({
+    Title="Lunor Hub",
+    Description="",
+    Callback=function()
+           loadstring(game:HttpGet('https://lunor.dev/loader'))()
+  end
+})
+
+Tabs.Main7:AddButton({
+    Title="Chilli Hub",
+    Description="",
+    Callback=function()
+           loadstring(game:HttpGet("https://raw.githubusercontent.com/tienkhanh1/spicy/main/Chilli.lua"))()
+  end
+})
+
+Tabs.Main7:AddButton({
+    Title="Pulsar X Hub",
+    Description="",
+    Callback=function()
+           loadstring(game:HttpGet("https://raw.githubusercontent.com/Estevansit0/KJJK/refs/heads/main/PusarX-loader.lua"))()
+  end
+})
+
+Tabs.Main7:AddButton({
+    Title="Av Hub",
+    Description="",
+    Callback=function()
+           loadstring(game:HttpGet("https://get-avth-ontop.netlify.app/my-paste/script.lua"))()
+  end
+})
+
+Tabs.Main7:AddButton({
+    Title="Makal Hub",
+    Description="",
+    Callback=function()
+           loadstring(game:HttpGet("https://raw.githubusercontent.com/DoliScriptz/loader/refs/heads/main/main.lua",true))()
+  end
+})
+
+Tabs.Main7:AddButton({
+    Title="Makal Hub (Finder)",
+    Description="",
+    Callback=function()
+           getgenv().Rarity = {
+    ["Brainrot God"] = {enabled = true},
+    ["Secret"] = {enabled = true},
+    ["Mythic"] = {enabled = false},
+    ["Legendary"] = {enabled = false},
+    ["Epic"] = {enabled = false},
+    ["Rare"] = {enabled = false},
+    ["Common"] = {enabled = false},
+}
+loadstring(game:HttpGet("https://raw.githubusercontent.com/DoliScriptz/loader/refs/heads/main/finder.txt"))()
+  end
+})
+
+Tabs.Main7:AddButton({
+    Title="Ajjan Hub",
+    Description="",
+    Callback=function()
+           loadstring(game:HttpGet("https://raw.githubusercontent.com/onliengamerop/Steal-a-brainrot/refs/heads/main/Protected_3771863424757750.lua.txt"))()
+  end
+})
+
 
 Tabs.Main8:AddButton({
     Title="Test UNC",
-    Description="press F9 To check console",
+    Description="press F9 To check unc on console(pc) (pe)type /console on chat",
     Callback=function()
            loadstring(game:HttpGet("https://raw.githubusercontent.com/unified-naming-convention/NamingStandard/main/UNCCheckEnv.lua", true))()
   end
