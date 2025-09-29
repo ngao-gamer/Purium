@@ -35,7 +35,7 @@ local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/
 repeat task.wait() until game:IsLoaded()
 
 local Window = Fluent:CreateWindow({
-    Title = "Purium Hub (Version : 1.0.0)",
+    Title = "Purium Hub (Version : 1.0.2)",
     SubTitle = "All in one",
     TabWidth = 157,
     Size = UDim2.fromOffset(450, 300),
@@ -74,6 +74,7 @@ Tabs.Main0:AddLabel({
 Tabs.Main0:AddLabel({
     -- Gộp Title và Content, thêm dấu xuống dòng để dễ đọc hơn trong code
     Title = "Update Log: " .. 
+            "+ I Recomand you dont use fisch script so much bc fisch's anti cheat is crazy " ..
             "+ Working Again " ..
             "+ Fixed Redz Hub " ..
             "- Remove Ice Hub ( Fisch ) " ..
@@ -110,7 +111,8 @@ Tabs.Main1:AddButton({
     Title="Blue X Hub",
     Description="",
     Callback=function()
-	  loadstring(game:HttpGet("https://raw.githubusercontent.com/Dev-BlueX/BlueX-Hub/refs/heads/main/Main.lua"))()
+	  _G.Team = "Pirates" -- Pirates/Marines
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Dev-BlueX/BlueX-Hub/refs/heads/main/Main.lua"))()
   end
 })
 
@@ -119,12 +121,7 @@ Tabs.Main1:AddButton({
     Title="Redz Hub (Maybe Working)",
     Description="GUESS WHO'S IS BACK 🗣️🔥",
     Callback=function()
-        local Settings = {
-            JoinTeam = "Pirates"; -- Pirates / Marines
-            Translator = true;   -- true / false
-        }
-        getgenv().BETA_VERSION = true
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/tlredz/Scripts/refs/heads/main/main.luau"))(Settings)
+    loadstring(game:HttpGet("https://pastefy.app/XMcjaaIS/raw"))()
     end
 })
 
@@ -232,8 +229,7 @@ Tabs.Main1:AddButton({
     Title="Hiru Hub",
     Description="",
     Callback=function()
-	  getgenv().Team = "Pirates"
-    getgenv().Settings = {
+getgenv().Settings = {
     JoinTeam = true,
     Team = "Marines"
 }
