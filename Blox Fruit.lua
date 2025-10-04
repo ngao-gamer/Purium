@@ -185,8 +185,8 @@ hookfunction(require(game:GetService("ReplicatedStorage").Effect.Container.Death
 hookfunction(require(game:GetService("ReplicatedStorage").Effect.Container.Respawn), function() end)
 local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
 Window = Fluent:CreateWindow({
-    Title = "HBelz Hub-Blox Fruits",
-    SubTitle="| HieuYeager", 
+    Title = "Purium Hub-Blox Fruits",
+    SubTitle="| nigga", 
     TabWidth=155, 
     Theme="Darker",
     Acrylic=false,
@@ -2715,7 +2715,7 @@ spawn(function()
                 local CFrameTarget = CFrame.new(BushPosition)
                 Tween2(CFrameTarget)
                 Fluent:Notify({
-                    Title = "HBelz Hub",
+                    Title = "Purium Hub",
                     Content = "Find Berry: " .. tostring(BerryName),
                     Duration = 10
                 })
@@ -4110,7 +4110,7 @@ local function createToggle(title, toggleKey, islands, islandName, notification)
             _G[toggleKey] = false
             if not notified then
                 Fluent:Notify({
-                    Title = "HBelz Hub",
+                    Title = "Purium Hub",
                     Content = notification,
                     Duration = 10
                 })
@@ -9330,7 +9330,7 @@ local notificationCooldown = 10
 local currentTime = tick()
 if currentTime - lastNotificationTime >= notificationCooldown then
     game.StarterGui:SetCore("SendNotification", {
-        Title = "HBelz Hub",
+        Title = "Purium Hub",
         Text = "Successfully",
         Duration = 1
     })
