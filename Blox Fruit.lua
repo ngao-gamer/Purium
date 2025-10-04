@@ -3604,7 +3604,7 @@ spawn(function()
             elseif string.len(game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("CakePrinceSpawner"))==86 then
                 Mob_Kill_Cake_Prince:SetDesc("Spawner: "..string.sub(game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("CakePrinceSpawner"),39,39).." ")
             else
-                Mob_Kill_Cake_Prince:SetDesc("Cake Prince : âœ…ï¸")
+                Mob_Kill_Cake_Prince:SetDesc("Cake Prince : ✅ Spawned")
             end
         end)
     end
@@ -3950,9 +3950,9 @@ local StatusKitsune = Tabs.Sea:AddParagraph({
 })
 function UpdateKitsune()
     if game.Workspace._WorldOrigin.Locations:FindFirstChild('Kitsune Island') then
-        StatusKitsune:SetDesc("Kitsune Island : âœ…ï¸")
+        StatusKitsune:SetDesc("Kitsune Island : ✅ Spawned")
     else
-        StatusKitsune:SetDesc("Kitsune Island : âŒï¸")
+        StatusKitsune:SetDesc("Kitsune Island : ❌ Not Spawn")
     end
 end
 spawn(function()
@@ -4586,9 +4586,9 @@ spawn(function()
         while wait() do
             pcall(function()
                 if game:GetService("ReplicatedStorage"):FindFirstChild("Diablo") or game:GetService("ReplicatedStorage"):FindFirstChild("Deandre") or game:GetService("ReplicatedStorage"):FindFirstChild("Urban") or game:GetService("Workspace").Enemies:FindFirstChild("Diablo") or game:GetService("Workspace").Enemies:FindFirstChild("Deandre") or game:GetService("Workspace").Enemies:FindFirstChild("Urban") then
-                    StatusElite:SetDesc("Elite Boss: âœ…ï¸ | Killed:  "..game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("EliteHunter","Progress"))    
+                    StatusElite:SetDesc("Elite Boss: ✅ Spawned | Killed:  "..game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("EliteHunter","Progress"))    
                 else
-                    StatusElite:SetDesc("Elite Boss: âŒï¸ | Killed: "..game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("EliteHunter","Progress"))    
+                    StatusElite:SetDesc("Elite Boss: ❌ Not Spawn | Killed: "..game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("EliteHunter","Progress"))    
                 end
             end)
         end
@@ -4669,9 +4669,9 @@ if Sea3 then
         while task.wait() do
             pcall(function()
                 if game.Workspace.Map:FindFirstChild("MysticIsland") then
-                    MirageStatus="âœ…ï¸"
+                    MirageStatus="✅ Spawned"
                 else
-                    MirageStatus="âŒï¸"
+                    MirageStatus="❌ Not Spawn"
                 end
             end)
         end
@@ -6486,7 +6486,7 @@ ToggleF:OnChanged(function(Value)
 Options.ToggleF:SetValue(true)
 local Usser = Tabs.Info:AddParagraph({
     Title="Status",
-    Content="â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”\n"..
+    Content="═══════════════════════════════════════════════════════════════\n"..
         "Name : "..game.Players.LocalPlayer.DisplayName.." (@"..game.Players.LocalPlayer.Name..")\n"..
         "Levels : "..game:GetService("Players").LocalPlayer.Data.Level.Value.."\n"..
         "Money : "..game:GetService("Players").LocalPlayer.Data.Beli.Value.."\n"..
@@ -6496,7 +6496,7 @@ local Usser = Tabs.Info:AddParagraph({
         "Energy : "..game.Players.LocalPlayer.Character.Energy.Value.."/"..game.Players.LocalPlayer.Character.Energy.MaxValue.."\n"..
         "Race : "..game:GetService("Players").LocalPlayer.Data.Race.Value.."\n"..
         "Devil Fruit : "..game:GetService("Players").LocalPlayer.Data.DevilFruit.Value.."\n"..
-        "â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”â”"
+        "═══════════════════════════════════════════════════════════════════"
 })
 local Time = Tabs.Status:AddParagraph({
     Title="Time",
@@ -6551,9 +6551,9 @@ spawn(function()
 pcall(function()
     while wait() do
         if game:GetService("Workspace").Map:FindFirstChild("FrozenDimension") then
-            FrozenIsland:SetDesc('âœ…')
+            FrozenIsland:SetDesc('✅')
         else
-            FrozenIsland:SetDesc('âŒ')
+            FrozenIsland:SetDesc('❌')
         end
     end
 end)
@@ -7784,7 +7784,7 @@ spawn(function()
         end
     end
 end)
-local ToggleAwake = Tabs.Raid:AddToggle("ToggleAwake", {Title="Thá»©c Tá»‰nh",Description="", Default=false })
+local ToggleAwake = Tabs.Raid:AddToggle("ToggleAwake", {Title="Awakening",Description="", Default=false })
 ToggleAwake:OnChanged(function(Value)
     AutoAwakenAbilities=Value
 end)
@@ -9062,9 +9062,9 @@ spawn(function()
     pcall(function()
         while wait() do
             if game:GetService("Workspace").Map:FindFirstChild("PrehistoricIsland") then
-                Prehistoric:SetDesc("Volcano Island: âœ…ï¸")
+                Prehistoric:SetDesc("Volcano Island: ✅ Spawned")
             else
-                Prehistoric:SetDesc("Volcano Island: âŒï¸")
+                Prehistoric:SetDesc("Volcano Island: ❌ Not Spawn")
             end
         end
     end)
