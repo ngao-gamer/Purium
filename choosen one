@@ -1,0 +1,32 @@
+-- 2. NÚT Blox Fruit (old) - Tự động đóng UI
+Tabs.Main1:AddButton({
+    Title="Purium blox fruit (old)",
+    Description="",
+    Callback=function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/ngao-gamer/Purium/refs/heads/main/frrr%20old"))()
+        -- Tự động đóng/ẩn Hub chính
+        if Window then Window:ToggleVisibility() end 
+    end
+})
+
+-- 3. NÚT Blox Fruit (new) - Tự động đóng UI
+Tabs.Main1:AddButton({
+    Title="Purium blox fruit(new)",
+    Description="",
+    Callback=function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/ngao-gamer/Purium/refs/heads/main/Blox%20Fruit.lua"))()
+        -- Tự động đóng/ẩn Hub chính
+        if Window then Window:ToggleVisibility() end 
+    end
+})
+
+-- 4. NÚT All in one - Tự động đóng UI
+Tabs.Main1:AddButton({
+    Title="Purium all in one",
+    Description="",
+    Callback=function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/ngao-gamer/Purium/refs/heads/main/all-in-one.lua"))()
+        -- Tự động đóng/ẩn Hub chính
+        if Window then Window:ToggleVisibility() end 
+    end
+})
