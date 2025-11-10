@@ -3904,7 +3904,6 @@ ElementsTable.Toggle = (function()
 
 	return Element
 end)()
--- tạo dropdown
 ElementsTable.Dropdown = (function()
 	local Element = {}
 	Element.__index = Element
@@ -4019,63 +4018,58 @@ ElementsTable.Dropdown = (function()
 			SearchBar = New("Frame", {
 				Size = UDim2.new(1, -10, 0, 28),
 				Position = UDim2.fromOffset(5, 5),
-				BackgroundTransparency = 0.15,
-				ThemeTag = { BackgroundColor3 = "DropdownFrame" },
+				BackgroundTransparency = 0.7,
+				BackgroundColor3 = Color3.fromRGB(20, 20, 20),
+				ThemeTag = { BackgroundColor3 = "Element" },
 				ZIndex = 24,
 			}, {
-				New("UICorner", { CornerRadius = UDim.new(0, 8) }),
-				New("UIStroke", { Name = "Stroke", Transparency = 0.45, ApplyStrokeMode = Enum.ApplyStrokeMode.Border, ThemeTag = { Color = "DropdownBorder" } }),
-				New("ImageLabel", {
-					Image = "rbxassetid://10734943674",
-					BackgroundTransparency = 1,
-					Size = UDim2.fromOffset(16, 16),
-					Position = UDim2.fromOffset(8, 6),
-					ZIndex = 25,
-					ThemeTag = { ImageColor3 = "SubText" },
-				}),
+				New("UICorner", { CornerRadius = UDim.new(0, 4) }),
 			})
 
 			SearchBox = New("TextBox", {
-				PlaceholderText = "Search",
+				FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json"),
+				TextColor3 = Color3.fromRGB(200, 200, 200),
+				TextSize = 13,
+				TextXAlignment = Enum.TextXAlignment.Left,
+				TextYAlignment = Enum.TextYAlignment.Center,
+				BackgroundTransparency = 1,
+				Size = UDim2.new(1, -36, 1, 0),
+				Position = UDim2.new(0, 8, 0, 0),
+				PlaceholderText = "Search...",
+				PlaceholderColor3 = Color3.fromRGB(120, 120, 120),
 				ClearTextOnFocus = false,
 				Text = "",
-				TextSize = 14,
-				FontFace = Font.new("rbxasset://fonts/families/GothamSSm.json", Enum.FontWeight.Medium, Enum.FontStyle.Normal),
-				TextXAlignment = Enum.TextXAlignment.Left,
-				TextColor3 = Color3.fromRGB(225, 225, 225),
-				TextTransparency = 0.05,
-				BackgroundTransparency = 1,
-				ThemeTag = { TextColor3 = "SubText", PlaceholderColor3 = "SubText" },
 				Parent = SearchBar,
-				Size = UDim2.new(1, -34, 1, 0),
-				Position = UDim2.fromOffset(28, 0),
+				ThemeTag = {
+					TextColor3 = "Text",
+					PlaceholderColor3 = "SubText",
+				},
 				ZIndex = 24,
 			})
 
-			local SearchStroke = SearchBar:FindFirstChild("Stroke")
-			Creator.AddSignal(SearchBox.Focused, function()
-				Creator.OverrideTag(SearchBar, { BackgroundColor3 = "DropdownFrame" })
-				if SearchStroke then
-					Creator.OverrideTag(SearchStroke, { Color = "Accent" })
-					SearchStroke.Transparency = 0.25
-				end
-			end)
-			Creator.AddSignal(SearchBox.FocusLost, function()
-				Creator.OverrideTag(SearchBar, { BackgroundColor3 = "DropdownFrame" })
-				if SearchStroke then
-					Creator.OverrideTag(SearchStroke, { Color = "DropdownBorder" })
-					SearchStroke.Transparency = 0.45
-				end
-			end)
+			local SearchIcon = New("ImageLabel", {
+				Size = UDim2.fromOffset(16, 16),
+				Position = UDim2.new(1, -13, 0.5, 0),
+				AnchorPoint = Vector2.new(0.5, 0.5),
+				BackgroundTransparency = 1,
+				Image = "rbxassetid://10734943674",
+				Parent = SearchBar,
+				ImageTransparency = 0.3,
+				ZIndex = 25,
+				ThemeTag = {
+					ImageColor3 = "SubText",
+				},
+			})
 
 			DropdownScrollFrame.Position = UDim2.fromOffset(5, 38)
 			DropdownScrollFrame.Size = UDim2.new(1, -5, 1, -43)
 
 			local filterToken = 0
 			local function ApplyFilter()
-				filterToken += 1
+				filterToken = filterToken + 1
 				local myToken = filterToken
-				task.delay(0.03, function()
+				task.spawn(function()
+					task.wait(0.01)
 					if myToken ~= filterToken then return end
 					local text = (SearchBox.Text or ""):lower()
 					for _, element in next, DropdownScrollFrame:GetChildren() do
@@ -4084,8 +4078,12 @@ ElementsTable.Dropdown = (function()
 							element.Visible = text == "" or value:lower():find(text, 1, true) ~= nil
 						end
 					end
+					task.wait()
 					RecalculateCanvasSize()
+					task.wait()
 					RecalculateListSize()
+					task.wait()
+					RecalculateListPosition()
 				end)
 			end
 
@@ -4135,29 +4133,56 @@ ElementsTable.Dropdown = (function()
 		table.insert(Library.OpenFrames, DropdownHolderCanvas)
 
 		local function RecalculateListPosition()
-			local Add = -40
-			if Camera.ViewportSize.Y - DropdownInner.AbsolutePosition.Y < DropdownHolderCanvas.AbsoluteSize.Y - 5 then
-				Add = DropdownHolderCanvas.AbsoluteSize.Y
-				- 5
-				- (Camera.ViewportSize.Y - DropdownInner.AbsolutePosition.Y)
-					+ 40
+			if not DropdownHolderCanvas or not DropdownInner then return end
+			
+			local dropdownY = DropdownInner.AbsolutePosition.Y
+			local dropdownHeight = DropdownInner.AbsoluteSize.Y
+			local canvasHeight = DropdownHolderCanvas.AbsoluteSize.Y
+			local viewportHeight = Camera.ViewportSize.Y
+			
+			local spaceBelow = viewportHeight - (dropdownY + dropdownHeight)
+			local spaceAbove = dropdownY
+			
+			local targetY
+			if canvasHeight <= spaceBelow then
+				targetY = dropdownY + dropdownHeight + 5
+			elseif canvasHeight <= spaceAbove then
+				targetY = dropdownY - canvasHeight - 5
+			else
+				if spaceBelow > spaceAbove then
+					targetY = dropdownY + dropdownHeight + 5
+				else
+					targetY = math.max(5, dropdownY - canvasHeight - 5)
+				end
 			end
-			DropdownHolderCanvas.Position =
-				UDim2.fromOffset(DropdownInner.AbsolutePosition.X - 1, DropdownInner.AbsolutePosition.Y - 5 - Add)
+			
+			DropdownHolderCanvas.Position = UDim2.fromOffset(DropdownInner.AbsolutePosition.X - 1, targetY)
 		end
 
 		local ListSizeX = 0
 		local function RecalculateListSize()
-			local totalCount = #Dropdown.Values
+			if not DropdownHolderCanvas or not DropdownHolderFrame then return end
+			
+			local visibleCount = 0
+			for _, element in next, DropdownScrollFrame:GetChildren() do
+				if not element:IsA("UIListLayout") and element.Visible then
+					visibleCount = visibleCount + 1
+				end
+			end
+			
 			local itemHeight = 32
 			local padding = 3
+			local searchHeight = Dropdown.Search and 38 or 0
 			local innerMargins = 10
-			local estimatedContent = (totalCount > 0) and (totalCount * itemHeight + (totalCount - 1) * padding + innerMargins) or innerMargins
+			local estimatedContent = (visibleCount > 0) and (visibleCount * itemHeight + (visibleCount - 1) * padding + innerMargins + searchHeight) or (innerMargins + searchHeight)
 			local maxHeight = 392
-			local many = totalCount > 10
 			local targetHeight = math.min(estimatedContent, maxHeight)
-			DropdownHolderCanvas.Size = UDim2.fromOffset(ListSizeX, targetHeight)
-			DropdownHolderFrame.Size = UDim2.fromScale(1, many and 0.6 or 1)
+			
+			local canvasWidth = math.max(170, ListSizeX > 0 and (ListSizeX + 20) or 170)
+			DropdownHolderCanvas.Size = UDim2.fromOffset(canvasWidth, targetHeight)
+			
+			local many = visibleCount > 10
+			DropdownHolderFrame.Size = UDim2.fromScale(1, many and (targetHeight / math.max(targetHeight, 1)) or 1)
 		end
 
 		local function RecalculateCanvasSize()
@@ -4171,12 +4196,15 @@ ElementsTable.Dropdown = (function()
 		Creator.AddSignal(DropdownInner:GetPropertyChangedSignal("AbsolutePosition"), RecalculateListPosition)
 		Creator.AddSignal(DropdownListLayout:GetPropertyChangedSignal("AbsoluteContentSize"), function()
 			RecalculateCanvasSize()
+			task.wait()
 			RecalculateListSize()
+			task.wait()
+			RecalculateListPosition()
 		end)
 
 		Creator.AddSignal(DropdownInner.MouseButton1Click, function()
 			if Dropdown.Opened then
-				xeClose()
+				Dropdown:Close()
 				return
 			end
 			Dropdown:Open()
@@ -4202,57 +4230,22 @@ ElementsTable.Dropdown = (function()
 			RecalculateListSize()
 		end)
 
--- Phần Dropdown
-
-Creator.AddSignal(UserInputService.InputBegan, function(Input)
-	if
-		Input.UserInputType == Enum.UserInputType.MouseButton1
-		or Input.UserInputType == Enum.UserInputType.Touch
-	then
-		local AbsPos, AbsSize = DropdownHolderFrame.AbsolutePosition, DropdownHolderFrame.AbsoluteSize
-		if
-			Mouse.X < AbsPos.X
-			or Mouse.X > AbsPos.X + AbsSize.X
-			or Mouse.Y < (AbsPos.Y - 20 - 1)
-			or Mouse.Y > AbsPos.Y + AbsSize.Y
-		then
-			Dropdown:Close()
-		end
-	end
-end)
-
--- 🧩 FIX lỗi dropdown bị che và không hiển thị danh sách nhỏ
-function Dropdown:Open()
-	if self.Opened then return end
-	self.Opened = true
-
-	-- 🔧 Lấy số lượng item để điều chỉnh chiều cao hiển thị
-	local itemCount = #self.Values
-	local maxVisible = 5             -- hiển thị tối đa 5 item
-	local minVisible = 3             -- tối thiểu vẫn để 3 dòng để không bị che
-	local itemHeight = 20            -- chiều cao mỗi item
-	local searchBarHeight = 28       -- chiều cao ô tìm kiếm
-	local padding = 6                -- thêm padding cho thoáng
-
-	-- 🔧 Cập nhật kích thước khung chứa dropdown
-	local visibleCount = math.clamp(itemCount, minVisible, maxVisible)
-	local totalHeight = (visibleCount * itemHeight) + searchBarHeight + padding
-
-	DropdownHolderFrame.Size = UDim2.new(1, 0, 0, totalHeight)
-
-	-- 🔧 Nếu có ScrollingFrame thì set CanvasSize để tránh bị che
-	local scrollFrame = DropdownHolderFrame:FindFirstChild("ScrollingFrame")
-	if scrollFrame then
-		scrollFrame.AutomaticSize = Enum.AutomaticSize.Y
-		scrollFrame.AutomaticCanvasSize = Enum.AutomaticSize.Y
-		scrollFrame.CanvasSize = UDim2.new(0, 0, 0, itemCount * itemHeight)
-	end
-
-	-- 🔧 Hiển thị dropdown (nếu có hiệu ứng)
-	DropdownHolderFrame.Visible = true
-end
-
--- Phần Khác
+		Creator.AddSignal(UserInputService.InputBegan, function(Input)
+			if
+				Input.UserInputType == Enum.UserInputType.MouseButton1
+				or Input.UserInputType == Enum.UserInputType.Touch
+			then
+				local AbsPos, AbsSize = DropdownHolderFrame.AbsolutePosition, DropdownHolderFrame.AbsoluteSize
+				if
+					Mouse.X < AbsPos.X
+					or Mouse.X > AbsPos.X + AbsSize.X
+					or Mouse.Y < (AbsPos.Y - 20 - 1)
+					or Mouse.Y > AbsPos.Y + AbsSize.Y
+				then
+					Dropdown:Close()
+				end
+			end
+		end)
 
 		local ScrollFrame = self.ScrollFrame
 		function Dropdown:Open()
@@ -4266,10 +4259,14 @@ end
 				SearchBox.Text = ""
 			end
 			DropdownHolderCanvas.Visible = true
+			RecalculateListPosition()
+			RecalculateListSize()
+			RecalculateCanvasSize()
+			task.wait()
 			TweenService:Create(
 				DropdownHolderFrame,
 				TweenInfo.new(0.3, Enum.EasingStyle.Quart, Enum.EasingDirection.Out),
-				{ Size = UDim2.fromScale(1, 0.6) }
+				{ Size = UDim2.fromScale(1, 1) }
 			):Play()
 			TweenService:Create(
 				DropdownIco,
@@ -4280,7 +4277,7 @@ end
 
 		function Dropdown:Close()
 			Dropdown.Opened = false
-			DropdownHolderFrame.Size = UDim2.fromScale(1, 0.6)
+			DropdownHolderFrame.Size = UDim2.fromScale(1, 1)
 			DropdownHolderCanvas.Visible = false
 			TweenService:Create(
 				DropdownIco,
@@ -4479,12 +4476,13 @@ end
 			ListSizeX = 0
 			for Button, Table in next, Buttons do
 				if Button.ButtonLabel then
-					if Button.ButtonLabel.TextBounds.X > ListSizeX then
-						ListSizeX = Button.ButtonLabel.TextBounds.X
+					local textSize = Button.ButtonLabel.TextBounds.X
+					if textSize > ListSizeX then
+						ListSizeX = textSize
 					end
 				end
 			end
-			ListSizeX = ListSizeX + 30
+			ListSizeX = math.max(150, ListSizeX + 40)
 
 			RecalculateCanvasSize()
 			RecalculateListSize()
