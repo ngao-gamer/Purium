@@ -1,16 +1,3 @@
---[[
-
- _   _    _   _   _____     _       ___     _   _   _   _   ____   
-| | | |  | | | | |_   _|   / \     / _ \   | | | | | | | | | __ )  
-| |_| |  | | | |   | |    / _ \   | | | |  | |_| | | | | | |  _ \  
-|  _  |  | | | |   | |   / ___ \  | |_| |  |  _  | | |_| | | |_) | 
-\_| |_/   \___/    \_/  /_/   \_\  \___/   \_| |_/  \___/  |____/
-
-                        Hutao Hub
-]]
-
----------------------------------------------------------------------------------
-
 local Fluent = loadstring(game:HttpGet("https://raw.githubusercontent.com/dataidaphuc/S/refs/heads/main/Hu1a0Gui-V2.lua"))()
 local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
 local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
