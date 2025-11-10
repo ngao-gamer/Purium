@@ -42,70 +42,6 @@ Tabs.Main0:AddParagraph({
     Content = "Note : Thank You For Using My Script :D !!",
 })
 
-local RunService = game:GetService("RunService")
-
-Tabs.Main0:AddToggle("AntiFPSSpike", {
-    Title = "Unlock FPS V2",
-    Default = false
-}):OnChanged(function(Value)
-    _G.AntiFPSSpike = Value
-
-    if Value then
-        warn("[Anti-FPS Spike] ✅ Hệ thống cưỡng chế FPS = 60 đã bật.")
-
-        task.spawn(function()
-            local FORCE_FPS = 60          -- Luôn giữ 60 FPS
-            local SPIKE_THRESHOLD = 120   -- Nếu FPS vượt ngưỡng này thì chống spike
-            local MONITOR_INTERVAL = 1    -- Kiểm tra mỗi 1 giây
-
-            local frameCount = 0
-            local fps = 60
-
-            -- Hàm cưỡng chế FPS
-            local function forceCap()
-                if typeof(setfpscap) == "function" then
-                    setfpscap(FORCE_FPS)
-                end
-            end
-
-            -- Khóa ban đầu
-            forceCap()
-
-            -- Đếm FPS thực tế
-            RunService.RenderStepped:Connect(function()
-                if not _G.AntiFPSSpike then return end
-                frameCount += 1
-            end)
-
-            while _G.AntiFPSSpike and task.wait(MONITOR_INTERVAL) do
-                fps = frameCount / MONITOR_INTERVAL
-                frameCount = 0
-
-                -- Phát hiện FPS tăng bất thường
-                if fps > SPIKE_THRESHOLD then
-                    warn(string.format("[⚠️ Anti-FPS Spike]: FPS tăng bất thường (%d) → ổn định lại!", math.floor(fps)))
-                    forceCap()
-                    task.wait(0.5)
-                end
-
-                -- Bảo vệ tránh script khác đổi cap
-                if typeof(getfpscap) == "function" then
-                    local currentCap = getfpscap()
-                    if currentCap ~= FORCE_FPS then
-                        warn("[Anti-FPS Spike]: Phát hiện thay đổi FPS cap ngoài ý muốn → ép lại 60FPS.")
-                        forceCap()
-                    end
-                end
-            end
-
-            warn("[Anti-FPS Spike] ⛔ Hệ thống cưỡng chế FPS đã tắt.")
-        end)
-    else
-        warn("[Anti-FPS Spike] ❌ Đã tắt.")
-    end
-end)
-
-
 Tabs.Main0:AddButton({
     Title = "Discord",
     Description = "Join Ours discord for support",
@@ -988,7 +924,68 @@ local Minimizer = Fluent:CreateMinimizer({
     Draggable = true,
     Visible = true
 })
+local RunService = game:GetService("RunService")
 
+Tabs.Main0:AddToggle("AntiFPSSpike", {
+    Title = "Unlock FPS V2",
+    Default = false
+}):OnChanged(function(Value)
+    _G.AntiFPSSpike = Value
+
+    if Value then
+        warn("[Anti-FPS Spike] ✅ Hệ thống cưỡng chế FPS = 60 đã bật.")
+
+        task.spawn(function()
+            local FORCE_FPS = 60          -- Luôn giữ 60 FPS
+            local SPIKE_THRESHOLD = 120   -- Nếu FPS vượt ngưỡng này thì chống spike
+            local MONITOR_INTERVAL = 1    -- Kiểm tra mỗi 1 giây
+
+            local frameCount = 0
+            local fps = 60
+
+            -- Hàm cưỡng chế FPS
+            local function forceCap()
+                if typeof(setfpscap) == "function" then
+                    setfpscap(FORCE_FPS)
+                end
+            end
+
+            -- Khóa ban đầu
+            forceCap()
+
+            -- Đếm FPS thực tế
+            RunService.RenderStepped:Connect(function()
+                if not _G.AntiFPSSpike then return end
+                frameCount += 1
+            end)
+
+            while _G.AntiFPSSpike and task.wait(MONITOR_INTERVAL) do
+                fps = frameCount / MONITOR_INTERVAL
+                frameCount = 0
+
+                -- Phát hiện FPS tăng bất thường
+                if fps > SPIKE_THRESHOLD then
+                    warn(string.format("[⚠️ Anti-FPS Spike]: FPS tăng bất thường (%d) → ổn định lại!", math.floor(fps)))
+                    forceCap()
+                    task.wait(0.5)
+                end
+
+                -- Bảo vệ tránh script khác đổi cap
+                if typeof(getfpscap) == "function" then
+                    local currentCap = getfpscap()
+                    if currentCap ~= FORCE_FPS then
+                        warn("[Anti-FPS Spike]: Phát hiện thay đổi FPS cap ngoài ý muốn → ép lại 60FPS.")
+                        forceCap()
+                    end
+                end
+            end
+
+            warn("[Anti-FPS Spike] ⛔ Hệ thống cưỡng chế FPS đã tắt.")
+        end)
+    else
+        warn("[Anti-FPS Spike] ❌ Đã tắt.")
+    end
+end)
 
 --// FPS + Ping Display (Safe BillboardGui Version)
 local RunService = game:GetService("RunService")
