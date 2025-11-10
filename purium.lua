@@ -52,9 +52,9 @@ InterfaceManager:BuildInterfaceSection(Tabs.Settings)
 SaveManager:BuildConfigSection(Tabs.Settings)
 
 -- Select First Tab By Default
-Window:SelectTab(1)
+Window:SelectTab(0)
 
-Fluent:Notify({ Title = "Purium HUB", Content = "Universal script loaded successfully!", Duration = 5 })
+Fluent:Notify({ Title = "Purium HUB", Content = "Universal script loaded successfully!", Duration = 3.5 })
 SaveManager:LoadAutoloadConfig()
 
 
@@ -1212,3 +1212,4 @@ Tabs.Main12:AddButton({
 Tabs.Main13:AddParagraph({
     Title = "More Support will comming soon !",
 })
+
