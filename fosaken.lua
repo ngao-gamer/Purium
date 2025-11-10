@@ -1,1438 +1,7020 @@
-local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-local Workspace = game:GetService("Workspace")
-local Lighting = game:GetService("Lighting")
-local RunService = game:GetService("RunService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
+--[[
 
-local Window = WindUI:CreateWindow({
-    Folder = "Purium Hub",
-    Title = "Purium Forsaken",
-    Icon = "star",
-    Author = "hlcgay",
+ _   _    _   _   _____     _       ___     _   _   _   _   ____   
+| | | |  | | | | |_   _|   / \     / _ \   | | | | | | | | | __ )  
+| |_| |  | | | |   | |    / _ \   | | | |  | |_| | | | | | |  _ \  
+|  _  |  | | | |   | |   / ___ \  | |_| |  |  _  | | |_| | | |_) | 
+\_| |_/   \___/    \_/  /_/   \_\  \___/   \_| |_/  \___/  |____/
+
+                        Hutao Hub
+]]
+
+---------------------------------------------------------------------------------
+
+local Fluent = loadstring(game:HttpGet("https://raw.githubusercontent.com/dataidaphuc/S/refs/heads/main/Hu1a0Gui-V2.lua"))()
+local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
+local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
+
+-- Tạo cửa sổ Fluent chính
+local Window = Fluent:CreateWindow({
+    Title = "Hutao Hub [Premium] | Forsaken |",
+    SubTitle = "Version 5.3.0",
+    Search = true,
+    Icon = "rbxassetid://121302760641013",
+    TabWidth = 160,
+    Size = UDim2.fromOffset(480, 360),
+    Acrylic = true,
     Theme = "Dark",
-    Size = UDim2.fromOffset(500, 420),
-    HasOutline = true,
+    MinimizeKey = Enum.KeyCode.RightAlt,
+
+    UserInfo = true,
+    UserInfoTop = false,
+    UserInfoTitle = game:GetService("Players").LocalPlayer.DisplayName,
+    UserInfoSubtitle = "I Love Hutao",
+    UserInfoSubtitleColor = Color3.fromRGB(71, 123, 255)
 })
 
-Window:EditOpenButton({
-    Title = "Open",
-    Icon = "monitor",
-    CornerRadius = UDim.new(0, 6),
-    StrokeThickness = 2,
-    Color = ColorSequence.new(Color3.fromRGB(30, 30, 30), Color3.fromRGB(255, 255, 255)),
-    Draggable = true,
-})
-
+-- Tabs
 local Tabs = {
-    Stamina_Settings = Window:Tab({ Title = "Stamina Cheat", Icon = "footprints" }),
-    Esp = Window:Tab({ Title = "Esp", Icon = "eye" }),
-    AutoBlock = Window:Tab({ Title = "Auto Block", Icon = "shield" }),
-    Misc = Window:Tab({ Title = "Misc", Icon = "gift" }),
-    Auto_Stun = Window:Tab({ Title = "Auto_Stun", Icon = "spline-pointer" }),
-    Random = Window:Tab({ Title = "Random", Icon = "crosshair" }),
-    Hitbox_expander = Window:Tab({ Title = "Hitbox_expander", Icon = "target" }),
-    Generator = Window:Tab({ Title = "Generator", Icon = "battery-charging" }),
-    Teleport = Window:Tab({Title = "Teleport", Icon = "cable" }),
-    Credits = Window:Tab({ Title = "Credits", Icon = "award" })
+    Dev = Window:AddTab({ Title = "About", Icon = "info" }),
+    Farm = Window:AddTab({ Title = "Farm", Icon = "box" }),
+    Main = Window:AddTab({ Title = "Main", Icon = "home" }),
+    Event = Window:AddTab({ Title = "Event", Icon = "bell" }),
+    Custom = Window:AddTab({ Title = "Custom", Icon = "brush" }),
+    Player = Window:AddTab({ Title = "Player", Icon = "user" }),
+    Visual = Window:AddTab({ Title = "Visual", Icon = "eye" }),
+    Misc = Window:AddTab({ Title = "Misc", Icon = "menu" }),
+    Settings = Window:AddTab({ Title = "Settings", Icon = "settings" }),
 }
 
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-local sprintModule = require(game.ReplicatedStorage.Systems.Character.Game.Sprinting)
+-- Phần Logic Chính
 
--- сохраняем стандартные значения
-local defaultMaxStamina = sprintModule.MaxStamina
-local defaultSprintSpeed = sprintModule.SprintSpeed
-local defaultStaminaGain = sprintModule.StaminaGain
-local defaultStaminaDrain = sprintModule.StaminaDrain or 1
-local defaultRegenDelay = sprintModule.StaminaRegenDelay or 0.5
+--// ⚙️ ESPManager v2.7 (Auto-Restore + Debounce 0.5s)
+--// Tự thêm lại khi model biến mất/hiện, chết/hồi sinh, GUI/HL mất, với debounce 0.5s để tránh lag
 
--- текущие значения
-local maxStaminaValue = sprintModule.MaxStamina
-local sprintSpeedValue = sprintModule.SprintSpeed
-local staminaGainValue = sprintModule.StaminaGain
-local staminaDrainValue = sprintModule.StaminaDrain or 1
-local regenDelayValue = sprintModule.StaminaRegenDelay or 0.5
+local RunService = game:GetService("RunService")
+local Camera = workspace.CurrentCamera
 
--- Infinity Stamina
-local infinityStaminaActive = false
-local staminaThread = nil
+local ESPManager = {
+    ActiveTypes = {},    -- ["Player"] = true
+    Objects = {},        -- [model] = { type, gui, hl, label, conns = {} }
+    Filters = {},        -- filterFn
+    Colors = {},         -- typeColor
+    Watchers = {},       -- connection table
+    ShowHP = {},         -- typeName -> boolean
+    _pendingCreate = {}, -- [model] = true (debounce)
+}
 
-local function EnableInfinityStamina()
-    infinityStaminaActive = true
-    staminaThread = task.spawn(function()
-        while infinityStaminaActive do
-            task.wait(0.005)
-            sprintModule.MaxStamina = maxStaminaValue
-            sprintModule.SprintSpeed = sprintSpeedValue
-            sprintModule.StaminaGain = staminaGainValue
-            sprintModule.StaminaDrain = staminaDrainValue
-            sprintModule.StaminaRegenDelay = regenDelayValue
-            sprintModule.Stamina = sprintModule.MaxStamina
+-- Helper: safe find primary part
+local function getPrimaryPart(model)
+    if not model then return nil end
+    local p = model:FindFirstChild("HumanoidRootPart") or model:FindFirstChildWhichIsA("BasePart")
+    return p
+end
+
+-- 🧩 Đăng ký loại ESP
+function ESPManager:RegisterType(name, color, filterFn, showHP)
+    self.Filters[name] = filterFn
+    self.Colors[name] = color
+    self.ShowHP[name] = showHP or false
+    self.ActiveTypes[name] = false
+end
+
+-- internal: disconnect connections table
+local function disconnectConns(tbl)
+    if not tbl then return end
+    for _, c in pairs(tbl) do
+        if c and typeof(c.Disconnect) == "function" then
+            pcall(function() c:Disconnect() end)
         end
+    end
+end
+
+-- 🧱 Tạo ESP (không debounce) - gọi an toàn bên trong task.delay khi cần
+function ESPManager:_CreateImmediate(model, typeName)
+    if not model or not model.Parent then return end
+    if ESPManager.Objects[model] then
+        -- nếu tồn tại nhưng bị hỏng phần gui/hl thì dọn trước
+        local existing = ESPManager.Objects[model]
+        if existing.gui and existing.gui.Parent and existing.hl and existing.hl.Parent then
+            return -- đã ok rồi
+        else
+            ESPManager:Remove(model)
+        end
+    end
+
+    local color = ESPManager.Colors[typeName]
+    local part = getPrimaryPart(model)
+    if not part then return end
+
+    -- Billboard
+    local billboard = Instance.new("BillboardGui")
+    billboard.Name = "ESP_" .. typeName
+    billboard.Size = UDim2.new(0, 180, 0, 35)
+    billboard.AlwaysOnTop = true
+    billboard.StudsOffset = Vector3.new(0, 3, 0)
+    billboard.MaxDistance = 600
+    billboard.Parent = part
+
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(1, 0, 1, 0)
+    label.BackgroundTransparency = 1
+    label.TextColor3 = color
+    label.TextStrokeTransparency = 0.3
+    label.Font = Enum.Font.GothamBold
+    label.TextSize = 16
+    label.Text = model.Name
+    label.Parent = billboard
+
+    -- Highlight
+    local hl = Instance.new("Highlight")
+    hl.Adornee = model
+    hl.FillColor = color
+    hl.OutlineColor = color
+    hl.FillTransparency = 0.7
+    hl.OutlineTransparency = 0
+    hl.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    hl.Enabled = true
+    hl.Parent = model
+
+    -- Kết nối model-level watchers (để tự phục hồi khi parent thay đổi / respawn / humanoid died)
+    local conns = {}
+
+    -- nếu model bị reparent / removed -> schedule recreate (debounced)
+    table.insert(conns, model.AncestryChanged:Connect(function(_, parent)
+        -- nếu model không còn trong workspace, xóa ESP
+        if not model:IsDescendantOf(workspace) then
+            -- xóa ngay (không recreate khi user tắt loại)
+            if ESPManager.Objects[model] and ESPManager.Objects[model].type == typeName then
+                ESPManager:Remove(model)
+            end
+            return
+        end
+        -- nếu trở lại workspace -> debounce tạo lại
+        if ESPManager.ActiveTypes[typeName] and ESPManager.Filters[typeName](model) then
+            ESPManager:_ScheduleCreate(model, typeName)
+        end
+    end))
+
+    -- watch humanoid death & respawn
+    local function watchHumanoid(hum)
+        if not hum then return end
+        -- Died -> remove, rồi chờ humanoid mới
+        table.insert(conns, hum.Died:Connect(function()
+            if ESPManager.Objects[model] and ESPManager.Objects[model].type == typeName then
+                ESPManager:Remove(model)
+            end
+            -- chờ humanoid mới xuất hiện (ChildAdded)
+            -- scheduled create sẽ handle khi Humanoid xuất hiện
+        end))
+    end
+
+    -- nếu đã có humanoid, watch nó
+    watchHumanoid(model:FindFirstChildOfClass("Humanoid"))
+
+    -- listen ChildAdded để detect humanoid respawn
+    table.insert(conns, model.ChildAdded:Connect(function(child)
+        if child and child:IsA("Humanoid") then
+            -- humanoid mới -> schedule create
+            watchHumanoid(child)
+            if ESPManager.ActiveTypes[typeName] and ESPManager.Filters[typeName](model) then
+                ESPManager:_ScheduleCreate(model, typeName)
+            end
+        end
+        -- nếu PrimaryPart xuất hiện muộn cũng schedule create
+        if (child:IsA("BasePart") or child:IsA("Model")) and ESPManager.ActiveTypes[typeName] and ESPManager.Filters[typeName](model) then
+            -- primary part may appear later
+            ESPManager:_ScheduleCreate(model, typeName)
+        end
+    end))
+
+    ESPManager.Objects[model] = {
+        type = typeName,
+        gui = billboard,
+        label = label,
+        hl = hl,
+        conns = conns,
+    }
+end
+
+-- 🧱 Public Create (debounced wrapper)
+function ESPManager:_ScheduleCreate(model, typeName)
+    if not model or not typeName then return end
+    -- nếu loại đang tắt thì không schedule
+    if not ESPManager.ActiveTypes[typeName] then return end
+    -- tránh schedule nhiều lần
+    if ESPManager._pendingCreate[model] then return end
+    ESPManager._pendingCreate[model] = true
+
+    -- dùng task.delay 0.5 để debounce, tránh spam tạo khi model đang mid-update
+    task.delay(0.5, function()
+        pcall(function()
+            ESPManager._pendingCreate[model] = nil
+            -- double-check điều kiện
+            if not model or not model.Parent then return end
+            local filterFn = ESPManager.Filters[typeName]
+            if not filterFn or not filterFn(model) then return end
+            -- call immediate create (safe)
+            ESPManager:_CreateImmediate(model, typeName)
+        end)
     end)
 end
 
-local function DisableInfinityStamina()
-    infinityStaminaActive = false
-    if staminaThread then
-        task.cancel(staminaThread)
-        staminaThread = nil
+-- 🧹 Xoá ESP
+function ESPManager:Remove(model)
+    local data = self.Objects[model]
+    if not data then return end
+
+    -- disconnect model connections
+    if data.conns then
+        disconnectConns(data.conns)
     end
+
+    pcall(function() if data.gui then data.gui:Destroy() end end)
+    pcall(function() if data.hl then data.hl:Destroy() end end)
+    self.Objects[model] = nil
+    -- clear pending if any
+    self._pendingCreate[model] = nil
 end
 
-local function ResetStaminaSettings()
-    maxStaminaValue = defaultMaxStamina
-    sprintSpeedValue = defaultSprintSpeed
-    staminaGainValue = defaultStaminaGain
-    staminaDrainValue = defaultStaminaDrain
-    regenDelayValue = defaultRegenDelay
+-- ⚙️ Tạo watcher (tự động thêm/xóa ESP khi model thay đổi)
+function ESPManager:StartWatcher(typeName)
+    local filterFn = self.Filters[typeName]
+    if not filterFn then return end
+    if self.Watchers[typeName] then return end
 
-    sprintModule.MaxStamina = maxStaminaValue
-    sprintModule.SprintSpeed = sprintSpeedValue
-    sprintModule.StaminaGain = staminaGainValue
-    sprintModule.StaminaDrain = staminaDrainValue
-    sprintModule.StaminaRegenDelay = regenDelayValue
+    -- tạo ESP cho model sẵn có (debounced per model)
+    for _, obj in ipairs(workspace:GetDescendants()) do
+        if filterFn(obj) then
+            -- schedule create with debounce
+            self:_ScheduleCreate(obj, typeName)
+        end
+    end
+
+    -- theo dõi model mới (DescendantAdded) nhưng schedule create chỉ khi hợp lệ
+    local addConn = workspace.DescendantAdded:Connect(function(obj)
+        if self.ActiveTypes[typeName] and filterFn(obj) then
+            self:_ScheduleCreate(obj, typeName)
+        end
+    end)
+
+    -- khi model bị remove -> Remove ESP nếu có
+    local removeConn = workspace.DescendantRemoving:Connect(function(obj)
+        if self.Objects[obj] and self.Objects[obj].type == typeName then
+            self:Remove(obj)
+        end
+        -- clear any pending create when descendant removing
+        self._pendingCreate[obj] = nil
+    end)
+
+    self.Watchers[typeName] = {add = addConn, rem = removeConn}
 end
 
--- GUI
-Tabs.Stamina_Settings:Toggle({
-    Title = "Infinity Stamina",
-    Default = false,
-    Callback = function(state)
-        if state then
-            EnableInfinityStamina()
+function ESPManager:StopWatcher(typeName)
+    local w = self.Watchers[typeName]
+    if w then
+        if w.add then w.add:Disconnect() end
+        if w.rem then w.rem:Disconnect() end
+    end
+    self.Watchers[typeName] = nil
+end
+
+-- ♻️ Cập nhật (1 vòng duy nhất, cực nhẹ) - CHỈ cập nhật text / kiểm tra nhanh
+RunService.Heartbeat:Connect(function()
+    -- Sử dụng pairs(Objects) nhỏ (chỉ những model có ESP hiện tại)
+    for model, data in pairs(ESPManager.Objects) do
+        -- nếu model hỏng -> dọn
+        if not model or not model.Parent then
+            ESPManager:Remove(model)
         else
-            DisableInfinityStamina()
-        end
-    end
-})
-
-Tabs.Stamina_Settings:Slider({
-    Title = "Max Stamina",
-    Step = 1,
-    Value = {Min = 1, Max = 500, Default = maxStaminaValue},
-    Suffix = " Max",
-    Callback = function(val)
-        maxStaminaValue = tonumber(val) or defaultMaxStamina
-        sprintModule.MaxStamina = maxStaminaValue
-        if not infinityStaminaActive and sprintModule.Stamina > maxStaminaValue then
-            sprintModule.Stamina = maxStaminaValue
-        end
-    end
-})
-
-Tabs.Stamina_Settings:Slider({
-    Title = "Sprint Speed",
-    Step = 1,
-    Value = {Min = 1, Max = 40, Default = sprintSpeedValue},
-    Suffix = " S",
-    Callback = function(val)
-        sprintSpeedValue = tonumber(val) or defaultSprintSpeed
-        sprintModule.SprintSpeed = sprintSpeedValue
-    end
-})
-
-Tabs.Stamina_Settings:Slider({
-    Title = "Stamina Gain",
-    Step = 1,
-    Value = {Min = 1, Max = 500, Default = staminaGainValue},
-    Suffix = " per sec",
-    Callback = function(val)
-        staminaGainValue = tonumber(val) or defaultStaminaGain
-        sprintModule.StaminaGain = staminaGainValue
-    end
-})
-
-Tabs.Stamina_Settings:Slider({
-    Title = "Stamina Drain",
-    Step = 1,
-    Value = {Min = 0, Max = 100, Default = staminaDrainValue},
-    Suffix = " per sec",
-    Callback = function(val)
-        staminaDrainValue = tonumber(val) or defaultStaminaDrain
-        sprintModule.StaminaDrain = staminaDrainValue
-    end
-})
-
-Tabs.Stamina_Settings:Slider({
-    Title = "Regen Delay",
-    Step = 0.1,
-    Value = {Min = 0, Max = 5, Default = regenDelayValue},
-    Suffix = " sec",
-    Callback = function(val)
-        regenDelayValue = tonumber(val) or defaultRegenDelay
-        sprintModule.StaminaRegenDelay = regenDelayValue
-    end
-})
-
-Tabs.Stamina_Settings:Button({
-    Title = "Reset to Default",
-    Callback = function()
-        ResetStaminaSettings()
-    end
-})
-
-local espKillerActive = false
-local killerHighlights = {}
-local killerEspThread
-
-local function clearKillerHighlights()
-    for _, h in ipairs(killerHighlights) do
-        if h and h.Parent then h:Destroy() end
-    end
-    killerHighlights = {}
-end
-
-local function createKillerHighlight(model)
-    local highlight = Instance.new("Highlight")
-    highlight.Adornee = model
-    highlight.FillColor = Color3.fromRGB(255, 0, 0)
-    highlight.OutlineColor = Color3.fromRGB(255, 0, 0)
-    highlight.FillTransparency = 0.7
-    highlight.OutlineTransparency = 0
-    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-    highlight.Parent = model
-    table.insert(killerHighlights, highlight)
-end
-
-local function updateKillerESP()
-    clearKillerHighlights()
-    local killersFolder = Workspace:FindFirstChild("Players") and Workspace.Players:FindFirstChild("Killers")
-    if not killersFolder then return end
-    for _, killer in ipairs(killersFolder:GetChildren()) do
-        if killer:IsA("Model") and killer:FindFirstChild("HumanoidRootPart") then
-            createKillerHighlight(killer)
-        end
-    end
-end
-
-Tabs.Esp:Toggle({
-    Title = "ESP Killer",
-    Default = false,
-    Callback = function(state)
-        espKillerActive = state
-        if espKillerActive then
-            killerEspThread = task.spawn(function()
-                while espKillerActive do
-                    updateKillerESP()
-                    task.wait(5)
+            local part = getPrimaryPart(model)
+            if not part then
+                ESPManager:Remove(model)
+            else
+                -- nếu gui/hl bị xóa bất ngờ -> schedule recreate (debounced)
+                local needRecreate = false
+                if (not data.gui) or (not data.hl) or (not data.label) then
+                    needRecreate = true
+                else
+                    -- kiểm tra parent tình trạng (nếu parent nil)
+                    if not data.gui.Parent then
+                        needRecreate = true
+                    end
                 end
-            end)
-        else
-            if killerEspThread then task.cancel(killerEspThread); killerEspThread = nil end
-            clearKillerHighlights()
-        end
-    end
-})
-
-local espSurvivorActive = false
-local survivorHighlights = {}
-local survivorEspThread
-
-local function clearSurvivorHighlights()
-    for _, h in ipairs(survivorHighlights) do
-        if h and h.Parent then h:Destroy() end
-    end
-    survivorHighlights = {}
-end
-
-local function createSurvivorHighlight(model)
-    local highlight = Instance.new("Highlight")
-    highlight.Adornee = model
-    highlight.FillColor = Color3.fromRGB(0, 255, 0)
-    highlight.OutlineColor = Color3.fromRGB(0, 255, 0)
-    highlight.FillTransparency = 0.7
-    highlight.OutlineTransparency = 0
-    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-    highlight.Parent = model
-    table.insert(survivorHighlights, highlight)
-end
-
-local function updateSurvivorESP()
-    clearSurvivorHighlights()
-    local survivorsFolder = Workspace:FindFirstChild("Players") and Workspace.Players:FindFirstChild("Survivors")
-    if not survivorsFolder then return end
-    for _, survivor in ipairs(survivorsFolder:GetChildren()) do
-        if survivor:IsA("Model") and survivor:FindFirstChild("HumanoidRootPart") then
-            createSurvivorHighlight(survivor)
-        end
-    end
-end
-
-Tabs.Esp:Toggle({
-    Title = "ESP Survivors",
-    Default = false,
-    Callback = function(state)
-        espSurvivorActive = state
-        if espSurvivorActive then
-            survivorEspThread = task.spawn(function()
-                while espSurvivorActive do
-                    updateSurvivorESP()
-                    task.wait(5)
+                if needRecreate then
+                    -- remove entry ngay (dọn) và schedule tạo lại an toàn
+                    local typeName = data.type
+                    ESPManager:Remove(model)
+                    ESPManager:_ScheduleCreate(model, typeName)
+                    -- next model
+                else
+                    -- cập nhật text (nhẹ)
+                    local dist = (Camera.CFrame.Position - part.Position).Magnitude
+                    local txt = model.Name
+                    local showHP = ESPManager.ShowHP[data.type]
+                    if showHP then
+                        local hum = model:FindFirstChildOfClass("Humanoid")
+                        if hum then
+                            txt = string.format("%s | HP:%d | [%.0fm]", txt, math.floor(hum.Health), dist)
+                        else
+                            txt = string.format("%s [%.0fm]", txt, dist)
+                        end
+                    else
+                        txt = string.format("%s [%.0fm]", txt, dist)
+                    end
+                    if data.label then
+                        -- label update is cheap
+                        pcall(function() data.label.Text = txt end)
+                    end
                 end
-            end)
-        else
-            if survivorEspThread then task.cancel(survivorEspThread); survivorEspThread = nil end
-            clearSurvivorHighlights()
-        end
-    end
-})
-
--- ESP ITEMS 
--- // РќР°СЃС‚СЂРѕР№РєРё
-local espEnabledMedkit = false
-local espEnabledBloxy = false
-
--- // Р¤СѓРЅРєС†РёРё РѕС‡РёСЃС‚РєРё
-local function clearESP(name)
-    for _, item in ipairs(workspace:GetDescendants()) do
-        if item.Name == name and (item:IsA("BasePart") or item:IsA("Model")) then
-            local part = item:IsA("BasePart") and item or item:FindFirstChildWhichIsA("BasePart")
-            if part and part:FindFirstChild("ItemHighlight") then
-                part.ItemHighlight:Destroy()
             end
         end
     end
-end
-
--- // РћСЃРЅРѕРІРЅРѕР№ ESP Р°РїРґРµР№С‚РµСЂ
-local function updateESP()
-    for _, item in ipairs(workspace:GetDescendants()) do
-        local part = nil
-        if item:IsA("BasePart") then
-            part = item
-        elseif item:IsA("Model") then
-            part = item:FindFirstChildWhichIsA("BasePart")
-        end
-
-        if part then
-            if item.Name == "Medkit" and espEnabledMedkit and not part:FindFirstChild("ItemHighlight") then
-                local highlight = Instance.new("Highlight")
-                highlight.Name = "ItemHighlight"
-                highlight.FillColor = Color3.fromRGB(255, 105, 180) -- СЂРѕР·РѕРІС‹Р№
-                highlight.OutlineColor = Color3.fromRGB(255, 105, 180)
-                highlight.FillTransparency = 0.5
-                highlight.OutlineTransparency = 0
-                highlight.Adornee = part:IsA("Model") and item or part
-                highlight.Parent = part
-            elseif item.Name == "BloxyCola" and espEnabledBloxy and not part:FindFirstChild("ItemHighlight") then
-                local highlight = Instance.new("Highlight")
-                highlight.Name = "ItemHighlight"
-                highlight.FillColor = Color3.fromRGB(0, 150, 255) -- СЃРёРЅРёР№
-                highlight.OutlineColor = Color3.fromRGB(0, 150, 255)
-                highlight.FillTransparency = 0.5
-                highlight.OutlineTransparency = 0
-                highlight.Adornee = part:IsA("Model") and item or part
-                highlight.Parent = part
-            end
-        end
-    end
-end
-
--- // РџРѕС‚РѕРєРё
-local medkitEspThread = nil
-local bloxyEspThread = nil
-
--- // РЎРѕР·РґР°РЅРёРµ Toggles С‡РµСЂРµР· WindUI
-Tabs.Esp:Toggle({
-    Title = "ESP Medkit",
-    Default = false,
-    Callback = function(state)
-        espEnabledMedkit = state
-        if espEnabledMedkit then
-            medkitEspThread = task.spawn(function()
-                while espEnabledMedkit do
-                    updateESP()
-                    task.wait(2)
-                end
-            end)
-        else
-            if medkitEspThread then
-                task.cancel(medkitEspThread)
-                medkitEspThread = nil
-            end
-            clearESP("Medkit")
-        end
-    end
-})
-
-Tabs.Esp:Toggle({
-    Title = "ESP BloxyCola",
-    Default = false,
-    Callback = function(state)
-        espEnabledBloxy = state
-        if espEnabledBloxy then
-            bloxyEspThread = task.spawn(function()
-                while espEnabledBloxy do
-                    updateESP()
-                    task.wait(2)
-                end
-            end)
-        else
-            if bloxyEspThread then
-                task.cancel(bloxyEspThread)
-                bloxyEspThread = nil
-            end
-            clearESP("BloxyCola")
-        end
-    end
-})
-
---ESP BACK OF THE KILLER 
-Tabs.Esp:Button({
-    Title = "Esp Back of the killer (two time)",
-    Callback = function()
-        loadstring(game:HttpGet("https://pastebin.com/raw/4d4uHMdH"))()
-        WindUI:Notify({ Title = "Hiii", Content = "hi from bublik6241", Duration = 2 })
-    end
-})
-
-local espGeneratorsActive = false
-local generatorHighlights = {}
-local generatorEspThread
-
-local function clearGeneratorHighlights()
-    for _, h in ipairs(generatorHighlights) do
-        if h and h.Parent then h:Destroy() end
-    end
-    generatorHighlights = {}
-end
-
-local function createGeneratorHighlight(target)
-    local highlight = Instance.new("Highlight")
-    highlight.Adornee = target
-    highlight.FillColor = Color3.fromRGB(255, 255, 255)
-    highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-    highlight.FillTransparency = 0.6
-    highlight.OutlineTransparency = 0
-    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-    highlight.Parent = target
-    table.insert(generatorHighlights, highlight)
-end
-
-local function updateGeneratorESP()
-    clearGeneratorHighlights()
-    -- РС‰РµРј РІРѕ РІСЃРµР№ РёРіСЂРѕРІРѕР№ РѕР±Р»Р°СЃС‚Рё, Р° РЅРµ РїРѕ РєРѕРЅРєСЂРµС‚РЅРѕРјСѓ РїСѓС‚Рё
-    for _, item in ipairs(Workspace:GetDescendants()) do
-        -- РСЃРїРѕР»СЊР·СѓРµРј string.find РґР»СЏ РїРѕРёСЃРєР° РїРѕ С‡Р°СЃС‚Рё РёРјРµРЅРё
-        if item.Name:find("Generator") then
-            if (item:IsA("Model") and item.PrimaryPart) or item:IsA("BasePart") then
-                createGeneratorHighlight(item)
-            end
-        end
-    end
-end
-
-Tabs.Esp:Toggle({
-    Title = "ESP Generators",
-    Default = false,
-    Callback = function(state)
-        espGeneratorsActive = state
-        if espGeneratorsActive then
-            generatorEspThread = task.spawn(function()
-                while espGeneratorsActive do
-                    updateGeneratorESP()
-                    task.wait(20)
-                end
-            end)
-        else
-            if generatorEspThread then task.cancel(generatorEspThread); generatorEspThread = nil end
-            clearGeneratorHighlights()
-        end
-    end
-})
-
-Players.PlayerAdded:Connect(function()
-    Tabs.Main:SetDropdownValues("Р’С‹Р±РѕСЂ РёРіСЂРѕРєР° РґР»СЏ Orbit", getPlayerNames())
 end)
 
-Players.PlayerRemoving:Connect(function()
-    Tabs.Main:SetDropdownValues("Р’С‹Р±РѕСЂ РёРіСЂРѕРєР° РґР»СЏ Orbit", getPlayerNames())
-end)
+-- ⚡ Bật/Tắt từng loại ESP
+function ESPManager:SetEnabled(typeName, state)
+    self.ActiveTypes[typeName] = state
 
-local autoBlockOn = false
-local detectionRange = 18
-local looseFacing = true
-local strictRangeOn = true
-local windupThreshold = 0.75 -- по умолчанию 75%
-
-local autoBlockTriggerAnims = {
-    "126830014841198", "126355327951215", "121086746534252", "18885909645",
-    "98456918873918", "105458270463374", "83829782357897", "125403313786645",
-    "118298475669935", "82113744478546", "70371667919898", "99135633258223",
-    "97167027849946", "109230267448394", "139835501033932", "126896426760253",
-    "109667959938617", "126681776859538", "129976080405072", "121293883585738",
-    "81639435858902", "137314737492715",
-    "92173139187970"
-}
-
-local function isFacing(localRoot, targetRoot)
-    local dir = (localRoot.Position - targetRoot.Position).Unit
-    local dot = targetRoot.CFrame.LookVector:Dot(dir)
-    return looseFacing and dot > -0.3 or dot > 0
+    if state then
+        self:StartWatcher(typeName)
+        -- khi bật lại, quét nhanh toàn bộ workspace và schedule create (debounced)
+        local filterFn = self.Filters[typeName]
+        if filterFn then
+            for _, obj in ipairs(workspace:GetDescendants()) do
+                if filterFn(obj) then
+                    self:_ScheduleCreate(obj, typeName)
+                end
+            end
+        end
+    else
+        self:StopWatcher(typeName)
+        -- xóa toàn bộ ESP loại đó
+        for model, data in pairs(self.Objects) do
+            if data.type == typeName then
+                self:Remove(model)
+            end
+        end
+    end
 end
 
-local function fireRemoteBlock()
-    local args = {
-        "UseActorAbility",
-        {
-            buffer.fromstring("\"Block\"")
-        }
+_G.ESPManager = ESPManager
+
+
+-- Tab.Dev
+
+local Options = Fluent.Options
+
+
+    Tabs.Dev:AddParagraph({
+        Title = "Note",
+        Content = "Thank you for using the script!"
+    })
+
+    Tabs.Dev:AddSection("↳ Links")
+
+    Tabs.Dev:AddButton({
+        Title = "Discord",
+        Description = "Copy the link to join the discord!",
+        Callback = function()
+            setclipboard("https://discord.gg/WEGT92yv")
+            Fluent:Notify({
+                Title = "Notification",
+                Content = "Successfully copied to the clipboard",
+                SubContent = "", -- Optional
+                Duration = 3 
+            })
+        end
+    })
+
+
+
+    Tabs.Dev:AddButton({
+        Title = "Youtube",
+        Description = "Copy link to Subscribe to Youtube channel!",
+        Callback = function()
+            setclipboard("https://www.youtube.com/@SLKgamingSSR")
+            Fluent:Notify({
+                Title = "Notification",
+                Content = "Successfully copied to the clipboard!",
+                SubContent = "", -- Optional
+                Duration = 3 
+            })
+        end
+    })
+
+
+    Tabs.Dev:AddButton({
+        Title = "Facebook",
+        Description = "Copy link to join facebook group!",
+        Callback = function()
+            setclipboard("https://www.facebook.com/groups/1180845463307087/?ref=share&mibextid=NSMWBT")
+            Fluent:Notify({
+                Title = "Notification",
+                Content = "Successfully copied to the clipboard!",
+                SubContent = "", -- Optional
+                Duration = 3 
+            })
+        end
+    })
+
+-- Tabs.Farm
+
+
+
+
+do
+    local Players = game:GetService("Players")
+    local ReplicatedStorage = game:GetService("ReplicatedStorage")
+    local LocalPlayer = Players.LocalPlayer
+
+    local Active = false
+    local loopRunning = false
+    local CurrentTarget = nil
+    local lastAttack = 0
+
+    -- 🟥 Chỉ chạy khi là các model này
+    local KillersList = {
+        ["Slasher"] = true,
+        ["1x1x1x1"] = true,
+        ["c00lkidd"] = true,
+        ["Noli"] = true,
+        ["JohnDoe"] = true,
+        ["Guest 666"] = true,
+        ["Sixer"] = true,
     }
-    game:GetService("ReplicatedStorage"):WaitForChild("Modules"):WaitForChild("Network"):WaitForChild("RemoteEvent"):FireServer(unpack(args))
-end
 
-local blockConnection = nil
+    -- 🟢 Danh sách ưu tiên
+    local PriorityList = {
+        ["0206octavio"] = true
+    }
 
-local function startAutoBlock()
-    blockConnection = RunService.Heartbeat:Connect(function()
-        local myChar = LocalPlayer.Character
-        if not myChar then return end
-        local myRoot = myChar:FindFirstChild("HumanoidRootPart")
-        local humanoid = myChar:FindFirstChildOfClass("Humanoid")
-        if not myRoot or not humanoid then return end
+    -- 🔥 Danh sách skill (full, có thể thêm/bớt thoải mái)
+    local SkillList = {
+        "Slash", "Stab", "Punch",
+        "VoidRush", "Nova",
+        "CorruptEnergy", "Behead", "GashingWound",
+        "MassInfection", "CorruptNature", "WalkspeedOverride", "PizzaDelivery",
+        "UnstableEye", "Entanglement",
+        "DigitalFootprint", "404Error",
+        "RagingPace", "Carving Slash", "Demonic Pursuit",
+        "Infernal Cry", "Blood Rush"
+    }
 
-        for _, plr in ipairs(Players:GetPlayers()) do
-            if plr ~= LocalPlayer and plr.Character then
-                local hrp = plr.Character:FindFirstChild("HumanoidRootPart")
-                local hum = plr.Character:FindFirstChildOfClass("Humanoid")
-                local animTracks = hum and hum:FindFirstChildOfClass("Animator") and hum:FindFirstChildOfClass("Animator"):GetPlayingAnimationTracks()
-                if hrp and (hrp.Position - myRoot.Position).Magnitude <= detectionRange then
-                    for _, track in ipairs(animTracks or {}) do
-                        local id = tostring(track.Animation.AnimationId):match("%d+")
-                        if table.find(autoBlockTriggerAnims, id) then
-                            local progress = track.TimePosition / track.Length
-                            if progress < windupThreshold then -- проверка процента Windup
-                                if autoBlockOn and (not strictRangeOn or (hrp.Position - myRoot.Position).Magnitude <= detectionRange) then
-                                    if isFacing(myRoot, hrp) then
-                                        fireRemoteBlock()
+    -- =====================
+    -- 🗡️ RemoteEvent Finder
+    -- =====================
+    local SkillRemotes = {}
+
+    local function findSkillRemoteFromButton(button)
+        for _, conn in ipairs(getconnections(button.MouseButton1Click)) do
+            local f = conn.Function
+            if f and islclosure(f) then
+                for _, v in pairs(getupvalues(f)) do
+                    if typeof(v) == "Instance" and v:IsA("RemoteEvent") then
+                        return v
+                    end
+                end
+            end
+        end
+        return nil
+    end
+
+    local function initSkillButtons()
+        local gui = LocalPlayer:FindFirstChild("PlayerGui")
+        if not gui then return end
+        local mainUI = gui:FindFirstChild("MainUI")
+        local container = mainUI and mainUI:FindFirstChild("AbilityContainer")
+        if not container then return end
+
+        for _, child in ipairs(container:GetChildren()) do
+            if child:IsA("ImageButton") then
+                local remote = findSkillRemoteFromButton(child)
+                if remote then
+                    SkillRemotes[child.Name] = remote
+                    warn("[Skill] Found RemoteEvent for:", child.Name, remote:GetFullName())
+                end
+            end
+        end
+    end
+
+    initSkillButtons()
+    LocalPlayer.CharacterAdded:Connect(function()
+        task.wait(1)
+        initSkillButtons()
+    end)
+
+    -- =====================
+    -- 🎯 Target Finder
+    -- =====================
+    local function GetPriorityTarget()
+        local survivorsFolder = workspace:FindFirstChild("Players") and workspace.Players:FindFirstChild("Survivors")
+        if not survivorsFolder then return nil end
+
+        for _, survivor in ipairs(survivorsFolder:GetChildren()) do
+            if survivor:IsA("Model") and survivor:FindFirstChild("HumanoidRootPart") then
+                if PriorityList[survivor.Name] then
+                    local humanoid = survivor:FindFirstChildOfClass("Humanoid")
+                    if humanoid and humanoid.Health > 0 then
+                        return survivor
+                    end
+                end
+            end
+        end
+        return nil
+    end
+
+    local function GetClosestSurvivor()
+        local priorityTarget = GetPriorityTarget()
+        if priorityTarget then return priorityTarget end
+
+        local localChar = LocalPlayer.Character
+        if not (localChar and localChar:FindFirstChild("HumanoidRootPart")) then return nil end
+        local survivorsFolder = workspace:FindFirstChild("Players") and workspace.Players:FindFirstChild("Survivors")
+        if not survivorsFolder then return nil end
+
+        local closest, minDist = nil, math.huge
+        for _, survivor in ipairs(survivorsFolder:GetChildren()) do
+            local humanoid = survivor:FindFirstChildOfClass("Humanoid")
+            if survivor:IsA("Model") and survivor:FindFirstChild("HumanoidRootPart") and humanoid and humanoid.Health > 0 then
+                local dist = (localChar.HumanoidRootPart.Position - survivor.HumanoidRootPart.Position).Magnitude
+                if dist < minDist then
+                    minDist = dist
+                    closest = survivor
+                end
+            end
+        end
+        return closest
+    end
+
+    -- =====================
+    -- 🗡️ Kill Logic (spam nhanh + Remote + UI Click)
+    -- =====================
+    local function KillTarget(target)
+        pcall(function()
+            if not target then return end
+            local localChar = LocalPlayer.Character
+            if not (localChar and localChar:FindFirstChild("HumanoidRootPart")) then return end
+
+            local root = localChar.HumanoidRootPart
+            local targetRoot = target:FindFirstChild("HumanoidRootPart")
+            if not targetRoot then return end
+
+            -- Spam skill (mỗi 0.05s)
+            if tick() - lastAttack >= 0.05 then
+                lastAttack = tick()
+
+                for _, skillName in ipairs(SkillList) do
+                    -- luôn cập nhật vị trí sát lưng target trước khi dùng skill
+                    local offset = targetRoot.CFrame.LookVector * -2
+                    root.CFrame = targetRoot.CFrame + offset
+
+                    local remote = SkillRemotes[skillName]
+                    if remote then
+                        -- Cách 1: FireServer trực tiếp
+                        remote:FireServer(true)
+                        task.wait(0.005)
+                        remote:FireServer(false)
+                    else
+                        -- Cách 2: Giả click nút skill trong GUI
+                        local gui = LocalPlayer:FindFirstChild("PlayerGui")
+                        local mainUI = gui and gui:FindFirstChild("MainUI")
+                        local container = mainUI and mainUI:FindFirstChild("AbilityContainer")
+                        if container then
+                            local button = container:FindFirstChild(skillName)
+                            if button and button:IsA("ImageButton") then
+                                for _, conn in ipairs(getconnections(button.MouseButton1Click)) do
+                                    if conn.Function then
+                                        pcall(conn.Function)
                                     end
                                 end
+                                pcall(function() button:Activate() end)
                             end
                         end
+
+                        -- fallback cuối cùng: Remote gốc trong ReplicatedStorage
+                        local net = ReplicatedStorage:FindFirstChild("Modules")
+                                    and ReplicatedStorage.Modules:FindFirstChild("Network")
+                                    and ReplicatedStorage.Modules.Network:FindFirstChild("RemoteEvent")
+                        if net and typeof(net.FireServer) == "function" then
+                            net:FireServer("UseActorAbility", skillName)
+                        end
                     end
+
+                    task.wait(0.01) -- giữ nhịp nhanh
+                end
+            end
+        end)
+    end
+
+    -- =====================
+    -- 🔄 Main Loop
+    -- =====================
+    local function StartLoop()
+        if loopRunning then return end
+        loopRunning = true
+        task.spawn(function()
+            while Active do
+                -- 🛑 Nếu không phải killer hợp lệ thì không làm gì
+                local char = LocalPlayer.Character
+                if not (char and KillersList[char.Name]) then
+                    CurrentTarget = nil
+                    task.wait(0.5)
+                    continue
+                end
+
+                if not CurrentTarget 
+                   or not CurrentTarget.Parent 
+                   or not CurrentTarget:FindFirstChildOfClass("Humanoid") 
+                   or CurrentTarget:FindFirstChildOfClass("Humanoid").Health <= 0 then
+                    CurrentTarget = GetClosestSurvivor()
+                end
+                if CurrentTarget then
+                    KillTarget(CurrentTarget)
+                end
+                task.wait(0.01)
+            end
+            loopRunning = false
+        end)
+    end
+
+    Tabs.Farm:AddToggle("KillersFarmV2", {
+        Title = "Killers Farm V2",
+        Default = false,
+        Callback = function(Value)
+            Active = Value
+            if Active then
+                StartLoop()
+            end
+        end
+    })
+end
+
+
+
+
+local Players = game:GetService("Players")
+local LP = Players.LocalPlayer
+
+local solveGeneratorCooldown = false
+local genDelay = 0.75 -- delay mặc định
+local currentCharacter
+local Spectators = {}
+local isInGame, Survivor = false, false
+
+-- 🟥 Killer nguy hiểm
+local DangerousKillers = {
+    ["Slasher"] = true,
+    ["1x1x1x1"] = true,
+    ["c00lkidd"] = true,
+    ["Noli"] = true,
+    ["JohnDoe"] = true,
+    ["Guest 666"] = true,
+    ["Sixer"] = true
+}
+
+-- 🟢 Kiểm tra killer gần generator
+local function isKillerNearGenerator(generatorPos, distance)
+    local killersFolder = workspace.Players:FindFirstChild("Killers")
+    if not killersFolder then return false end
+    for _, killer in ipairs(killersFolder:GetChildren()) do
+        if killer:IsA("Model") and killer:FindFirstChild("HumanoidRootPart") then
+            if DangerousKillers[killer.Name] then
+                local dist = (killer.HumanoidRootPart.Position - generatorPos).Magnitude
+                if dist <= distance then
+                    return true
                 end
             end
         end
+    end
+    return false
+end
+
+-- 🟢 Tìm generator chưa xong (cập nhật genDelay luôn)
+local function getUnfinishedGenerators()
+    local list = {}
+    local map = workspace:FindFirstChild("Map") 
+        and workspace.Map:FindFirstChild("Ingame") 
+        and workspace.Map.Ingame:FindFirstChild("Map")
+    if map then
+        for _, gen in ipairs(map:GetChildren()) do
+            if gen.Name == "Generator" 
+                and gen:FindFirstChild("Progress") 
+                and gen.Progress.Value < 100 then
+                table.insert(list, gen)
+            end
+        end
+    end
+
+    -- ⚡ Nếu chỉ còn 1 generator => tăng delay để tránh bị kick
+    if #list == 1 then
+        genDelay = 1.5
+    else
+        genDelay = 0.75
+    end
+
+    return list
+end
+
+-- 🟢 Sửa 1 lần rồi nhảy sang generator khác
+local function fixOneGenerator(gen)
+    if solveGeneratorCooldown then return end
+    if not currentCharacter or not currentCharacter:FindFirstChild("HumanoidRootPart") then return end
+
+    local genCFrame = gen:GetPivot()
+    local goalPos = (genCFrame * CFrame.new(0, 0, -7)).Position
+
+    if isKillerNearGenerator(goalPos, 50) then
+        print("⚠️ Bỏ qua generator vì killer nguy hiểm gần!")
+        return
+    end
+
+    -- Teleport tới gen
+    currentCharacter:PivotTo(CFrame.new(goalPos + Vector3.new(0, 0, 0))) -- chỉnh độ cao, độ lệch
+    task.wait(0.25)
+
+    local prompt = gen:FindFirstChild("Main") and gen.Main:FindFirstChild("Prompt")
+    if prompt then
+        prompt.HoldDuration = 0
+        prompt.RequiresLineOfSight = false
+        prompt.MaxActivationDistance = 99999
+
+        -- Ấn để sửa 1 lần
+        pcall(function()
+            prompt:InputHoldBegin()
+            prompt:InputHoldEnd()
+        end)
+    end
+
+    if gen:FindFirstChild("Remotes") and gen.Remotes:FindFirstChild("RE") then
+        gen.Remotes.RE:FireServer()
+    end
+
+    -- 🔴 Spam thêm vài lần để chắc chắn thoát GUI trước khi đi gen khác
+    if prompt then
+        task.wait(0)
+        pcall(function()
+            for i = 1, 3 do
+                prompt:InputHoldBegin()
+                task.wait(0)
+                prompt:InputHoldEnd()
+            end
+        end)
+    end
+
+    -- Cooldown
+    solveGeneratorCooldown = true
+    task.delay(genDelay, function()
+        solveGeneratorCooldown = false
     end)
 end
 
-local function stopAutoBlock()
-    if blockConnection then
-        blockConnection:Disconnect()
-        blockConnection = nil
-    end
-end
+-- 🟢 Survivors Auto Farm
+Tabs.Farm:AddToggle("SurvivorsAutoFarmV2", {
+    Title = "Survivors Farm V2",
+    Default = false
+}):OnChanged(function(Value)
+    _G.SurvivorsFarm = Value
 
-Tabs.AutoBlock:Toggle({
-    Title = "Auto Block(animation)",
-    Default = false,
-    Callback = function(state)
-        autoBlockOn = state
-        if state then
-            startAutoBlock()
-            WindUI:Notify({ Title = "Auto Block", Content = "Enabled!", Duration = 1 })
-        else
-            stopAutoBlock()
-            WindUI:Notify({ Title = "Auto Block", Content = "Disabled!", Duration = 1 })
-        end
-    end
-})
-
-Tabs.AutoBlock:Slider({
-    Title = "Detection Range(Animation)",
-    Step = 1,
-    Value = {Min = 1, Max = 50, Default = detectionRange},
-    Suffix = " studs",
-    Callback = function(val)
-        detectionRange = tonumber(val) or detectionRange
-    end
-})
-
--- Новый слайдер для настройки процента Windup
-Tabs.AutoBlock:Slider({
-    Title = "Windup %",
-    Step = 5,
-    Value = {Min = 1, Max = 100, Default = 75},
-    Suffix = "%",
-    Callback = function(val)
-        windupThreshold = (tonumber(val) or 75) / 100
-    end
-})
-
--- AUDIO AAAAAAAAAAAAAAAAAAAAAAAAAAERM
--- FIXED 
-
-Tabs.AutoBlock:Button({
-    Title = "Load Auto Block (Audio)",
-    Callback = function()
-        local Players = game:GetService("Players")
-        local ReplicatedStorage = game:GetService("ReplicatedStorage")
-        local RunService = game:GetService("RunService")
-
-        local lp = Players.LocalPlayer
-
-        -- Состояния
-        local autoBlockAudioOn = false
-        local detectionRange = 20
-        local detectionRangeSq = detectionRange * detectionRange
-        local cachedCooldown = nil
-        local currentMode = "Normal"
-        local zoneVisibility = 0.4 
-        local runZoneBoost = 4     
-        local zoneLength = 12      
-        local zoneWidth = 6        
-        
-        --- НОВОЕ: Длительность отслеживания атаки в секундах ---
-        local monitorDuration = 0.6 -- Будем отслеживать атаку в течение 0.6 секунды после начала звука
-
-        --- НОВОЕ: Таблица для активных атак, которые нужно отслеживать ---
-        local activeAttacks = {}
-
-        -- Список ID звуков (атаки)
-        local autoBlockTriggerSounds = {
-            ["102228729296384"] = true, ["140242176732868"] = true, ["112809109188560"] = true,
-            ["136323728355613"] = true, ["115026634746636"] = true, ["84116622032112"] = true,
-            ["108907358619313"] = true, ["127793641088496"] = true, ["86174610237192"] = true,
-            ["95079963655241"] = true, ["101199185291628"] = true, ["119942598489800"] = true,
-            ["84307400688050"] = true, ["113037804008732"] = true, ["105200830849301"] = true,
-            ["75330693422988"] = true, ["82221759983649"] = true, ["81702359653578"] = true,
-            ["108610718831698"] = true, ["112395455254818"] = true, ["109431876587852"] = true,
-            ["109348678063422"] = true, ["85853080745515"] = true, ["12222216"] = true
-        }
-
-        local soundHooks = {}
-
-        -- Хелпер для блока (НОВЫЙ RemoteEvent вызов)
-        local function fireRemoteBlock()
-            local args = {
-                "UseActorAbility",
-                {
-                    buffer.fromstring("\"Block\"")
-                }
-            }
-            ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Network"):WaitForChild("RemoteEvent"):FireServer(unpack(args))
-        end
-
-        local function isFacing(localRoot, targetRoot)
-            local dir = (localRoot.Position - targetRoot.Position).Unit
-            local dot = targetRoot.CFrame.LookVector:Dot(dir)
-            return dot > -0.3
-        end
-
-        local function extractNumericSoundId(sound)
-            if not sound or not sound.SoundId then return nil end
-            return tostring(sound.SoundId):match("%d+")
-        end
-
-        local function getCharacterFromDescendant(inst)
-            if not inst then return nil end
-            local model = inst:FindFirstAncestorOfClass("Model")
-            if model and model:FindFirstChildOfClass("Humanoid") then return model end
-            return nil
-        end
-        
-        local function refreshUIRefs()
-            local playerGui = lp:FindFirstChild("PlayerGui")
-            if not playerGui then return end
-            local main = playerGui:FindFirstChild("MainUI")
-            if main then
-                local ability = main:FindFirstChild("AbilityContainer")
-                local blockBtn = ability and ability:FindFirstChild("Block")
-                cachedCooldown = blockBtn and blockBtn:FindFirstChild("CooldownTime")
-            else
-                cachedCooldown = nil
+    -- Cập nhật trạng thái in-game
+    task.spawn(function()
+        while _G.SurvivorsFarm do
+            Spectators = {}
+            for _, v in ipairs(workspace:WaitForChild("Players"):WaitForChild("Spectating"):GetChildren()) do
+                table.insert(Spectators, v.Name)
             end
+            isInGame = not table.find(Spectators, LP.Name)
+            task.wait(0.1)
         end
+    end)
 
-        -- === Создание зоны (для Anti Bait) ===
-        local function createZoneForKiller(killer)
-            if not killer:FindFirstChild("HumanoidRootPart") then return end
-            if killer:FindFirstChild("BlockZone") then return end
-
-            local hrp = killer.HumanoidRootPart
-            local zone = Instance.new("Part")
-            zone.Name = "BlockZone"
-            zone.Anchored = false
-            zone.CanCollide = false
-            zone.Size = Vector3.new(zoneWidth, 7, zoneLength)
-            zone.CFrame = hrp.CFrame * CFrame.new(0, 0, -4)
-            zone.BrickColor = BrickColor.new("Royal purple")
-            zone.Transparency = 1
-            zone.Parent = killer
-
-            local weld = Instance.new("WeldConstraint")
-            weld.Part0 = hrp
-            weld.Part1 = zone
-            weld.Parent = zone
-
-            local highlight = Instance.new("Highlight")
-            highlight.Name = "ZoneHighlight"
-            highlight.Adornee = zone
-            highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-            highlight.FillColor = Color3.fromRGB(180, 0, 255)
-            highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-            highlight.Enabled = false
-            highlight.Parent = zone
-        end
-
-        -- === Динамическое обновление размера зоны ===
-        local function updateZoneSize(killer)
-            local zone = killer:FindFirstChild("BlockZone")
-            local hum = killer:FindFirstChildOfClass("Humanoid")
-            
-            if zone and hum then
-                local baseSize = Vector3.new(zoneWidth, 7, zoneLength)
-                if hum.MoveDirection.Magnitude > 0.1 then
-                    zone.Size = Vector3.new(baseSize.X, baseSize.Y, baseSize.Z + runZoneBoost)
-                else
-                    zone.Size = baseSize
-                end
+    -- Kiểm tra survivor
+    task.spawn(function()
+        while _G.SurvivorsFarm do
+            if workspace:FindFirstChild("Players") then
+                local survivorsFolder = workspace.Players:FindFirstChild("Survivors")
+                Survivor = survivorsFolder 
+                    and (survivorsFolder:FindFirstChild(LP.Name) 
+                    or table.find(survivorsFolder:GetChildren(), LP.Character))
             end
+            task.wait(0.1)
         end
+    end)
 
-        -- === Логика блока (с мониторингом) ===
-
-        local function registerAttackForMonitoring(sound)
-            if not autoBlockAudioOn or not sound or not sound:IsA("Sound") or not sound.IsPlaying then return end
-            if activeAttacks[sound] then return end
-
-            local id = extractNumericSoundId(sound)
-            if not id or not autoBlockTriggerSounds[id] then return end
-
-            local myChar = lp.Character
-            local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
-            if not myRoot then return end
-
-            local soundPart = sound.Parent
-            if not (soundPart and soundPart.Parent) then return end
-            
-            local char = getCharacterFromDescendant(soundPart)
-            local plr = char and Players:GetPlayerFromCharacter(char)
-            if not plr or plr == lp then return end
-
-            local hrp = char:FindFirstChild("HumanoidRootPart")
-            if not hrp then return end
-
-            local dvec = hrp.Position - myRoot.Position
-            if dvec:Dot(dvec) > detectionRangeSq then return end
-            
-            activeAttacks[sound] = {
-                killer = char,
-                endTime = tick() + monitorDuration
-            }
-        end
-
-        local function monitorActiveAttacks()
-            if not autoBlockAudioOn or next(activeAttacks) == nil then return end
-
-            local myChar = lp.Character
-            local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
-            if not myRoot then return end
-            
-            if cachedCooldown and cachedCooldown.Text ~= "" then
-                activeAttacks = {}
-                return
-            end
-
-            local t = tick()
-
-            for sound, attackData in pairs(activeAttacks) do
-                if not sound or sound.Parent == nil or t > attackData.endTime then
-                    activeAttacks[sound] = nil
-                    continue
-                end
-                
-                local killerChar = attackData.killer
-                if not killerChar or killerChar.Parent == nil then
-                    activeAttacks[sound] = nil
-                    continue
-                end
-
-                local killerRoot = killerChar:FindFirstChild("HumanoidRootPart")
-                local killerZone = killerChar:FindFirstChild("BlockZone")
-                if not killerRoot then
-                    activeAttacks[sound] = nil
-                    continue
-                end
-
-                if isFacing(myRoot, killerRoot) then
-                    if currentMode == "Normal" then
-                        fireRemoteBlock()
-                        activeAttacks = {}
+    -- Auto sửa gen
+    task.spawn(function()
+        local survivorsFolder = workspace.Players:WaitForChild("Survivors")
+        while _G.SurvivorsFarm do
+            if Survivor and isInGame then
+                -- lấy nhân vật hiện tại
+                for _, surv in ipairs(survivorsFolder:GetChildren()) do
+                    if surv:GetAttribute("Username") == LP.Name then
+                        currentCharacter = surv
                         break
-                    elseif currentMode == "Normal+Anti Bait" and killerZone then
-                        local touchingZone = (myRoot.Position - killerZone.Position).Magnitude <= (killerZone.Size.Magnitude / 2 + 2)
-                        if touchingZone then
-                            fireRemoteBlock()
-                            activeAttacks = {}
-                            break
+                    end
+                end
+
+                -- tìm gen chưa xong và sửa 1 lần
+                local gens = getUnfinishedGenerators()
+                for _, gen in ipairs(gens) do
+                    if not _G.SurvivorsFarm then break end
+                    fixOneGenerator(gen)
+                    task.wait(genDelay) -- sau khi sửa xong thì nhảy qua gen khác
+                end
+            end
+            task.wait(0.1)
+        end
+    end)
+end)
+
+
+
+
+
+
+
+    Tabs.Farm:AddSection("↳ Generator")
+
+do
+local solveGeneratorCooldown = false
+local AutoFinishGen = false
+local genDelay = 1.5 -- mặc định 1.5s
+
+-- Hàm tìm generator gần nhất
+local function getClosestGenerator()
+    local char = game.Players.LocalPlayer.Character
+    if not char or not char.PrimaryPart then return nil end
+
+    local root = char.PrimaryPart
+    local closest, shortestDist = nil, math.huge
+
+    local mapContainer = workspace:FindFirstChild("Map")
+    if mapContainer then
+        local ingame = mapContainer:FindFirstChild("Ingame")
+        if ingame then
+            local map = ingame:FindFirstChild("Map")
+            if map then
+                for _, obj in ipairs(map:GetChildren()) do
+                    if obj.Name == "Generator" and obj:IsA("Model") and obj.PrimaryPart then
+                        local dist = (root.Position - obj.PrimaryPart.Position).Magnitude
+                        if dist < shortestDist then
+                            closest = obj
+                            shortestDist = dist
                         end
                     end
                 end
             end
         end
+    end
+    return closest
+end
 
-        local function hookSound(sound)
-            if not sound or not sound:IsA("Sound") or soundHooks[sound] then return end
-
-            local playedConn = sound.Played:Connect(function() pcall(registerAttackForMonitoring, sound) end)
-            local propConn = sound:GetPropertyChangedSignal("IsPlaying"):Connect(function()
-                if sound.IsPlaying then pcall(registerAttackForMonitoring, sound) end
-            end)
-            
-            local destroyConn
-            destroyConn = sound.Destroying:Connect(function()
-                if playedConn and playedConn.Connected then playedConn:Disconnect() end
-                if propConn and propConn.Connected then propConn:Disconnect() end
-                if destroyConn and destroyConn.Connected then destroyConn:Disconnect() end
-                soundHooks[sound] = nil
-                activeAttacks[sound] = nil
-            end)
-
-            soundHooks[sound] = {playedConn, propConn, destroyConn}
-
-            if sound.IsPlaying then
-                task.spawn(function() pcall(registerAttackForMonitoring, sound) end)
-            end
+-- Nút Finish generator thủ công
+Tabs.Farm:AddButton({
+    Title = "Finish Generator",
+    Callback = function()
+        if solveGeneratorCooldown then 
+            print("⏳ Please wait before trying again!") 
+            return
         end
-        
-        local function updateZonesVisibility()
-            local killersFolder = workspace:WaitForChild("Players"):WaitForChild("Killers")
-            for _, killer in ipairs(killersFolder:GetChildren()) do
-                local zone = killer:FindFirstChild("BlockZone")
-                if zone then
-                    local hl = zone:FindFirstChild("ZoneHighlight")
-                    if currentMode == "Normal" then
-                        zone.Transparency = 1
-                        if hl then hl.Enabled = false end
-                    elseif currentMode == "Normal+Anti Bait" then
-                        zone.Transparency = zoneVisibility
-                        if hl then hl.Enabled = true end
-                    end
-                end
-            end
+        if AutoFinishGen then
+            print("❌ Please disable Auto Finish Generator first!")
+            return
+        end
+
+        local gen = getClosestGenerator()
+        if gen and gen:FindFirstChild("Remotes") and gen.Remotes:FindFirstChild("RE") then
+            gen.Remotes.RE:FireServer()
+            solveGeneratorCooldown = true
+            task.delay(genDelay, function()
+                solveGeneratorCooldown = false
+            end)
+        end
+    end
+})
+
+-- Toggle Auto Finish Generator
+Tabs.Farm:AddToggle("AutoFinishGen", {
+    Title = "Auto Finish Generator",
+    Default = false
+}):OnChanged(function(state)
+    AutoFinishGen = state
+
+    if state then
+        if solveGeneratorCooldown then
+            print("⚠️ Please wait cooldown before enabling Auto Finish!") 
+            Fluent.Options.AutoFinishGen:SetValue(false)
+            return
         end
 
         task.spawn(function()
-            while task.wait(5) do
-                if not autoBlockAudioOn then continue end
-                local killersFolder = workspace:WaitForChild("Players"):WaitForChild("Killers")
-                for _, killer in ipairs(killersFolder:GetChildren()) do
-                    createZoneForKiller(killer)
+            while AutoFinishGen do
+                local gen = getClosestGenerator()
+                if gen and gen:FindFirstChild("Remotes") and gen.Remotes:FindFirstChild("RE") then
+                    gen.Remotes.RE:FireServer()
                 end
-                updateZonesVisibility()
+                solveGeneratorCooldown = true
+                task.wait(genDelay)
+                solveGeneratorCooldown = false
             end
         end)
+    else
+        solveGeneratorCooldown = false
+    end
+end)
 
-        RunService.Heartbeat:Connect(function()
-            if not autoBlockAudioOn then return end
-            local killersFolder = workspace:WaitForChild("Players"):WaitForChild("Killers")
-            for _, killer in ipairs(killersFolder:GetChildren()) do
-                updateZoneSize(killer)
-            end
-            monitorActiveAttacks()
-        end)
 
-        lp.CharacterAdded:Connect(function()
-            task.delay(0.5, refreshUIRefs)
-        end)
-        refreshUIRefs()
-
-        for _, desc in ipairs(game:GetDescendants()) do
-            if desc:IsA("Sound") then pcall(hookSound, desc) end
+-- Ô nhập delay
+Tabs.Farm:AddInput("GenDelayInput", {
+    Title = "Enter Delay",
+    Default = "1.5",
+    Placeholder = "Write Here (1.5-10)",
+    Numeric = true,
+    Callback = function(value)
+        local num = tonumber(value)
+        if num then
+            -- Clamp giá trị từ 1.5 đến 10
+            genDelay = math.clamp(num, 1.5, 10)
+            print("⏱ Delay set to:", genDelay)
+        else
+            print("⚠️ Nhập số hợp lệ!")
         end
-        game.DescendantAdded:Connect(function(desc)
-            if desc:IsA("Sound") then pcall(hookSound, desc) end
-        end)
-
-        -- GUI
-        Tabs.AutoBlock:Toggle({
-            Title = "Auto Block (Audio)",
-            Default = autoBlockAudioOn,
-            Callback = function(state)
-                autoBlockAudioOn = state
-            end
-        })
-
-        Tabs.AutoBlock:Slider({
-            Title = "Detection Range (Audio)",
-            Step = 1,
-            Value = {Min = 1, Max = 100, Default = detectionRange},
-            Suffix = " studs",
-            Callback = function(val)
-                detectionRange = val
-                detectionRangeSq = val * val
-            end
-        })
-
-        Tabs.AutoBlock:Dropdown({
-            Title = "Auto Block Mode",
-            Values = {"Normal", "Normal+Anti Bait"},
-            Value = "Normal",
-            Multi = false,
-            AllowNone = false,
-            Callback = function(choice)
-                currentMode = choice
-                updateZonesVisibility()
-            end
-        })
-        
-        Tabs.AutoBlock:Slider({
-            Title = "Attack verification duration",
-            Step = 0.1,
-            Value = {Min = 0.1, Max = 2.0, Default = 0.6},
-            Suffix = " sec",
-            Callback = function(val)
-                monitorDuration = val
-            end
-        })
-
-        Tabs.AutoBlock:Slider({
-            Title = "Zone Visibility",
-            Step = 1,
-            Value = {Min = 0, Max = 10, Default = 6},
-            Suffix = " /10",
-            Callback = function(val)
-                zoneVisibility = 1 - (val / 10)
-                updateZonesVisibility()
-            end
-        })
-
-        Tabs.AutoBlock:Slider({
-            Title = "Zone Length",
-            Step = 0.1,
-            Value = {Min = 1, Max = 30, Default = 12},
-            Suffix = " studs",
-            Callback = function(val)
-                zoneLength = val
-            end
-        })
-
-        Tabs.AutoBlock:Slider({
-            Title = "Zone Width",
-            Step = 0.1,
-            Value = {Min = 1, Max = 15, Default = 6},
-            Suffix = " studs",
-            Callback = function(val)
-                zoneWidth = val
-            end
-        })
-
-        Tabs.AutoBlock:Slider({
-            Title = "Zone Boost(if Killer has ping or you have much)",
-            Step = 1,
-            Value = {Min = 0, Max = 10, Default = 4},
-            Suffix = " studs",
-            Callback = function(val)
-                runZoneBoost = val
-            end
-        })
     end
 })
+end
 
--- punch 
+
+do
+local Players = game:GetService("Players")
+local PathfindingService = game:GetService("PathfindingService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local Workspace = game:GetService("Workspace")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+local LP = Players.LocalPlayer
+
+-- 🔹 Cancel token cho pathfinding
+local h = 0
+_G.PlayerControlled = false
+
+-- =========================
+--  DANH SÁCH SURVIVORS HỢP LỆ
+-- =========================
+local AllowedSurvivors = {
+    ["Noob"] = true, ["Guest1337"] = true, ["Elliot"] = true,
+    ["Shedletsky"] = true, ["TwoTime"] = true, ["007n7"] = true, ["Veeronica"] = true,
+    ["Chance"] = true, ["Builderman"] = true, ["Taph"] = true, ["Dusekkar"] = true,
+}
+
+local function isSurvivorValid()
+    local char = LP.Character
+    if not char then return false end
+    return AllowedSurvivors[char.Name] == true
+end
+
+-- =========================
+--  PHÁT HIỆN NGƯỜI CHƠI ĐIỀU KHIỂN
+-- =========================
+local moveKeys = {
+    [Enum.KeyCode.W] = true, [Enum.KeyCode.A] = true, [Enum.KeyCode.S] = true, [Enum.KeyCode.D] = true,
+    [Enum.KeyCode.Up] = true, [Enum.KeyCode.Left] = true, [Enum.KeyCode.Down] = true, [Enum.KeyCode.Right] = true,
+}
+local activeInputs, lastMoveTick = 0, 0
+local IDLE_GRACE = 0.25
+
+local function setControlled(flag)
+    if _G.PlayerControlled ~= flag then
+        _G.PlayerControlled = flag
+        if flag then h = h + 1 end -- hủy path ngay khi người chơi can thiệp
+    end
+end
+
+UserInputService.InputBegan:Connect(function(input, gp)
+    if gp then return end
+    if input.UserInputType == Enum.UserInputType.Keyboard and moveKeys[input.KeyCode] then
+        activeInputs += 1; setControlled(true)
+    elseif input.UserInputType == Enum.UserInputType.Gamepad1 then
+        activeInputs += 1; setControlled(true)
+    elseif input.UserInputType == Enum.UserInputType.Touch then
+        local cam = workspace.CurrentCamera
+        if cam and input.Position.X < cam.ViewportSize.X * 0.5 then
+            activeInputs += 1; setControlled(true)
+        end
+    end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.Keyboard and moveKeys[input.KeyCode] then
+        activeInputs = math.max(0, activeInputs - 1)
+    elseif input.UserInputType == Enum.UserInputType.Gamepad1 or input.UserInputType == Enum.UserInputType.Touch then
+        activeInputs = math.max(0, activeInputs - 1)
+    end
+    if activeInputs == 0 then lastMoveTick = tick() end
+end)
+
+RunService.Heartbeat:Connect(function()
+    local hum = LP.Character and LP.Character:FindFirstChildOfClass("Humanoid")
+    if not hum then return end
+    if hum.MoveDirection.Magnitude > 0 then
+        lastMoveTick = tick(); setControlled(true)
+    elseif activeInputs == 0 and (tick() - lastMoveTick) >= IDLE_GRACE then
+        setControlled(false)
+    end
+end)
+
+-- =========================
+--  PATHFINDING
+-- =========================
+local function pathfindTo(targetPos)
+    local hNow = h
+    local char = LP.Character
+    if not char then return end
+    local hum = char:FindFirstChildOfClass("Humanoid")
+    local root = char:FindFirstChild("HumanoidRootPart")
+    if not (hum and root) then return end
+
+    local path = PathfindingService:CreatePath({
+        AgentRadius = 2, AgentHeight = 5,
+        AgentCanJump = false, AgentJumpHeight = 10, AgentMaxSlope = 45
+    })
+
+    local ok = pcall(function() path:ComputeAsync(root.Position, targetPos) end)
+    if not ok or path.Status ~= Enum.PathStatus.Success then return end
+
+    for _, wp in ipairs(path:GetWaypoints()) do
+        if hNow ~= h or _G.PlayerControlled then return end
+        if not (hum and root and root.Parent) then return end
+
+        hum:MoveTo(wp.Position)
+        repeat task.wait()
+        until hNow ~= h or _G.PlayerControlled or not root.Parent
+           or ((root.Position * Vector3.new(1,0,1) - wp.Position * Vector3.new(1,0,1)).Magnitude <= 2)
+
+        if wp.Action == Enum.PathWaypointAction.Jump then hum.Jump = true end
+    end
+end
+
+-- =========================
+--  HỖ TRỢ KIỂM TRA KILLER
+-- =========================
+local function isKillerNearGenerator(generatorPos, distance)
+    local killersFolder = Workspace.Players:FindFirstChild("Killers")
+    if not killersFolder then return false end
+    for _, killer in ipairs(killersFolder:GetChildren()) do
+        local hrp = killer:FindFirstChild("HumanoidRootPart")
+        if hrp and (hrp.Position - generatorPos).Magnitude <= distance then
+            return true
+        end
+    end
+    return false
+end
+
+-- =========================
+--  TOGGLE AUTO WALK & FIX GENERATORS
+-- =========================
+local GenWalkToggle = Tabs.Farm:AddToggle("GenWalkToggle", {
+    Title = "Walk To Generator",
+    Default = false
+})
+
+GenWalkToggle:OnChanged(function(Value)
+    _G.AutoGenerators = Value
+    if not Value then h = h + 1 end
+
+    -- Auto Sprint (có kiểm soát stamina)
+    if Value then
+        _G.alwaysSprint = true
+        task.spawn(function()
+            local okSprint, sprint = pcall(function() return require(ReplicatedStorage.Systems.Character.Game.Sprinting) end)
+            local okStam, stamina = pcall(function() return require(ReplicatedStorage.Systems.Character.Game.StaminaHandler) end)
+            if not okSprint then return end
+
+            local LOW, HIGH, lastReset, forceStop = 10, 80, tick(), false
+            local function fireSprint(flag)
+                sprint.IsSprinting = flag
+                pcall(function() if sprint.__sprintedEvent then sprint.__sprintedEvent:Fire(flag) end end)
+            end
+
+            while _G.alwaysSprint and _G.AutoGenerators and task.wait() do
+                -- 🔒 Chỉ chạy khi là survivor hợp lệ; nếu không thì tắt sprint và chờ
+                if not isSurvivorValid() then
+                    if okSprint and sprint.IsSprinting then fireSprint(false) end
+                    continue
+                end
+
+                if okStam and type(stamina.Value) == "number" then
+                    if stamina.Value <= LOW then if sprint.IsSprinting then fireSprint(false) end; forceStop = true end
+                    if forceStop and stamina.Value >= HIGH then fireSprint(true); forceStop = false; lastReset = tick() end
+                end
+                if not forceStop and not sprint.IsSprinting then fireSprint(true); lastReset = tick() end
+                if not forceStop and tick() - lastReset >= 3 then
+                    fireSprint(false); task.wait(0.1); fireSprint(true); lastReset = tick()
+                end
+            end
+        end)
+    else
+        _G.alwaysSprint = false
+    end
+
+    -- Auto Generators loop
+    task.spawn(function()
+        while true do
+            if not _G.AutoGenerators then task.wait(1); continue end
+            if not isSurvivorValid() then task.wait(1); continue end -- ✅ chỉ cho phép survivors hợp lệ
+
+            if _G.PlayerControlled then task.wait(0.1); continue end
+
+            local hrp = LP.Character and LP.Character:FindFirstChild("HumanoidRootPart")
+            if not hrp then task.wait(1); continue end
+
+            local map = Workspace:FindFirstChild("Map") and Workspace.Map:FindFirstChild("Ingame") and Workspace.Map.Ingame:FindFirstChild("Map")
+            if not map then task.wait(2); continue end
+
+            local gens = {}
+            for _, gen in ipairs(map:GetChildren()) do
+                if gen.Name == "Generator" and gen:FindFirstChild("Progress") and gen.Progress.Value < 100 then
+                    table.insert(gens, gen)
+                end
+            end
+            if #gens == 0 then task.wait(3); continue end
+
+            table.sort(gens, function(a, b)
+                local ca, cb = a.Positions and a.Positions:FindFirstChild("Center"), b.Positions and b.Positions:FindFirstChild("Center") -- ✅ sửa 'và' -> 'and'
+                if ca and cb then
+                    return (hrp.Position - ca.Position).Magnitude < (hrp.Position - cb.Position).Magnitude
+                end
+                return false
+            end)
+
+            local targetGen = gens[1]
+            if targetGen and targetGen.Positions and targetGen.Positions:FindFirstChild("Center") then
+                local center = targetGen.Positions.Center.Position
+                if isKillerNearGenerator(center, 50) then task.wait(2); continue end
+
+                if not _G.PlayerControlled then pcall(function() pathfindTo(center) end) end
+                repeat task.wait(0.05)
+                until not _G.AutoGenerators or _G.PlayerControlled or not hrp.Parent or (hrp.Position - center).Magnitude <= 6
+                if _G.PlayerControlled then continue end
+
+                local prompt = targetGen.Main and targetGen.Main:FindFirstChild("Prompt")
+                if prompt and (hrp.Position - center).Magnitude <= 6 then
+                    prompt.HoldDuration, prompt.RequiresLineOfSight, prompt.MaxActivationDistance = 0, false, 99999
+                    while _G.AutoGenerators and not _G.PlayerControlled and targetGen.Parent and targetGen:FindFirstChild("Progress") and targetGen.Progress.Value < 100 do
+                        if (hrp.Position - center).Magnitude > 6 then break end
+                        -- 🔹 Nhấn 1 lần rồi chờ 3 giây
+                        pcall(function()
+                            prompt:InputHoldBegin()
+                        end)
+                        task.wait(0.2) -- giữ nhẹ để chắc chắn ăn lệnh
+                        pcall(function()
+                            prompt:InputHoldEnd()
+                        end)
+                        task.wait(3.0) -- nghỉ 3 giây
+                    end
+                end
+            end
+            task.wait(0.5)
+        end
+    end)
+end)
+
+-- Reset path khi map mới spawn
+Workspace.ChildAdded:Connect(function(child)
+    if child.Name == "Map" then h = h + 1 end
+end)
+end
+
+
+
+    Tabs.Farm:AddSection("↳ Items")
+
+local Players = game:GetService("Players")
+local LP = Players.LocalPlayer
+
+-- Hàm nhặt item gần nhất
+local function pickUpNearest()
+    local map = workspace:FindFirstChild("Map") 
+                and workspace.Map:FindFirstChild("Ingame") 
+                and workspace.Map.Ingame:FindFirstChild("Map")
+    if not map or not LP.Character or not LP.Character:FindFirstChild("HumanoidRootPart") then return end
+
+    local oldCFrame = LP.Character.HumanoidRootPart.CFrame
+    for _, item in ipairs(map:GetChildren()) do
+        if item:IsA("Tool") and item:FindFirstChild("ItemRoot") 
+           and item.ItemRoot:FindFirstChild("ProximityPrompt") then
+            LP.Character.HumanoidRootPart.CFrame = item.ItemRoot.CFrame
+            task.wait(0.3)
+            fireproximityprompt(item.ItemRoot.ProximityPrompt)
+            task.wait(0.4)
+            LP.Character.HumanoidRootPart.CFrame = oldCFrame
+            break
+        end
+    end
+end
+
+-- Button: Pick Up Item (1 lần)
+Tabs.Farm:AddButton({
+    Title = "Pick Up Item",
+    Callback = pickUpNearest
+})
+
+-- Toggle: Auto PickUp Item (lặp)
+Tabs.Farm:AddToggle("ItemPick", {
+    Title = "Auto PickUp Item",
+    Default = false
+}):OnChanged(function(Value)
+    _G.PickupItem = Value
+    if not Value then return end
+
+    task.spawn(function()
+        while _G.PickupItem do
+            pickUpNearest()
+            task.wait(0.2) -- delay giữa mỗi lần nhặt
+        end
+    end)
+end)
+
+
+
+
+-- Tabs.Main
+
+Tabs.Main:AddParagraph({
+    Title = "How to Use Script :",
+    Content = "1: Must adjust the slider to increase or decrease\n2: Must not be min or max because it will not work\n3: Then turn on the buttons to use those functions\n\n|| Like, Share And Subscribe For SLK gaming ||"
+})
+
+
+
+    Tabs.Main:AddSection("↳ Eliot")
+
+do
+-- 🧩 GUI Toggle + Input
+local toggleOn = false
+local toggleFlag = Instance.new("BoolValue")
+toggleFlag.Name = "EliotPizzaAim_ToggleFlag"
+toggleFlag.Value = false
+
+Tabs.Main:AddToggle("NemPizza", {
+    Title = "Pizza Aimbot",
+    Default = toggleOn,
+}):OnChanged(function(state)
+    toggleOn = state
+    toggleFlag.Value = state
+end)
+
+-- khoảng cách aim (studs)
+local maxDistance = 100
+Tabs.Main:AddInput("PizzaAimDistance", {
+    Title = "Aim Distance",
+    Default = tostring(maxDistance),
+    Placeholder = "Enter Number",
+}):OnChanged(function(value)
+    local num = tonumber(value)
+    if num then
+        maxDistance = num
+    end
+end)
+
+-- ⚙️ Services
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local localPlayer = Players.LocalPlayer
+local survivorsFolder = workspace:WaitForChild("Players"):WaitForChild("Survivors")
 
-local LocalPlayer = Players.LocalPlayer
+-- 🎞️ Animation IDs
+local PizzaAnimation = {
+    ["114155003741146"] = true,
+    ["104033348426533"] = true
+}
 
-local autoPunchOn = false
-local flingPunchOn = false
-local flingPower = 5000000
-local aimPunch = true -- включи предиктивный поворот
-local hiddenfling = false
+-- 🧠 Eliot check
+local EliotModels = {["Elliot"] = true}
 
-local punchConnection = nil
-local flingConnection = nil
+-- 🔖 State
+local autoRotateDisabledByScript = false
+local currentTarget, isLockedOn, wasPlayingAnimation = nil, false, false
+local aimOffset = 2 -- lệch phải 2 studs
 
--- === FLING LOOP ===
-local function startFlingLoop()
-    if flingConnection then return end
-    flingConnection = RunService.Heartbeat:Connect(function()
-        if hiddenfling then
-            local char = LocalPlayer.Character
-            local hrp = char and char:FindFirstChild("HumanoidRootPart")
-            if hrp then
-                local vel = hrp.Velocity
-                hrp.Velocity = vel * flingPower + Vector3.new(0, flingPower, 0)
-                task.wait()
-                hrp.Velocity = vel
-                task.wait()
-                hrp.Velocity = vel + Vector3.new(0, 0.1, 0)
+-- ⚙️ Utils
+local function isEliot()
+    local char = localPlayer.Character
+    return char and EliotModels[char.Name] or false
+end
+
+local function getMyHumanoid()
+    local char = localPlayer.Character
+    return char and char:FindFirstChildWhichIsA("Humanoid")
+end
+
+local function restoreAutoRotate()
+    local hum = getMyHumanoid()
+    if hum and autoRotateDisabledByScript then
+        hum.AutoRotate = true
+        autoRotateDisabledByScript = false
+    end
+end
+
+local function isPlayingDangerousAnimation()
+    local humanoid = getMyHumanoid()
+    if not humanoid then return false end
+    local animator = humanoid:FindFirstChildOfClass("Animator")
+    if not animator then return false end
+    for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
+        if track and track.Animation and track.Animation.AnimationId then
+            local animId = tostring(track.Animation.AnimationId):match("%d+")
+            if animId and PizzaAnimation[animId] then
+                return true
             end
         end
-    end)
-end
-
-local function stopFlingLoop()
-    if flingConnection then
-        flingConnection:Disconnect()
-        flingConnection = nil
     end
+    return false
 end
 
--- fling цикл: 3 сек вкл, 1 сек выкл
-local function punchFlingCycle()
-    task.spawn(function()
-        while flingPunchOn do
-            hiddenfling = true
-            task.wait(3)
-            hiddenfling = false
-            task.wait(1)
-        end
-    end)
-end
+-- 🎯 Lấy survivor yếu máu nhất (trong folder Survivors)
+local function getWeakestSurvivor()
+    local list = {}
+    local myChar = localPlayer.Character
+    local myHum = getMyHumanoid()
+    local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
+    if not myRoot or not myHum or not myHum.MaxHealth or myHum.MaxHealth <= 0 then return nil end
 
--- === Функция предсказания позиции ===
-local function predictPosition(targetRoot, myPing)
-    local velocity = targetRoot.Velocity
-    local latency = myPing / 1000 -- перевод мс в сек
-    local lookVec = targetRoot.CFrame.LookVector * 5 -- влияние направления (5 – множитель)
-    local predicted = targetRoot.Position + (velocity * latency) + lookVec
-    return predicted
-end
+    local myHpPercent = myHum.Health / myHum.MaxHealth
 
--- === AUTO PUNCH ===
-local function startAutoPunch()
-    startFlingLoop()
-    if flingPunchOn then
-        punchFlingCycle()
-    end
-
-    punchConnection = RunService.Heartbeat:Connect(function()
-        local myChar = LocalPlayer.Character
-        if not myChar then return end
-        local myRoot = myChar:FindFirstChild("HumanoidRootPart")
-        if not myRoot then return end
-
-        local gui = LocalPlayer:FindFirstChild("PlayerGui"):FindFirstChild("MainUI")
-        local punchBtn = gui and gui:FindFirstChild("AbilityContainer") and gui.AbilityContainer:FindFirstChild("Punch")
-        local charges = punchBtn and punchBtn:FindFirstChild("Charges")
-
-        if not (punchBtn and charges and charges.Text == "1") then return end
-
-        -- === Сначала Killers ===
-        local killersFolder = workspace:FindFirstChild("Players") and workspace.Players:FindFirstChild("Killers")
-        if killersFolder then
-            for _, killer in ipairs(killersFolder:GetChildren()) do
-                local root = killer:FindFirstChild("HumanoidRootPart")
-                if root and (root.Position - myRoot.Position).Magnitude <= 12 then
-                    if aimPunch then
-                        local ping = math.max(LocalPlayer:GetNetworkPing() * 1000, 50) -- в мс
-                        local predictedPos = predictPosition(root, ping)
-
-                        -- моментально поворачиваем игрока
-                        myRoot.CFrame = CFrame.lookAt(myRoot.Position, predictedPos)
-                        task.delay(1, function()
-                            if myChar and myChar:FindFirstChild("HumanoidRootPart") then
-                                local forward = myRoot.CFrame.LookVector
-                                myRoot.CFrame = CFrame.lookAt(myRoot.Position, myRoot.Position + forward)
-                            end
-                        end)
-                    end
-
-                    for _, conn in ipairs(getconnections(punchBtn.MouseButton1Click)) do
-                        pcall(function() conn:Fire() end)
-                    end
-                    return -- ударили Killers, выходим
+    for _, obj in ipairs(survivorsFolder:GetChildren()) do
+        if obj:IsA("Model") and obj ~= myChar then
+            local hum = obj:FindFirstChildWhichIsA("Humanoid")
+            local hrp = obj:FindFirstChild("HumanoidRootPart")
+            if hum and hrp and hum.Health > 0 and hum.MaxHealth > 0 then
+                local dist = (hrp.Position - myRoot.Position).Magnitude
+                local hpPercent = hum.Health / hum.MaxHealth
+                if dist <= maxDistance then
+                    table.insert(list, {model = obj, hp = hpPercent})
                 end
             end
         end
+    end
 
-        -- === Если Killers нет, ищем игроков ===
-        for _, player in ipairs(Players:GetPlayers()) do
-            if player ~= LocalPlayer and player.Character then
-                local root = player.Character:FindFirstChild("HumanoidRootPart")
-                if root and (root.Position - myRoot.Position).Magnitude <= 10 then
-                    if aimPunch then
-                        local ping = math.max(LocalPlayer:GetNetworkPing() * 1000, 50)
-                        local predictedPos = predictPosition(root, ping)
+    -- Sắp xếp theo % máu tăng dần
+    table.sort(list, function(a, b)
+        return a.hp < b.hp
+    end)
 
-                        myRoot.CFrame = CFrame.lookAt(myRoot.Position, predictedPos)
-                        task.delay(1, function()
-                            if myChar and myChar:FindFirstChild("HumanoidRootPart") then
-                                local forward = myRoot.CFrame.LookVector
-                                myRoot.CFrame = CFrame.lookAt(myRoot.Position, myRoot.Position + forward)
-                            end
-                        end)
+    if #list == 0 then return nil end
+    if myHpPercent <= list[1].hp and #list > 1 then
+        return list[2].model
+    else
+        return list[1].model
+    end
+end
+
+-- 🔁 Reset khi respawn
+localPlayer.CharacterAdded:Connect(function()
+    task.delay(0.1, function()
+        autoRotateDisabledByScript = false
+    end)
+end)
+
+-- 🔂 Main loop
+RunService.RenderStepped:Connect(function()
+    if not toggleFlag.Value then
+        restoreAutoRotate()
+        currentTarget, isLockedOn, wasPlayingAnimation = nil, false, false
+        return
+    end
+
+    if not isEliot() then
+        restoreAutoRotate()
+        currentTarget, isLockedOn, wasPlayingAnimation = nil, false, false
+        return
+    end
+
+    local myHumanoid = getMyHumanoid()
+    if not myHumanoid then return end
+    local myRoot = myHumanoid.Parent and myHumanoid.Parent:FindFirstChild("HumanoidRootPart")
+    if not myRoot then return end
+
+    local isPlaying = isPlayingDangerousAnimation()
+
+    -- 🧲 Lock target khi bắt đầu animation
+    if isPlaying and not isLockedOn then
+        currentTarget = getWeakestSurvivor()
+        if currentTarget then isLockedOn = true end
+    end
+
+    -- ⚙️ Validate target
+    if isLockedOn and currentTarget then
+        local tHum = currentTarget:FindFirstChildWhichIsA("Humanoid")
+        local tHrp = currentTarget:FindFirstChild("HumanoidRootPart")
+        if (not tHum) or (tHum.Health <= 0) or (not tHrp) then
+            currentTarget, isLockedOn = nil, false
+        end
+    end
+
+    -- ⏹️ End animation -> reset
+    if (not isPlaying) and wasPlayingAnimation then
+        currentTarget, isLockedOn = nil, false
+        restoreAutoRotate()
+    end
+    wasPlayingAnimation = isPlaying
+
+    -- 🎯 Aim logic
+    if isPlaying and isLockedOn and currentTarget and currentTarget:FindFirstChild("HumanoidRootPart") then
+        local hrp = currentTarget.HumanoidRootPart
+        local targetPos = hrp.Position
+        if not autoRotateDisabledByScript then
+            myHumanoid.AutoRotate = false
+            autoRotateDisabledByScript = true
+        end
+
+        -- dự đoán hướng di chuyển nhẹ
+        local vel = hrp.Velocity
+        if vel and vel.Magnitude > 2 then
+            targetPos = targetPos + hrp.CFrame.LookVector * 3
+        end
+
+        -- lệch phải
+        local offset = myRoot.CFrame.RightVector * aimOffset
+        local lookAt = Vector3.new(targetPos.X, myRoot.Position.Y, targetPos.Z) + offset
+
+        myRoot.CFrame = myRoot.CFrame:Lerp(CFrame.lookAt(myRoot.Position, lookAt), 0.99)
+    end
+end)
+end
+
+
+
+--// 🍕 Auto Eat Pizza Instantly (Fluent Toggle Style)
+--// ======================================
+
+do
+    -- 🌍 Global Vars
+    local Players = game:GetService("Players")
+    local Workspace = game:GetService("Workspace")
+    local LocalPlayer = Players.LocalPlayer
+
+    getgenv().BlinkToPizzaToggle = false
+    getgenv().HPThreshold = 30
+
+    -- 🧩 Helper Functions
+    local function getHRP()
+        local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+        return char:WaitForChild("HumanoidRootPart")
+    end
+
+    local function getHP()
+        local char = LocalPlayer.Character
+        if char then
+            local hum = char:FindFirstChildOfClass("Humanoid")
+            if hum then return hum.Health end
+        end
+        return 0
+    end
+
+    local function getPizzaCF()
+        local map = Workspace:FindFirstChild("Map")
+        local ingame = map and map:FindFirstChild("Ingame")
+        if not ingame then return nil end
+
+        local pizza = ingame:FindFirstChild("Pizza")
+        if not pizza then return nil end
+
+        if pizza:IsA("BasePart") or pizza:IsA("MeshPart") or pizza:IsA("UnionOperation") then
+            return pizza.CFrame
+        elseif pizza:IsA("Model") then
+            local pp = pizza.PrimaryPart or pizza:FindFirstChildWhichIsA("BasePart")
+            if pp then
+                if not pizza.PrimaryPart then pizza.PrimaryPart = pp end
+                return pp.CFrame
+            end
+        elseif pizza:IsA("CFrameValue") then
+            return pizza.Value
+        end
+    end
+
+    -- ?? Fluent UI Section
+
+    -- 🍕 Toggle tự ăn pizza
+    Tabs.Main:AddToggle("BlinkPizza_Toggle", {
+        Title = "Auto Eat Pizza",
+        Default = false,
+    }):OnChanged(function(state)
+        getgenv().BlinkToPizzaToggle = state
+    end)
+
+    -- ❤️ Input HP Threshold
+    Tabs.Main:AddInput("PizzaHPThreshold", {
+        Title = "HP Threshold",
+        Default = tostring(getgenv().HPThreshold),
+        Placeholder = "30",
+    }):OnChanged(function(value)
+        local num = tonumber(value)
+        if num then
+            getgenv().HPThreshold = num
+        end
+    end)
+
+    -- 🔁 Auto Loop
+    task.spawn(function()
+        while task.wait(0.9) do
+            if getgenv().BlinkToPizzaToggle then
+                local hrp = getHRP()
+                local pizzaCF = getPizzaCF()
+                if pizzaCF and getHP() <= getgenv().HPThreshold then
+                    local oldCF = hrp.CFrame
+                    hrp.CFrame = pizzaCF * CFrame.new(0, 1, 0)
+
+                    if getgenv().activateRemoteHook then
+                        getgenv().activateRemoteHook("UnreliableRemoteEvent", "UpdCF")
                     end
 
-                    for _, conn in ipairs(getconnections(punchBtn.MouseButton1Click)) do
-                        pcall(function() conn:Fire() end)
+                    task.delay(0.2, function()
+                        hrp.CFrame = oldCF
+                        task.wait(0.3)
+                        if getgenv().deactivateRemoteHook then
+                            getgenv().deactivateRemoteHook("UnreliableRemoteEvent", "UpdCF")
+                        end
+                    end)
+                end
+            end
+        end
+    end)
+end
+
+
+    Tabs.Main:AddSection("↳ Shedletsky")
+
+
+do
+    local Players = game:GetService("Players")
+    local RunService = game:GetService("RunService")
+    local lp = Players.LocalPlayer
+
+    -- ⚙️ Variables
+    local enabled = false
+    local mode = "AI Aimbot"
+    local cooldown = false
+    local lastTarget = nil
+    local maxDistance = 5
+    local sliderInitialized = false
+
+    local TELEPORT_DURATION = 0.8
+    local AI_DELAY = 15 -- ⏳ Delay giữa mỗi lần teleport AI
+
+    local killersFolder = workspace:WaitForChild("Players"):WaitForChild("Killers")
+
+    -- 🎵 Animation IDs
+    local monitoredAnimations = {
+        'rbxassetid://116618003477002', 'rbxassetid://121255898612475',
+        'rbxassetid://98031287364865',  'rbxassetid://119462383658044',
+        'rbxassetid://77448521277146',  'rbxassetid://103741352379819',
+        'rbxassetid://131696603025265', 'rbxassetid://122503338277352',
+        'rbxassetid://97648548303678'
+    }
+
+    -- 🔧 Slash button + remote
+    local slashButton, slashRemote, slashConnections = nil, nil, {}
+
+    local function findSlashRemote()
+        if slashRemote then return slashRemote end
+        if not slashButton then return nil end
+        for _, conn in ipairs(getconnections(slashButton.MouseButton1Click)) do
+            local f = conn.Function
+            if f and islclosure(f) then
+                for _, v in pairs(getupvalues(f)) do
+                    if typeof(v) == "Instance" and v:IsA("RemoteEvent") then
+                        slashRemote = v
+                        warn("[AutoSlash] Found Slash Remote:", v:GetFullName())
+                        return slashRemote
                     end
+                end
+            end
+        end
+        return nil
+    end
+
+    local function initSlashButton()
+        local gui = lp:FindFirstChild("PlayerGui")
+        if not gui then return end
+        local mainUI = gui:FindFirstChild("MainUI")
+        local container = mainUI and mainUI:FindFirstChild("AbilityContainer")
+        slashButton = container and container:FindFirstChild("Slash")
+        if slashButton and slashButton:IsA("ImageButton") then
+            slashConnections = getconnections(slashButton.MouseButton1Click)
+            findSlashRemote()
+        end
+    end
+
+    initSlashButton()
+    lp.CharacterAdded:Connect(function()
+        task.wait(0.5)
+        initSlashButton()
+    end)
+
+    local function useSlash()
+        if slashRemote then
+            pcall(function()
+                slashRemote:FireServer(true)
+                task.delay(0.05, function()
+                    slashRemote:FireServer(false)
+                end)
+            end)
+        elseif slashButton then
+            for _, conn in ipairs(slashConnections) do
+                pcall(function() conn:Fire() end)
+            end
+            pcall(function() slashButton:Activate() end)
+        end
+    end
+
+    -- 🧭 UI
+    local ModeDropdown = Tabs.Main:AddDropdown("SlashMode", {
+        Title = "Slash Mode",
+        Values = { "AI Aimbot", "Player Aimbot" },
+        Default = "AI Aimbot"
+    })
+    ModeDropdown:OnChanged(function(Value)
+        mode = Value
+    end)
+
+    local SlashToggle = Tabs.Main:AddToggle("SlashToggle", {
+        Title = "Auto Slash",
+        Default = false
+    })
+    SlashToggle:OnChanged(function(Value)
+        enabled = Value
+    end)
+
+    local DistanceSlider = Tabs.Main:AddSlider("DistanceSlider", {
+        Title = "Distance",
+        Min = 1, Max = 50, Default = 5,
+        Rounding = 1, ValueName = "studs"
+    })
+    DistanceSlider:OnChanged(function(Value)
+        if not sliderInitialized then
+            sliderInitialized = true
+            return
+        end
+        maxDistance = Value
+    end)
+
+    -- ⚡ Helpers
+    local function getRelativeTeleportPosition(hrp, targetHRP)
+        local toTarget = (hrp.Position - targetHRP.Position).Unit
+        return targetHRP.Position + (toTarget * 2)
+    end
+
+    local function teleportAndSlash(target, spam)
+        if cooldown then return end
+        local hrp = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
+        local kHRP = target:FindFirstChild("HumanoidRootPart")
+        if not hrp or not kHRP then return end
+
+        cooldown = true
+        lastTarget = target
+
+        local start = tick()
+        local conn
+        conn = RunService.Heartbeat:Connect(function()
+            if not (lp.Character and lp.Character:FindFirstChild("HumanoidRootPart") and kHRP and kHRP.Parent) then
+                if conn then conn:Disconnect() end
+                cooldown = false
+                lastTarget = nil
+                return
+            end
+
+            if tick() - start >= TELEPORT_DURATION then
+                if conn then conn:Disconnect() end
+                task.delay((mode == "AI Aimbot") and AI_DELAY or TELEPORT_DURATION, function()
+                    cooldown = false
+                    lastTarget = nil
+                end)
+                return
+            end
+
+            local newPos = getRelativeTeleportPosition(hrp, kHRP)
+            hrp.CFrame = CFrame.new(newPos, kHRP.Position)
+
+            if spam then useSlash() end
+        end)
+    end
+
+    -- ⚔️ AI Aimbot Mode (auto tìm trong Killers folder)
+    RunService.Heartbeat:Connect(function()
+        if not enabled or cooldown or mode ~= "AI Aimbot" then return end
+        local char = lp.Character
+        if not (char and char:FindFirstChild("HumanoidRootPart")) then return end
+        local hrp = char.HumanoidRootPart
+
+        for _, killer in ipairs(killersFolder:GetChildren()) do
+            if killer:FindFirstChild("HumanoidRootPart") then
+                local kHRP = killer.HumanoidRootPart
+                local dist = (hrp.Position - kHRP.Position).Magnitude
+                if dist <= maxDistance and killer ~= lastTarget then
+                    teleportAndSlash(killer, true)
                     break
                 end
             end
         end
     end)
-end
 
-local function stopAutoPunch()
-    if punchConnection then
-        punchConnection:Disconnect()
-        punchConnection = nil
-    end
-    stopFlingLoop()
-    hiddenfling = false
-end
+    -- 👁️ Player Aimbot Mode
+    local function attachAnimMonitor(character)
+        local humanoid = character:WaitForChild("Humanoid", 5)
+        if not humanoid then return end
 
--- === Toggle ===
-Tabs.AutoBlock:Toggle({
-    Title = "Auto Punch+fling(doesn't work when shiwtlock)",
-    Default = false,
-    Callback = function(state)
-        autoPunchOn = state
-        if state then
-            startAutoPunch()
-        else
-            stopAutoPunch()
-        end
-    end
-})
-
--- === Slider для flingPower ===
-Tabs.AutoBlock:Slider({
-    Title = "Fling Power",
-    Step = 100000,
-    Value = {Min = 100000, Max = 20000000, Default = flingPower},
-    Suffix = " power",
-    Callback = function(val)
-        flingPower = tonumber(val)
-    end
-})
-
--- Block TP
-local blockTPEnabled = false
-local lastBlockTpTime = 0
-
--- Toggle
-Tabs.AutoBlock:Toggle({
-    Title = "Block TP",
-    Default = false,
-    Callback = function(state)
-        blockTPEnabled = state
-    end
-})
-
-RunService.RenderStepped:Connect(function()
-    if blockTPEnabled and Humanoid and tick() - lastBlockTpTime >= 5 then
-        for _, track in ipairs(Humanoid:GetPlayingAnimationTracks()) do
-            local animId = tostring(track.Animation.AnimationId):match("%d+")
-            if animId == "72722244508749" or animId == "96959123077498" then
-                local myRoot = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
-                if myRoot then
-                    local killers = {"c00lkidd", "Jason", "JohnDoe", "1x1x1x1", "Noli", "Slasher"}
-                    for _, name in ipairs(killers) do
-                        local killer = workspace:FindFirstChild("Players")
-                            and workspace.Players:FindFirstChild("Killers")
-                            and workspace.Players.Killers:FindFirstChild(name)
-
-                        if killer and killer:FindFirstChild("HumanoidRootPart") then
-                            lastBlockTpTime = tick()
-
-                            task.spawn(function()
-                                local startTime = tick()
-                                while tick() - startTime < 0.5 do
-                                    if lp.Character and lp.Character:FindFirstChild("HumanoidRootPart") then
-                                        local myRoot = lp.Character.HumanoidRootPart
-                                        local targetHRP = killer.HumanoidRootPart
-                                        local direction = targetHRP.CFrame.LookVector
-                                        local tpPosition = targetHRP.Position + direction * 4
-                                        myRoot.CFrame = CFrame.new(tpPosition)
-                                    end
-                                    task.wait()
-                                end
-                            end)
-                            break
+        humanoid.AnimationPlayed:Connect(function(animTrack)
+            if not enabled or mode ~= "Player Aimbot" or cooldown then return end
+            local animId = animTrack.Animation and animTrack.Animation.AnimationId
+            if animId and table.find(monitoredAnimations, animId) then
+                for _, killer in ipairs(killersFolder:GetChildren()) do
+                    if killer:FindFirstChild("HumanoidRootPart") then
+                        local hrpLocal = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
+                        local kHRP = killer:FindFirstChild("HumanoidRootPart")
+                        if hrpLocal and kHRP then
+                            local dist = (kHRP.Position - hrpLocal.Position).Magnitude
+                            if dist <= maxDistance * 5 then
+                                teleportAndSlash(killer, false)
+                                break
+                            end
                         end
                     end
                 end
-                break
+            end
+        end)
+    end
+
+    if lp.Character then
+        attachAnimMonitor(lp.Character)
+    end
+    lp.CharacterAdded:Connect(attachAnimMonitor)
+end
+
+
+
+do
+    local Players = game:GetService("Players")
+    local RunService = game:GetService("RunService")
+    local lp = Players.LocalPlayer
+
+    -- Vars
+    local healEnabled = false
+    local healHPThreshold = 50
+    local healDistance = 50
+
+    -- Heal button + remote
+    local healButton, healRemote, healConnections = nil, nil, {}
+
+    -- tìm RemoteEvent từ button Heal
+    local function findHealRemote()
+        if healRemote then return healRemote end
+        if not healButton then return nil end
+        for _, conn in ipairs(getconnections(healButton.MouseButton1Click)) do
+            local f = conn.Function
+            if f and islclosure(f) then
+                local upvals = getupvalues(f)
+                for _, v in pairs(upvals) do
+                    if typeof(v) == "Instance" and v:IsA("RemoteEvent") then
+                        healRemote = v
+                        warn("[AutoHeal] Found Heal Remote:", v:GetFullName())
+                        return healRemote
+                    end
+                end
             end
         end
+        return nil
     end
-end)
+
+    local function initHealButton()
+        local gui = lp:FindFirstChild("PlayerGui")
+        if not gui then return end
+        local mainUI = gui:FindFirstChild("MainUI")
+        local container = mainUI and mainUI:FindFirstChild("AbilityContainer")
+        healButton = container and container:FindFirstChild("FriedChicken")
+        if healButton and healButton:IsA("ImageButton") then
+            healConnections = getconnections(healButton.MouseButton1Click)
+            findHealRemote()
+        end
+    end
+
+    initHealButton()
+    lp.CharacterAdded:Connect(function()
+        task.wait(0.5)
+        initHealButton()
+    end)
+
+    local function useHeal()
+        if healRemote then
+            pcall(function()
+                healRemote:FireServer(true)
+                task.delay(0.05, function()
+                    healRemote:FireServer(false)
+                end)
+            end)
+        elseif healButton then
+            for _, conn in ipairs(healConnections) do
+                pcall(function() conn:Fire() end)
+            end
+            pcall(function() healButton:Activate() end)
+        end
+    end
+
+    -- UI ------------------------------------------------
+    local HealToggle = Tabs.Main:AddToggle("HealToggle", {
+        Title = "Auto Heal",
+        Default = false
+    })
+    HealToggle:OnChanged(function(v) healEnabled = v end)
+
+    local HealHPSlider = Tabs.Main:AddSlider("HealHPSlider", {
+        Title = "Heal HP",
+        Min = 1, Max = 100, Default = 50,
+        Rounding = 0, ValueName = "HP"
+    })
+    HealHPSlider:OnChanged(function(v) healHPThreshold = v end)
+
+    local HealDistanceSlider = Tabs.Main:AddSlider("HealDistanceSlider", {
+        Title = "Distance",
+        Min = 1, Max = 150, Default = 50,
+        Rounding = 0, ValueName = "studs"
+    })
+    HealDistanceSlider:OnChanged(function(v) healDistance = v end)
+
+    -- Helpers -------------------------------------------------------------
+    local function getPlayersFolders()
+        local pf = workspace:FindFirstChild("Players")
+        if not pf then return nil, nil, nil end
+        return pf, pf:FindFirstChild("Killers"), pf:FindFirstChild("Survivors")
+    end
+
+    local function belongsToMe(m)
+        if not (m and m:IsA("Model")) then return false end
+        if m:GetAttribute("Username") == lp.Name then return true end
+        local UsernameSV = m:FindFirstChild("Username")
+        if UsernameSV and typeof(UsernameSV.Value) == "string" and UsernameSV.Value == lp.Name then return true end
+        local Owner = m:FindFirstChild("Owner") or m:FindFirstChild("Player")
+        if Owner and Owner.Value == lp then return true end
+        local uidAttr = m:GetAttribute("UserId")
+        if uidAttr and tonumber(uidAttr) == lp.UserId then return true end
+        if m.Name == lp.Name then return true end
+        return false
+    end
+
+    local function getMyShedletsky()
+        local pf, killersFolder, survivorsFolder = getPlayersFolders()
+        local candidates = {}
+
+        local function scan(container)
+            if not container then return end
+            for _, d in ipairs(container:GetDescendants()) do
+                if d:IsA("Model") and d.Name == "Shedletsky" and d:FindFirstChild("Humanoid") and d:FindFirstChild("HumanoidRootPart") then
+                    if belongsToMe(d) then table.insert(candidates, d) end
+                end
+            end
+        end
+
+        scan(killersFolder)
+        scan(survivorsFolder)
+        scan(workspace)
+
+        if #candidates == 0 then return nil, nil, nil end
+
+        local basePos
+        if lp.Character and lp.Character:FindFirstChild("HumanoidRootPart") then
+            basePos = lp.Character.HumanoidRootPart.Position
+        end
+
+        local best, bestDist = candidates[1], math.huge
+        if basePos then
+            for _, m in ipairs(candidates) do
+                local hrp = m:FindFirstChild("HumanoidRootPart")
+                if hrp then
+                    local d = (hrp.Position - basePos).Magnitude
+                    if d < bestDist then best, bestDist = m, d end
+                end
+            end
+        end
+
+        local hum = best:FindFirstChildOfClass("Humanoid")
+        local hrp = best:FindFirstChild("HumanoidRootPart")
+        return best, hum, hrp
+    end
+
+    local function getNearestKillerDist(fromHRP, myModel)
+        local _, killersFolder = getPlayersFolders()
+        if not (killersFolder and fromHRP) then return math.huge end
+        local nearest = math.huge
+        for _, k in ipairs(killersFolder:GetChildren()) do
+            if k ~= myModel then
+                local khrp = k:FindFirstChild("HumanoidRootPart")
+                if khrp then
+                    local d = (fromHRP.Position - khrp.Position).Magnitude
+                    if d < nearest then nearest = d end
+                end
+            end
+        end
+        return nearest
+    end
+
+    -- Main loop ----------------------------------------------------------
+    RunService.Heartbeat:Connect(function()
+        if not healEnabled then return end
+
+        local myModel, myHumanoid, myHRP = getMyShedletsky()
+        if not (myModel and myHumanoid and myHRP) then return end
+        if myHumanoid.Health <= 0 then return end
+
+        local nearestDist = getNearestKillerDist(myHRP, myModel)
+
+        if myHumanoid.Health <= healHPThreshold and nearestDist >= healDistance then
+            useHeal()
+        end
+    end)
+end
 
 
---  AUTO CLON 
 
-Tabs.AutoBlock:Button({
-    Title = "Load Auto Clon (Auto Clon 007n7)",
-    Callback = function()
-    
+    Tabs.Main:AddSection("↳ Chance")
+
+
+
+do
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local Stats = game:GetService("Stats")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local LocalPlayer = Players.LocalPlayer
+
+local active = false
+local useOffset = true
+local predictionMode = "Speed"
+local aimMode = "Normal"
+local aimDuration = 1.7
+local fasterDuration = 1.5
+local spinDuration = 0.5
+local aimTargets = {"Slasher", "c00lkidd", "JohnDoe", "1x1x1x1", "Noli", "Guest 666", "Sixer"}
+
+local Humanoid, HRP = nil, nil
+local originalWS, originalJP, originalAutoRotate = nil, nil, nil
+local aiming = false
+local prevFlintVisibleAim = false
+local lastTriggerTime = 0
+
+local autoCoinflip = false
+local coinflipTargetCharge = 3
+local coinflipCooldown = 0.15
+local lastCoinflipTime = 0
+
+local blockCoinflipWhenClose = true
+local coinflipBlockDist = 50
+
+local RemoteEvent
+pcall(function()
+    RemoteEvent = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Network"):WaitForChild("RemoteEvent")
+end)
+
+-- ================= GUI =================
+Tabs.Main:AddDropdown("AimMode", {
+    Title = "Aim Mode",
+    Values = {"Normal", "Faster", "Reflex"},
+    Default = "Normal",
+    Callback = function(val) aimMode = val end
+})
+
+Tabs.Main:AddDropdown("PredictionMode", {
+    Title = "Prediction Mode",
+    Values = {"Speed", "Ping", "front", "No Lag"},
+    Default = "Speed",
+    Callback = function(val) predictionMode = val end
+})
+
+Tabs.Main:AddDropdown("CoinflipChargeDropdown", {
+    Title = "Select Score",
+    Values = {"1 Point", "2 Point", "3 Point"},
+    Default = "3 Point",
+}):OnChanged(function(val)
+    local num = tonumber(val and val:match("%d+"))
+    if num then coinflipTargetCharge = num end
+end)
+
+Tabs.Main:AddInput("CoinflipDistance", {
+    Title = "Distance",
+    Default = "50",
+    Placeholder = "Enter studs",
+    Callback = function(val)
+        local num = tonumber(val)
+        if num and num > 0 then
+            coinflipBlockDist = num
+        end
+    end
+})
+
+Tabs.Main:AddToggle("BlockCoinflipToggle", {
+    Title = "Safe Mode",
+    Default = true,
+}):OnChanged(function(state)
+    blockCoinflipWhenClose = state
+end)
+
+Tabs.Main:AddToggle("OffsetToggle", {
+    Title = "Enable Offset",
+    Default = true,
+    Callback = function(state) useOffset = state end
+})
+
+Tabs.Main:AddToggle("AimbotToggle", {
+    Title = "Auto Aim Shoot",
+    Default = false,
+    Callback = function(state) active = state end
+})
+
+Tabs.Main:AddToggle("AutoCoinflipToggle", {
+    Title = "Auto Coin Flip",
+    Default = false,
+}):OnChanged(function(state)
+    autoCoinflip = state
+end)
+
+-- ================= Character Setup =================
+local function setupCharacter(char)
+    Humanoid = char:WaitForChild("Humanoid")
+    HRP = char:WaitForChild("HumanoidRootPart")
+end
+if LocalPlayer.Character then setupCharacter(LocalPlayer.Character) end
+LocalPlayer.CharacterAdded:Connect(setupCharacter)
+
+-- ================= Helpers =================
+local function getValidTarget()
+    -- Quét tất cả Players
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer and plr.Character then
+            local char = plr.Character
+            local hrp = char:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                for _, targetName in ipairs(aimTargets) do
+                    if char.Name:lower():find(targetName:lower()) then
+                        return hrp
+                    end
+                end
+            end
+        end
+    end
+    return nil
+end
+
+local function getPingSeconds()
+    local pingStat = Stats.Network.ServerStatsItem["Data Ping"]
+    if pingStat then return pingStat:GetValue() / 1000 end
+    return 0.1
+end
+
+local function isFlintlockVisible()
+    if not LocalPlayer.Character then return false end
+    local flint = LocalPlayer.Character:FindFirstChild("Flintlock", true)
+    if not flint then return false end
+    if not (flint:IsA("BasePart") or flint:IsA("MeshPart") or flint:IsA("UnionOperation")) then
+        flint = flint:FindFirstChildWhichIsA("BasePart", true)
+        if not flint then return false end
+    end
+    return flint.Transparency < 1
+end
+
+local movementThreshold = 0.5
+local function getPredictedAimPosPing(targetHRP)
+    local ping = getPingSeconds()
+    local velocity = targetHRP.Velocity
+    if velocity.Magnitude <= movementThreshold then return targetHRP.Position end
+    return targetHRP.Position + (velocity * ping)
+end
+
+local function getPredictedAimPosInfrontHRPPing(targetHRP)
+    local ping = getPingSeconds()
+    local studs = ping * 60
+    if targetHRP.Velocity.Magnitude <= movementThreshold then return targetHRP.Position end
+    return targetHRP.Position + (targetHRP.CFrame.LookVector * studs)
+end
+
+local function computeAimPos(targetHRP)
+    if predictionMode == "Ping" then
+        return getPredictedAimPosPing(targetHRP)
+    elseif predictionMode == "front" then
+        return targetHRP.Position + targetHRP.CFrame.LookVector * 4
+    elseif predictionMode == "No Lag" then
+        return getPredictedAimPosInfrontHRPPing(targetHRP)
+    else
+        local velocity = targetHRP.Velocity
+        if velocity.Magnitude > 0.1 then
+            if useOffset and HRP then
+                local ok, toTarget = pcall(function() return (targetHRP.Position - HRP.Position).Unit end)
+                if not ok then return targetHRP.Position end
+                local moveDir = velocity.Unit
+                local dot = toTarget:Dot(moveDir)
+                if math.abs(dot) < 0.85 then
+                    return targetHRP.Position + velocity * (4 / 60)
+                else
+                    return targetHRP.Position
+                end
+            else
+                return targetHRP.Position
+            end
+        else
+            return targetHRP.Position
+        end
+    end
+end
+
+local function safeSetCFrame(newCF)
+    if typeof(newCF) == "CFrame" and tostring(newCF) ~= "nan" and HRP then
+        HRP.CFrame = newCF
+    end
+end
+
+local function faceInstant(toPos)
+    if not HRP or not toPos then return end
+    local fromPos = HRP.Position
+    if (toPos - fromPos).Magnitude < 0.01 then return end
+    local lookAt = Vector3.new(toPos.X, fromPos.Y, toPos.Z)
+    local targetCF = CFrame.new(fromPos, lookAt)
+    safeSetCFrame(HRP.CFrame:Lerp(targetCF, 0.99))
+end
+
+-- ================= Coinflip helpers =================
+local function getAbilityContainer()
+    local ok, container = pcall(function()
+        local gui = LocalPlayer:FindFirstChild("PlayerGui")
+        if not gui then return nil end
+        local mainUI = gui:FindFirstChild("MainUI")
+        if not mainUI then return nil end
+        return mainUI:FindFirstChild("AbilityContainer")
+    end)
+    if ok then return container end
+    return nil
+end
+
+local function tryActivateButton(button)
+    if not button then return false end
+    pcall(function() if button.Activate then button:Activate() end end)
+    local ok, conns = pcall(function()
+        if type(getconnections) == "function" and button.MouseButton1Click then
+            return getconnections(button.MouseButton1Click)
+        end
+        return nil
+    end)
+    if ok and conns then
+        for _, conn in ipairs(conns) do
+            pcall(function()
+                if conn.Function then conn.Function()
+                elseif conn.func then conn.func()
+                elseif conn.Fire then conn.Fire() end
+            end)
+        end
+    end
+    pcall(function() if button.Activated then button.Activated:Fire() end end)
+    pcall(function() if button.MouseButton1Click then button.MouseButton1Click:Fire() end end)
+    return true
+end
+
+local function findAbilityButtonByName(name)
+    local container = getAbilityContainer()
+    if not container then return nil end
+    local btn = container:FindFirstChild(name)
+    if btn then return btn end
+    local lname = name:lower()
+    for _, child in ipairs(container:GetChildren()) do
+        if child.Name and child.Name:lower():find(lname) then return child end
+        local found = child:FindFirstChildWhichIsA("ImageButton") or child:FindFirstChildWhichIsA("TextButton")
+        if found and found.Name and found.Name:lower():find(lname) then
+            return found
+        end
+    end
+    return nil
+end
+
+local function clickCoinflipButton()
+    local tryNames = {"CoinFlip", "Coin", "Reroll"}
+    for _, n in ipairs(tryNames) do
+        local b = findAbilityButtonByName(n)
+        if b then
+            if tryActivateButton(b) then return true end
+        end
+    end
+    return false
+end
+
+local function findRerollContainer()
+    local container = getAbilityContainer()
+    if not container then return nil end
+    local reroll = container:FindFirstChild("Reroll") or container:FindFirstChild("RerollAbility") or nil
+    if reroll then return reroll end
+    for _, child in ipairs(container:GetChildren()) do
+        for _, obj in ipairs(child:GetDescendants()) do
+            if (obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox")) and obj.Text and tostring(obj.Text):match("%d") then
+                return child
+            end
+        end
+    end
+    return nil
+end
+
+local function getNearbyMaxNumber()
+    local reroll = findRerollContainer()
+    if not reroll then return nil end
+    local maxNum = nil
+    for _, obj in ipairs(reroll:GetDescendants()) do
+        if (obj:IsA("TextLabel") or obj:IsA("TextButton") or obj:IsA("TextBox")) and obj.Text then
+            for num in tostring(obj.Text):gmatch("%d+") do
+                local n = tonumber(num)
+                if n then
+                    if not maxNum or n > maxNum then maxNum = n end
+                end
+            end
+        end
+    end
+    return maxNum
+end
+
+-- ================= Main loop =================
+RunService.RenderStepped:Connect(function()
+    -- AIMBOT LOGIC
+    if active and Humanoid and HRP then
+        local isVisible = isFlintlockVisible()
+        if isVisible and not prevFlintVisibleAim and not aiming then
+            lastTriggerTime = tick()
+            aiming = true
+        end
+        prevFlintVisibleAim = isVisible
+
+        if aiming then
+            local elapsed = tick() - lastTriggerTime
+
+            if aimMode == "Reflex" then
+                if elapsed <= spinDuration then
+                    local spinProgress = elapsed / spinDuration
+                    local spinAngle = math.rad(360 * spinProgress)
+                    safeSetCFrame(CFrame.new(HRP.Position) * CFrame.Angles(0, spinAngle, 0))
+                elseif elapsed <= spinDuration + 0.7 then
+                    if not originalWS then
+                        originalWS, originalJP, originalAutoRotate = Humanoid.WalkSpeed, Humanoid.JumpPower, Humanoid.AutoRotate
+                    end
+                    Humanoid.AutoRotate = false
+                    HRP.AssemblyAngularVelocity = Vector3.zero
+                    local targetHRP = getValidTarget()
+                    if targetHRP then
+                        faceInstant(computeAimPos(targetHRP))
+                    end
+                else
+                    aiming = false
+                    if originalWS then
+                        Humanoid.WalkSpeed, Humanoid.JumpPower, Humanoid.AutoRotate =
+                            originalWS, originalJP, originalAutoRotate
+                        originalWS, originalJP, originalAutoRotate = nil, nil, nil
+                    end
+                end
+            else
+                local duration = (aimMode == "Faster") and fasterDuration or aimDuration
+                if elapsed <= duration then
+                    if not originalWS then
+                        originalWS, originalJP, originalAutoRotate = Humanoid.WalkSpeed, Humanoid.JumpPower, Humanoid.AutoRotate
+                    end
+                    Humanoid.AutoRotate = false
+                    HRP.AssemblyAngularVelocity = Vector3.zero
+                    local targetHRP = getValidTarget()
+                    if targetHRP then
+                        faceInstant(computeAimPos(targetHRP))
+                    end
+                else
+                    aiming = false
+                    if originalWS then
+                        Humanoid.WalkSpeed, Humanoid.JumpPower, Humanoid.AutoRotate =
+                            originalWS, originalJP, originalAutoRotate
+                        originalWS, originalJP, originalAutoRotate = nil, nil, nil
+                    end
+                end
+            end
+        end
+    end
+
+    -- COINFLIP LOGIC
+    if autoCoinflip then
+        local tooClose = false
+        if blockCoinflipWhenClose then
+            local targetHRP = getValidTarget()
+            if targetHRP and HRP then
+                if (targetHRP.Position - HRP.Position).Magnitude <= coinflipBlockDist then
+                    tooClose = true
+                end
+            end
+        end
+
+        if not tooClose then
+            local maxNum = getNearbyMaxNumber()
+            if not maxNum or maxNum < coinflipTargetCharge then
+                if tick() - lastCoinflipTime >= coinflipCooldown then
+                    lastCoinflipTime = tick()
+                    local ok = clickCoinflipButton()
+                    if not ok and RemoteEvent then
+                        pcall(function()
+                            RemoteEvent:FireServer("UseActorAbility", "CoinFlip")
+                        end)
+                    end
+                end
+            end
+        end
+    end
+end)
+end
+
+
+
+    Tabs.Main:AddSection("↳ Two Time")
+
+
+--// Auto Backstab Unified (AI Aimbot + Player Aimbot, tự động quét Killers Folder)
+do
+    local Players = game:GetService("Players")
+    local RunService = game:GetService("RunService")
+    local lp = Players.LocalPlayer
+
+    -- ⚙️ Config
+    local Mode = "AI Aimbot"
+    local checkRadius = 18
+    local backstabDelay = 0.01
+
+    local killersFolder = workspace:WaitForChild("Players"):WaitForChild("Killers")
+
+    local ANIM_IDS = {
+        "115194624791339",
+        "86545133269813",
+        "89448354637442",
+        "77119710693654",
+        "107640065977686",
+        "112902284724598",
+    }
+
+    -- 🔘 UI
+    Tabs.Main:AddDropdown("BackstabMode", {
+        Title = "Backstab Mode",
+        Values = { "AI Aimbot", "Player Aimbot" },
+        Default = "AI Aimbot",
+    }):OnChanged(function(value)
+        Mode = value
+        print("🎯 Backstab Mode:", value)
+    end)
+
+    local enabled = false
+    Tabs.Main:AddToggle("AutoBackstab", {
+        Title = "Auto Backstab V2",
+        Default = false
+    }):OnChanged(function(state)
+        enabled = state
+        print("🔪 Auto Backstab:", state and "ON" or "OFF")
+    end)
+
+    Tabs.Main:AddInput("BackstabRadiusInput", {
+        Title = "Check Radius",
+        Default = tostring(checkRadius),
+        Placeholder = "Write Here (1 - 50)",
+        Numeric = true,
+        Callback = function(value)
+            local num = tonumber(value)
+            if num then
+                checkRadius = math.clamp(num, 1, 50)
+                print("📏 Check Radius set to:", checkRadius)
+            else
+                print("⚠️ Nhập số hợp lệ!")
+            end
+        end
+    })
+
+    -- =====================
+    -- 🗡️ Dagger Remote Finder
+    -- =====================
+    local daggerButton, daggerRemote, daggerConnections = nil, nil, {}
+
+    local function findDaggerRemote()
+        if daggerRemote then return daggerRemote end
+        if not daggerButton then return nil end
+        for _, conn in ipairs(getconnections(daggerButton.MouseButton1Click)) do
+            local f = conn.Function
+            if f and islclosure(f) then
+                for _, v in pairs(getupvalues(f)) do
+                    if typeof(v) == "Instance" and v:IsA("RemoteEvent") then
+                        daggerRemote = v
+                        warn("[Backstab] Found Dagger Remote:", v:GetFullName())
+                        return daggerRemote
+                    end
+                end
+            end
+        end
+        return nil
+    end
+
+    local function initDaggerButton()
+        local gui = lp:FindFirstChild("PlayerGui")
+        if not gui then return end
+        local mainUI = gui:FindFirstChild("MainUI")
+        local container = mainUI and mainUI:FindFirstChild("AbilityContainer")
+        daggerButton = container and container:FindFirstChild("Dagger")
+        if daggerButton and daggerButton:IsA("ImageButton") then
+            daggerConnections = getconnections(daggerButton.MouseButton1Click)
+            findDaggerRemote()
+        end
+    end
+
+    initDaggerButton()
+    lp.CharacterAdded:Connect(function()
+        task.wait(0.5)
+        initDaggerButton()
+    end)
+
+    local function useDagger()
+        if daggerRemote then
+            pcall(function()
+                daggerRemote:FireServer(true)
+                task.delay(0.05, function()
+                    daggerRemote:FireServer(false)
+                end)
+            end)
+        elseif daggerButton then
+            for _, conn in ipairs(daggerConnections) do
+                pcall(function() conn:Fire() end)
+            end
+            pcall(function() daggerButton:Activate() end)
+        end
+    end
+
+    -- =====================
+    -- ⚒️ Helpers
+    -- =====================
+    local function getCharacter()
+        local ch = lp.Character
+        if ch and ch.Parent then
+            local hrp = ch:FindFirstChild("HumanoidRootPart")
+            local humanoid = ch:FindFirstChildOfClass("Humanoid")
+            return ch, humanoid, hrp
+        end
+        return nil, nil, nil
+    end
+
+    local function isPlayingTargetAnimation(humanoid)
+        if not humanoid then return false end
+        for _, t in ipairs(humanoid:GetPlayingAnimationTracks()) do
+            local animId = tostring(t.Animation.AnimationId or "")
+            for _, id in ipairs(ANIM_IDS) do
+                if animId:find(id, 1, true) then
+                    return true
+                end
+            end
+        end
+        return false
+    end
+
+    local function teleportBehind(targetHRP, myHRP)
+        local look = targetHRP.CFrame.LookVector
+        local destPos = targetHRP.Position - look * 2
+        myHRP.CFrame = CFrame.new(destPos, destPos + look)
+    end
+
+    local function isBehindTarget(targetHRP, myHRP)
+        local look = targetHRP.CFrame.LookVector
+        local dir = (myHRP.Position - targetHRP.Position).Unit
+        return look:Dot(dir) < -0.5
+    end
+
+    local function getNearbyKillers(position)
+        local killers = {}
+        for _, plr in ipairs(Players:GetPlayers()) do
+            if plr ~= lp and plr.Character then
+                local char = plr.Character
+                local hrp = char:FindFirstChild("HumanoidRootPart") or char.PrimaryPart
+                if hrp then
+                    local dist = (hrp.Position - position).Magnitude
+                    if dist <= checkRadius then
+                        table.insert(killers, {model = char, hrp = hrp, dist = dist})
+                    end
+                end
+            end
+        end
+        return killers
+    end
+
+    local function getNearbyAIKillers(hrp)
+        local killers = {}
+        for _, killer in ipairs(killersFolder:GetChildren()) do
+            local kHRP = killer:FindFirstChild("HumanoidRootPart")
+            if kHRP then
+                local dist = (kHRP.Position - hrp.Position).Magnitude
+                if dist <= checkRadius then
+                    table.insert(killers, {model = killer, hrp = kHRP, dist = dist})
+                end
+            end
+        end
+        return killers
+    end
+
+    -- =====================
+    -- 🔄 Main Loop
+    -- =====================
+    local cooldown = false
+    local lastTarget = nil
+
+    RunService.Heartbeat:Connect(function()
+        if not enabled or cooldown then return end
+        local char, humanoid, myHRP = getCharacter()
+        if not (char and humanoid and myHRP) then return end
+
+        -- 🚨 Chỉ hoạt động nếu model là "TwoTime"
+        if char.Name ~= "TwoTime" then return end
+
+        if Mode == "Player Aimbot" then
+            if isPlayingTargetAnimation(humanoid) then
+                local killers = getNearbyKillers(myHRP.Position)
+                if #killers > 0 then
+                    table.sort(killers, function(a,b) return a.dist < b.dist end)
+                    local target = killers[1]
+                    cooldown = true
+
+                    local start = tick()
+                    local conn
+                    conn = RunService.Heartbeat:Connect(function()
+                        if not (char and target.hrp and char.Parent and target.hrp.Parent) then
+                            if conn then conn:Disconnect() end
+                            cooldown = false
+                            return
+                        end
+                        if tick() - start >= 0.7 then
+                            if conn then conn:Disconnect() end
+                            task.delay(1, function() cooldown = false end)
+                            return
+                        end
+                        teleportBehind(target.hrp, myHRP)
+                        useDagger()
+                    end)
+                end
+            end
+
+        elseif Mode == "AI Aimbot" then
+            local killers = getNearbyAIKillers(myHRP)
+            if #killers > 0 then
+                table.sort(killers, function(a,b) return a.dist < b.dist end)
+                local target = killers[1]
+                if target.model ~= lastTarget and isBehindTarget(target.hrp, myHRP) then
+                    cooldown = true
+                    lastTarget = target.model
+
+                    local start = tick()
+                    local conn
+                    conn = RunService.Heartbeat:Connect(function()
+                        if not (char and char.Parent and target.hrp and target.hrp.Parent) then
+                            if conn then conn:Disconnect() end
+                            return
+                        end
+                        if tick() - start >= 0.7 then
+                            if conn then conn:Disconnect() end
+                            task.delay(10, function()
+                                cooldown = false
+                                lastTarget = nil
+                            end)
+                            return
+                        end
+                        teleportBehind(target.hrp, myHRP)
+                        useDagger()
+                    end)
+                end
+            end
+        end
+    end)
+
+    lp.CharacterAdded:Connect(function()
+        task.wait(1)
+        print("🔄 Character respawned/changed, Auto Backstab vẫn hoạt động (nếu model = 'TwoTime').")
+    end)
+end
+
+
+
+    Tabs.Main:AddSection("↳ 007n7")
+
+
+do
+    local Players = game:GetService("Players")
+    local LocalPlayer = Players.LocalPlayer
+
+    local running = false
+    local animTrack
+    local InvisibleEnabled = false
+
+    -- 🔍 Tự động lấy Survivors trong workspace
+    local survivorsFolder = workspace:WaitForChild("Players"):WaitForChild("Survivors")
+
+    local function getHumanoid()
+        local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+        return char:FindFirstChildOfClass("Humanoid"), char
+    end
+
+    local function getAnimator(humanoid)
+        local animator = humanoid:FindFirstChildOfClass("Animator")
+        if not animator then
+            animator = Instance.new("Animator")
+            animator.Parent = humanoid
+        end
+        return animator
+    end
+
+    local function playInvisibleAnim(humanoid)
+        local animator = getAnimator(humanoid)
+        if not animTrack or not animTrack.IsPlaying then
+            local animation = Instance.new("Animation")
+            animation.AnimationId = "rbxassetid://75804462760596"
+            animTrack = animator:LoadAnimation(animation)
+            animTrack.Looped = true
+            animTrack:Play()
+            animTrack:AdjustSpeed(0)
+        end
+    end
+
+    local function stopInvisibleAnim()
+        if animTrack and animTrack.IsPlaying then
+            animTrack:Stop()
+            animTrack = nil
+        end
+    end
+
+    -- ✅ Kiểm tra nếu character là survivor (trong folder Survivors)
+    local function isSurvivorModel(char)
+        if not char then return false end
+        if survivorsFolder:FindFirstChild(char.Name) then
+            return true
+        end
+        return false
+    end
+
+    local function handleToggle(enabled)
+        InvisibleEnabled = enabled
+        local humanoid, char = getHumanoid()
+        if not humanoid or not char then return end
+
+        if enabled then
+            running = true
+            task.spawn(function()
+                while running and InvisibleEnabled do
+                    humanoid, char = getHumanoid()
+                    if not humanoid or not char then
+                        task.wait(0.5)
+                        continue
+                    end
+
+                    if isSurvivorModel(char) then
+                        playInvisibleAnim(humanoid)
+                    else
+                        stopInvisibleAnim()
+                    end
+                    task.wait(0.5)
+                end
+            end)
+        else
+            running = false
+            stopInvisibleAnim()
+        end
+    end
+
+    LocalPlayer.CharacterAdded:Connect(function(char)
+        task.wait(1)
+        if InvisibleEnabled and isSurvivorModel(char) then
+            handleToggle(true)
+        end
+    end)
+
+    -- 🟢 Fluent UI Toggle
+    Tabs.Main:AddToggle("InstantInvisibleV2", {
+        Title = "Instant Invisible",
+        Default = false
+    }):OnChanged(function(Value)
+        handleToggle(Value)
+    end)
+end
+
+
+
+do
+    -- Invisible upon Cloning (sandboxed)
+    local Players = game:GetService("Players")
+    local LocalPlayer = Players.LocalPlayer
+
+    local running = false
+    local animTrack
+
+    local function getHumanoid()
+        local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+        return char:FindFirstChildOfClass("Humanoid"), char
+    end
+
+    local function getAnimator(humanoid)
+        local animator = humanoid:FindFirstChildOfClass("Animator")
+        if not animator then
+            animator = Instance.new("Animator")
+            animator.Parent = humanoid
+        end
+        return animator
+    end
+
+    local function playInvisibleAnim(humanoid)
+        local animator = getAnimator(humanoid)
+        if not animTrack or not animTrack.IsPlaying then
+            local animation = Instance.new("Animation")
+            animation.AnimationId = "rbxassetid://75804462760596"
+            animTrack = animator:LoadAnimation(animation)
+            animTrack.Looped = true
+            animTrack:Play()
+            animTrack:AdjustSpeed(0)
+        end
+    end
+
+    local function stopInvisibleAnim()
+        if animTrack and animTrack.IsPlaying then
+            animTrack:Stop()
+            animTrack = nil
+        end
+    end
+
+    local function handleToggle(enabled)
+        local humanoid, char = getHumanoid()
+        if not humanoid or not char then return end
+
+        if enabled then
+            running = true
+            task.spawn(function()
+                while running do
+                    humanoid, char = getHumanoid()
+                    if not humanoid or not char then break end
+
+                    local torso = char:FindFirstChild("Torso") or char:FindFirstChild("UpperTorso")
+                    local root = char:FindFirstChild("HumanoidRootPart")
+
+                    if torso and torso.Transparency ~= 0 then
+                        playInvisibleAnim(humanoid)
+                        if root then root.Transparency = 0.4 end
+                    else
+                        stopInvisibleAnim()
+                        if root then root.Transparency = 1 end
+                    end
+
+                    task.wait(0.5)
+                end
+            end)
+        else
+            running = false
+            stopInvisibleAnim()
+            if char and char:FindFirstChild("HumanoidRootPart") then
+                char.HumanoidRootPart.Transparency = 1
+            end
+        end
+    end
+
+    -- ✅ Toggle dạng mới Fluent UI
+    Tabs.Main:AddToggle("InvisibleCloneV2", {
+        Title = "Invisible if cloned",
+        Default = _G.InvisibleClone or false
+    }):OnChanged(function(Value)
+        _G.InvisibleClone = Value
+        handleToggle(Value)
+    end)
+end
+
+
+
+
+    Tabs.Main:AddSection("↳ Dusekkar")
+
+
+--// Dusk Aim Assist (Fluent Dropdown trên Toggle) - Locked Target Version
+do
+-- 🧠 Services
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local Workspace = game:GetService("Workspace")
+
+-- 📍 References
+local LocalPlayer = Players.LocalPlayer
+local Camera = Workspace.CurrentCamera
+
+-- ⚙️ Config
+local TargetAnimationID = "rbxassetid://77894750279891"
+local Enabled = false
+local Smoothness = 0.2
+
+-- Thời gian tối đa khóa target (giây) sau khi chọn target
+local LOCK_DURATION = 0.7
+
+-- 🎛️ Fluent UI Controls
+local toggleFlag = Instance.new("BoolValue")
+toggleFlag.Name = "DuskAim_ToggleFlag"
+toggleFlag.Value = false
+
+-- Dropdown ở TRÊN
+Tabs.Main:AddDropdown("DuskSmooth", {
+    Title = "Smoothness",
+    Values = {"Low", "Medium", "High"},
+    Default = "Medium",
+}):OnChanged(function(value)
+    if value == "Low" then
+        Smoothness = 0.1
+    elseif value == "Medium" then
+        Smoothness = 0.2
+    elseif value == "High" then
+        Smoothness = 0.4
+    end
+end)
+
+-- Toggle ở DƯỚI
+Tabs.Main:AddToggle("DuskAim", {
+    Title = "Dusk Aim Assist",
+    Default = false,
+}):OnChanged(function(state)
+    Enabled = state
+    toggleFlag.Value = state
+    -- reset any locked target when toggling off
+    if not state then
+        currentTarget = nil
+        lockExpires = nil
+    end
+end)
+
+-- 🎯 Find nearest player (returns HumanoidRootPart or nil)
+local function getNearestPlayerRoot()
+    if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        return nil
+    end
+
+    local nearest, distance = nil, math.huge
+    local myPos = LocalPlayer.Character.HumanoidRootPart.Position
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+            local root = player.Character.HumanoidRootPart
+            local dist = (root.Position - myPos).Magnitude
+            if dist < distance then
+                distance = dist
+                nearest = root
+            end
+        end
+    end
+    return nearest
+end
+
+-- Helper: check if a humanoid is currently playing the target animation
+local function humanoidIsPlayingTargetAnimation(humanoid)
+    if not humanoid then return false end
+    for _, track in pairs(humanoid:GetPlayingAnimationTracks()) do
+        if track.Animation and track.Animation.AnimationId == TargetAnimationID then
+            return true
+        end
+    end
+    return false
+end
+
+-- State for locked target
+local currentTarget = nil          -- HumanoidRootPart (locked)
+local currentTargetHumanoid = nil  -- Humanoid of the locked target's character
+local lockExpires = nil            -- timestamp when lock can be released at earliest
+
+-- 🔥 Aimbot logic (RenderStepped)
+RunService.RenderStepped:Connect(function()
+    if not Enabled then
+        return
+    end
+
+    -- safety: require local character and camera
+    if not LocalPlayer.Character or not LocalPlayer.Character:FindFirstChild("HumanoidRootPart") or not Camera then
+        currentTarget = nil
+        currentTargetHumanoid = nil
+        lockExpires = nil
+        return
+    end
+
+    -- First: detect if ANY player is playing the target animation
+    local anyAnimPlaying = false
+    for _, player in pairs(Players:GetPlayers()) do
+        if player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
+            local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+            if humanoidIsPlayingTargetAnimation(humanoid) then
+                anyAnimPlaying = true
+                -- If we don't have a locked target yet, lock to the nearest player NOW
+                if not currentTarget then
+                    local chosen = getNearestPlayerRoot()
+                    if chosen then
+                        currentTarget = chosen
+                        currentTargetHumanoid = chosen.Parent and chosen.Parent:FindFirstChildOfClass("Humanoid") or nil
+                        lockExpires = tick() + LOCK_DURATION
+                    end
+                end
+                -- We break here optionally (we only need to know that an animation is playing).
+                -- But do not break if we want to check other players' animations as well; either is fine.
+                -- We'll not break so we keep checking; but one detection is enough to keep anyAnimPlaying = true.
+            end
+        end
+    end
+
+    -- If there is a locked target, aim at it while animation(s) are playing OR until lockExpires
+    if currentTarget and currentTarget.Parent and currentTargetHumanoid then
+        -- validate target: still has HumanoidRootPart and is alive
+        if not currentTarget or not currentTarget.Parent or not currentTarget.Parent:FindFirstChild("HumanoidRootPart") then
+            -- invalid target, release
+            currentTarget = nil
+            currentTargetHumanoid = nil
+            lockExpires = nil
+            return
+        end
+
+        -- Determine whether we should continue aiming:
+        -- continue if either (a) any player is currently playing the target animation OR
+        -- (b) we haven't reached lockExpires yet (ensures a short guaranteed aiming window)
+        local continueAiming = anyAnimPlaying or (lockExpires and tick() < lockExpires)
+
+        if continueAiming then
+            local aimPos = currentTarget.Position
+            local camCFrame = Camera.CFrame
+            -- avoid zero-length direction
+            local dirVec = aimPos - camCFrame.Position
+            if dirVec.Magnitude > 0 then
+                local direction = dirVec.Unit
+                Camera.CFrame = Camera.CFrame:Lerp(
+                    CFrame.new(camCFrame.Position, camCFrame.Position + direction),
+                    Smoothness
+                )
+            end
+            return
+        else
+            -- no animation playing and lock expired -> release target, allow new selection next detection
+            currentTarget = nil
+            currentTargetHumanoid = nil
+            lockExpires = nil
+            return
+        end
+    end
+
+    -- If we get here: no locked target, but if an animation is playing we already set one above.
+    -- Nothing to do otherwise.
+end)
+end
+
+
+
+    Tabs.Main:AddSection("↳ Guest1337")
+
+
+
+
+do
+    local Players = game:GetService("Players")
+    local RunService = game:GetService("RunService")
+    local localPlayer = Players.LocalPlayer
+
+    local Killers = {
+        ["Slasher"] = true,
+        ["1x1x1x1"] = true,
+        ["c00lkidd"] = true,
+        ["Noli"] = true,
+        ["JohnDoe"] = true,
+        ["Guest 666"] = true,
+        ["Sixer"] = true
+    }
+
+    local function isKiller(player)
+        local char = player.Character
+        if not char then return false end
+        return Killers[char.Name] == true
+    end
+
+    local animationIds = {
+        ["83829782357897"]  = true, -- Slash, 1x1x1x1
+        ["126830014841198"] = true, -- Slash, Jason
+        ["126355327951215"] = true, -- Behead, Jason
+        ["121086746534252"] = true, -- GashingWoundStart, Jason
+        ["105458270463374"] = true, -- Slash, JohnDoe
+        ["18885909645"]     = true, -- Attack, c00lkid
+        ["94162446513587"]  = true, -- Slash, JohnDoe, Skin: !Joner
+        ["93069721274110"]  = true, -- Slash, JohnDoe, Skin: AnnihilationJohnDoe
+        ["97433060861952"]  = true, -- Slash, JohnDoe, Skin: #SK
+        ["121293883585738"] = true, -- Slash, 1x1x1x1
+        ["92173139187970"]  = true, -- Slash, Skin: Hacklord1x1x1x1
+        ["106847695270773"] = true, -- GashingWoundStart, Jason, Skin: Subject0Jason
+        ["125403313786645"] = true, -- Slash, Jason, Skin: Subject0Jason
+        ["81639435858902"]  = true, -- Behead, Jason, Skin: WhitePumpkinJason
+        ["137314737492715"] = true, -- GashingWoundStart, Jason, Skin: WhitePumpkinJason
+        ["120112897026015"] = true, -- Slash, Jason, Skin: WhitePumpkinJason
+        ["82113744478546"]  = true, -- Behead, Jason (nhiều skin)
+        ["118298475669935"] = true, -- Slash, Jason (nhiều skin)
+        ["126681776859538"] = true, -- Behead, Jason, Skin: PursuerJason
+        ["129976080405072"] = true, -- GashingWoundStart, Jason, Skin: PursuerJason
+        ["109667959938617"] = true, -- Slash, Jason, Skin: PursuerJason
+        ["74707328554358"]  = true, -- Slash, Jason, Skin: #DeadRabbitsJason
+        ["133336594357903"] = true, -- Behead, Jason, Skin: #DeadRabbitsJason
+        ["86204001129974"]  = true, -- GashingWoundStart, Jason, Skin: #DeadRabbitsJason
+        ["70371667919898"]  = true, -- Attack, c00lkidd, Skin: MafiosoC00l
+        ["131543461321709"] = true, -- Attack, c00lkidd, Skin: SaviorC00l
+        ["106776364623742"] = true, -- Walkspeed Overing, c00lkidd (all skins)
+        ["136323728355613"] = true, -- Swing, Noli
+        ["109230267448394"] = true, -- Swing, Noli (all skins)
+        ["139835501033932"] = true, -- VoidRush, Noli (all skins)
+        ["114356208094580"] = true, -- VoidRush2, Noli
+        ["106538427162796"] = true, -- Stab, All Noli
+        ["126896426760253"] = true, -- VoidRush, Noli
+        ["131430497821198"] = true, -- MassInfection, 1x1x1x1
+        ["100592913030351"] = true, -- MassInfection, 1x1x1x1 (Fleskhjerta/AceOfSpades/Lancer)
+        ["70447634862911"]  = true, -- MassInfection, Skin: Hacklord1x1x1x1 Old
+        ["83685305553364"]  = true, -- MassInfection, Skin: Hacklord1x1x1x1 New
+        ["126171487400618"]  = true, -- Slash, Skin: Hacklord1x1x1x1
+        ["97167027849946"]  = true,
+        ["99135633258223"]  = true,
+        ["98456918873918"]  = true,
+        ["83251433279852"]  = true,
+        ["126681776859538"] = true,
+        ["129976080405072"] = true,
+        ["122709416391891"] = true, -- Đánh Thường Guest 666
+        ["87989533095285"] = true, -- Vồ Tới Guest 666
+        ["139309647473555"] = true, -- Bay Đến Mục Tiêu
+        ["133363345661032"] = true, -- Chuẩn Bị Bay Đến Mục tiêu
+        ["128414736976503"] = true, -- Sẵn Sàng Bay Đến
+--        ["121808371053483"] = true, -- La Hét Và Mặt :))
+    }
+
+    local delayedAnimations = {}
+
+    local toggleOn = false
+    local strictRangeOn = false
+    local detectionRange = 18
+
+    local blockRemote
+    local blockButton, connections = nil, {}
+
+    local function findBlockRemote()
+        if blockRemote then return blockRemote end
+        if not blockButton then return nil end
+        for _, conn in ipairs(getconnections(blockButton.MouseButton1Click)) do
+            local f = conn.Function
+            if f and islclosure(f) then
+                local upvals = getupvalues(f)
+                for _, v in pairs(upvals) do
+                    if typeof(v) == "Instance" and v:IsA("RemoteEvent") then
+                        blockRemote = v
+                        warn("[AutoBlock] Found Block Remote:", v:GetFullName())
+                        return blockRemote
+                    end
+                end
+            end
+        end
+        return nil
+    end
+
+    local function initBlockButton()
+        local gui = localPlayer:FindFirstChild("PlayerGui")
+        if not gui then return end
+        local mainUI = gui:FindFirstChild("MainUI")
+        local container = mainUI and mainUI:FindFirstChild("AbilityContainer")
+        blockButton = container and container:FindFirstChild("Block")
+        if blockButton and blockButton:IsA("ImageButton") then
+            connections = getconnections(blockButton.MouseButton1Click)
+            findBlockRemote()
+        end
+    end
+
+    initBlockButton()
+    localPlayer.CharacterAdded:Connect(function()
+        task.wait(0)
+        initBlockButton()
+    end)
+
+    local function fastBlock()
+        if blockRemote then
+            pcall(function()
+                blockRemote:FireServer(true)
+                task.delay(1e-10, function()
+                    blockRemote:FireServer(false)
+                end)
+            end)
+        else
+            if not blockButton or not blockButton.Visible then return end
+            for _, conn in ipairs(connections) do
+                pcall(function() conn:Fire() end)
+            end
+            pcall(function() blockButton:Activate() end)
+        end
+    end
+
+    local lastTeleport = 0
+    local function teleportDodge(killerChar)
+        local now = tick()
+        if now - lastTeleport < 5 then return end
+        lastTeleport = now
+
+        local myChar = localPlayer.Character
+        local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
+        local killerRoot = killerChar and killerChar:FindFirstChild("HumanoidRootPart")
+        if not (myRoot and killerRoot) then return end
+
+        local oldCFrame = myRoot.CFrame
+        local forward = killerRoot.CFrame.LookVector
+
+        myRoot.CFrame = killerRoot.CFrame + forward * 7.5
+
+        task.delay(0.1, function()
+            if myRoot then
+                myRoot.CFrame = oldCFrame
+            end
+        end)
+    end
+
+    local function getBoolFlag(name, default)
+        local flag = localPlayer:FindFirstChild(name)
+        if not flag then
+            flag = Instance.new("BoolValue")
+            flag.Name = name
+            flag.Value = default
+            flag.Parent = localPlayer
+        end
+        return flag
+    end
+
+    local function getNumberFlag(name, default)
+        local flag = localPlayer:FindFirstChild(name)
+        if not flag then
+            flag = Instance.new("NumberValue")
+            flag.Name = name
+            flag.Value = default
+            flag.Parent = localPlayer
+        end
+        return flag
+    end
+
+    local toggleFlag = getBoolFlag("AutoBlockToggle", false)
+    local strictFlag = getBoolFlag("AutoBlockStrictRange", false)
+    local rangeFlag = getNumberFlag("AutoBlockRange", 18)
+
+    toggleOn = toggleFlag.Value
+    strictRangeOn = strictFlag.Value
+    detectionRange = rangeFlag.Value
+
+    Tabs.Main:AddToggle("AutoBlockV2", {Title = "Auto Block V3", Default = toggleOn})
+        :OnChanged(function(state)
+            toggleOn = state
+            toggleFlag.Value = state
+        end)
+
+    Tabs.Main:AddToggle("StrictRangeCheck", {Title = "Auto Check V3", Default = strictRangeOn})
+        :OnChanged(function(state)
+            strictRangeOn = state
+            strictFlag.Value = state
+        end)
+
+    Tabs.Main:AddInput("RangeCheckInput", {
+        Title = "Range Check",
+        Default = tostring(detectionRange),
+        Placeholder = "Enter detection range"
+    }):OnChanged(function(txt)
+        local val = tonumber(txt)
+        if val then
+            detectionRange = val
+            rangeFlag.Value = val
+        end
+    end)
+
+    local playerConns = {}
+    local recentBlocks = {}
+    local COOLDOWN_ZERO, COOLDOWN_MISS = 0, 0
+
+    local function cleanupPlayerConns(p)
+        local tbl = playerConns[p]
+        if tbl then
+            for _, c in ipairs(tbl) do
+                if c and c.Disconnect then c:Disconnect() end
+            end
+            playerConns[p] = nil
+        end
+        recentBlocks[p.UserId] = nil
+    end
+
+    local function shouldBlockNow(p, animId, track)
+        recentBlocks[p.UserId] = recentBlocks[p.UserId] or {}
+        local last = recentBlocks[p.UserId][animId] or 0
+        local now = tick()
+        if track.TimePosition <= 0 then
+            if now - last >= COOLDOWN_ZERO then
+                recentBlocks[p.UserId][animId] = now
+                return true
+            end
+            return false
+        else
+            if now - last >= COOLDOWN_MISS then
+                recentBlocks[p.UserId][animId] = now
+                return true
+            end
+            return false
+        end
+    end
+
+    local massInfectionIds = {
+        ["131430497821198"] = true,
+        ["100592913030351"] = true,
+        ["70447634862911"]  = true,
+        ["83685305553364"]  = true,
+    }
+
+    local function onAnimationPlayed(player, char, track)
+        if not toggleOn then return end
+        if not (track and track.Animation) then return end
+        local animIdStr = track.Animation.AnimationId
+        local id = animIdStr and string.match(animIdStr, "%d+")
+        if not id or not animationIds[id] then return end
+
+        if strictRangeOn then
+            local myChar = localPlayer.Character
+            local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
+            local root = char and char:FindFirstChild("HumanoidRootPart")
+            if not myRoot or not root then return end
+            local dist = (root.Position - myRoot.Position).Magnitude
+            if dist > detectionRange then return end
+        end
+
+        if shouldBlockNow(player, id, track) then
+            if massInfectionIds[id] then
+                task.delay(0.5, fastBlock) -- delay 0.5s cho MassInfection
+            else
+                fastBlock()
+            end
+
+            if isKiller(player) and delayedAnimations[id] then
+                teleportDodge(char)
+            end
+        end
+    end
+
+    local function monitorCharacter(player, char)
+        if not player or not char then return end
+        local hum = char:FindFirstChildOfClass("Humanoid") or char:WaitForChild("Humanoid", 5)
+        if not hum then return end
+        local con = hum.AnimationPlayed:Connect(function(track)
+            task.spawn(onAnimationPlayed, player, char, track)
+        end)
+        playerConns[player] = playerConns[player] or {}
+        table.insert(playerConns[player], con)
+    end
+
+    local function onPlayerAdded(player)
+        if player == localPlayer then return end
+        if player.Character then monitorCharacter(player, player.Character) end
+        local conCharAdded = player.CharacterAdded:Connect(function(char)
+            task.wait(0)
+            monitorCharacter(player, char)
+        end)
+        playerConns[player] = playerConns[player] or {}
+        table.insert(playerConns[player], conCharAdded)
+    end
+
+    for _, p in ipairs(Players:GetPlayers()) do onPlayerAdded(p) end
+    Players.PlayerAdded:Connect(onPlayerAdded)
+    Players.PlayerRemoving:Connect(cleanupPlayerConns)
+
+    local circles = {}
+
+    local function createCircleFor(player, hrp)
+        if circles[player] then circles[player]:Destroy() end
+        local circle = Instance.new("Part")
+        circle.Anchored, circle.CanCollide = true, false
+        circle.Shape = Enum.PartType.Cylinder
+        circle.Size = Vector3.new(0.2, detectionRange * 2, detectionRange * 2)
+        circle.CFrame = hrp.CFrame * CFrame.Angles(0, 0, math.rad(90))
+        circle.Material, circle.Transparency = Enum.Material.Neon, 0.5
+        circle.Color = Color3.fromRGB(255, 0, 0)
+        circle.Parent = workspace
+        circles[player] = circle
+    end
+
+    local function removeCircle(player)
+        if circles[player] then circles[player]:Destroy() circles[player] = nil end
+    end
+
+    RunService.Heartbeat:Connect(function()
+        if not strictRangeOn then
+            for _, circle in pairs(circles) do
+                if circle then circle.Transparency = 1 end
+            end
+            return
+        end
+        local myChar = localPlayer.Character
+        local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
+        if not myRoot then return end
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= localPlayer then
+                local char = player.Character
+                local hrp = char and char:FindFirstChild("HumanoidRootPart")
+                local hum = char and char:FindFirstChildOfClass("Humanoid")
+                if hrp and hum and hum.Health > 0 and isKiller(player) then
+                    if not circles[player] then createCircleFor(player, hrp) end
+                    local circle = circles[player]
+                    circle.Size = Vector3.new(0.2, detectionRange * 2, detectionRange * 2)
+                    circle.CFrame = hrp.CFrame * CFrame.Angles(0, 0, math.rad(90))
+                    local dist = (myRoot.Position - hrp.Position).Magnitude
+                    circle.Color = (dist <= detectionRange) and Color3.fromRGB(0, 255, 0) or Color3.fromRGB(255, 0, 0)
+                    circle.Transparency = 0.5
+                else
+                    removeCircle(player)
+                end
+            end
+        end
+    end)
+
+    Players.PlayerRemoving:Connect(removeCircle)
+end
+
+
+
+
+
+
+do
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
 local lp = Players.LocalPlayer
 
-local autoBlockAudioOn = false
-local cachedCooldown = nil
+if getgenv().emergency_stop == nil then
+    getgenv().emergency_stop = false
+end
 
-local detectionRange = 20
-local detectionRangeSq = detectionRange * detectionRange
+-- 🔧 Chuyển studs thành độ tăng kích thước
+local function StudsIntoSize(studs)
+    return studs * 0.5
+end
 
-local autoBlockTriggerSounds = {
-    ["102228729296384"] = true, ["140242176732868"] = true, ["112809109188560"] = true,
-    ["136323728355613"] = true, ["115026634746636"] = true, ["84116622032112"] = true,
-    ["108907358619313"] = true, ["127793641088496"] = true, ["86174610237192"] = true,
-    ["95079963655241"] = true, ["101199185291628"] = true, ["119942598489800"] = true,
-    ["84307400688050"] = true, ["113037804008732"] = true, ["105200830849301"] = true,
-    ["75330693422988"] = true, ["82221759983649"] = true, ["81702359653578"] = true,
-    ["108610718831698"] = true, ["112395455254818"] = true, ["109431876587852"] = true,
-    ["109348678063422"] = true, ["85853080745515"] = true, ["12222216"] = true
+-- ⚙️ Hàm tăng hitbox người khác
+local function ExtendOthersHitbox(studs, time)
+    local size_increase = StudsIntoSize(studs)
+    local start = tick()
+
+    if getgenv().emergency_stop then
+        getgenv().emergency_stop = false
+    end
+
+    repeat
+        task.wait(0.05)
+        for _, plr in pairs(Players:GetPlayers()) do
+            if plr ~= lp and plr.Character and plr.Character:FindFirstChild("HumanoidRootPart") then
+                for _, part in pairs(plr.Character:GetChildren()) do
+                    if part:IsA("BasePart") then
+                        local originalSize = part.Size
+                        part.Size = Vector3.new(
+                            originalSize.X + size_increase,
+                            originalSize.Y,
+                            originalSize.Z + size_increase
+                        )
+                        part.Massless = true
+                        part.CanCollide = false
+                    end
+                end
+            end
+        end
+    until tick() - start > tonumber(time) or getgenv().emergency_stop
+
+    -- 🔄 Trả lại kích thước cũ
+    if getgenv().emergency_stop then
+        getgenv().emergency_stop = false
+    end
+
+    for _, plr in pairs(Players:GetPlayers()) do
+        if plr ~= lp and plr.Character then
+            for _, part in pairs(plr.Character:GetChildren()) do
+                if part:IsA("BasePart") then
+                    part.Size = Vector3.new(2, 2, 1)
+                end
+            end
+        end
+    end
+end
+
+-- 🛑 Hàm dừng
+local function StopExtendingHitbox()
+    getgenv().emergency_stop = true
+end
+
+-- 🟢 Nút bật/tắt hitbox extender
+Tabs.Main:AddToggle("ExtendHitboxOthers", {
+    Title = "Block Hitbox",
+    Default = false,
+    Callback = function(Value)
+        if Value then
+            task.spawn(function()
+                while Value and not getgenv().emergency_stop do
+                    ExtendOthersHitbox(1.5, 2)
+                    task.wait(0)
+                end
+            end)
+        else
+            StopExtendingHitbox()
+        end
+    end
+})
+end
+
+
+
+
+
+do
+    -- Auto Punch settings
+    local autoPunchOn, aimPunch, flingPunchOn, customPunchEnabled = false, false, false, false
+    local hiddenfling = false
+    local flingPower = 10000
+    local predictionValue = 4
+    local customPunchAnimId = ""
+    local Humanoid
+    local lastPunchTime = 0
+    local punchAnimIds = { "87259391926321" }
+    local LP = game:GetService("Players").LocalPlayer
+    local RunService = game:GetService("RunService")
+    local PlayerGui = LP:WaitForChild("PlayerGui")
+
+    -- Function: play custom punch anim
+    local function playCustomPunch(animId)
+        if not Humanoid then return end
+        if not animId or animId == "" then return end
+        local now = tick()
+        if now - lastPunchTime < 1 then return end
+
+        for _, track in ipairs(Humanoid:GetPlayingAnimationTracks()) do
+            local animNum = tostring(track.Animation.AnimationId):match("%d+")
+            if table.find(punchAnimIds, animNum) then
+                track:Stop()
+            end
+        end
+
+        local anim = Instance.new("Animation")
+        anim.AnimationId = "rbxassetid://" .. animId
+        local track = Humanoid:LoadAnimation(anim)
+        track:Play()
+        lastPunchTime = now
+    end
+
+    -- Hidden fling coroutine
+    coroutine.wrap(function()
+        local hrp, c, vel, movel = nil, nil, nil, 0.1
+        while true do
+            RunService.Heartbeat:Wait()
+            if hiddenfling then
+                while hiddenfling and not (c and c.Parent and hrp and hrp.Parent) do
+                    RunService.Heartbeat:Wait()
+                    c = LP.Character
+                    hrp = c and c:FindFirstChild("HumanoidRootPart")
+                end
+                if hiddenfling then
+                    vel = hrp.Velocity
+                    hrp.Velocity = vel * flingPower + Vector3.new(0, flingPower, 0)
+                    RunService.RenderStepped:Wait()
+                    hrp.Velocity = vel
+                    RunService.Stepped:Wait()
+                    hrp.Velocity = vel + Vector3.new(0, movel, 0)
+                    movel = movel * -1
+                end
+            end
+        end
+    end)()
+
+    -- Auto Punch loop
+    RunService.RenderStepped:Connect(function()
+        local myChar = LP.Character
+        if not myChar then return end
+        local myRoot = myChar:FindFirstChild("HumanoidRootPart")
+        Humanoid = myChar:FindFirstChildOfClass("Humanoid")
+
+        if autoPunchOn then
+            local gui = PlayerGui:FindFirstChild("MainUI")
+            local punchBtn = gui and gui:FindFirstChild("AbilityContainer") and gui.AbilityContainer:FindFirstChild("Punch")
+            local charges = punchBtn and punchBtn:FindFirstChild("Charges")
+
+            if charges and charges.Text == "1" then
+                local killerNames = {"c00lkidd", "Slasher", "JohnDoe", "1x1x1x1", "Noli", "Guest 666", "Sixer"}
+                for _, name in ipairs(killerNames) do
+                    local killer = workspace:FindFirstChild("Players")
+                        and workspace.Players:FindFirstChild("Killers")
+                        and workspace.Players.Killers:FindFirstChild(name)
+
+                    if killer and killer:FindFirstChild("HumanoidRootPart") then
+                        local root = killer.HumanoidRootPart
+                        if root and myRoot and (root.Position - myRoot.Position).Magnitude <= 10 then
+                            
+                            -- Aim Punch
+                            if aimPunch then
+                                local humanoid = myChar:FindFirstChild("Humanoid")
+                                if humanoid then humanoid.AutoRotate = false end
+                                task.spawn(function()
+                                    local start = tick()
+                                    while tick() - start < 2 do
+                                        if myRoot and root and root.Parent then
+                                            local predictedPos = root.Position + (root.CFrame.LookVector * predictionValue)
+                                            myRoot.CFrame = CFrame.lookAt(myRoot.Position, predictedPos)
+                                        end
+                                        task.wait()
+                                    end
+                                    if humanoid then humanoid.AutoRotate = true end
+                                end)
+                            end
+
+                            -- Click punch button
+                            for _, conn in ipairs(getconnections(punchBtn.MouseButton1Click)) do
+                                pcall(function() conn:Fire() end)
+                            end
+
+                            -- Fling Punch
+                            if flingPunchOn then
+                                hiddenfling = true
+                                task.spawn(function()
+                                    local start = tick()
+                                    while tick() - start < 1 do
+                                        if LP.Character and LP.Character:FindFirstChild("HumanoidRootPart") and root and root.Parent then
+                                            local frontPos = root.Position + (root.CFrame.LookVector * 2)
+                                            LP.Character.HumanoidRootPart.CFrame = CFrame.new(frontPos, root.Position)
+                                        end
+                                        task.wait()
+                                    end
+                                    hiddenfling = false
+                                end)
+                            end
+
+                            -- Custom anim
+                            if customPunchEnabled and customPunchAnimId ~= "" then
+                                playCustomPunch(customPunchAnimId)
+                            end
+
+                            break -- chỉ đánh 1 killer mỗi vòng
+                        end
+                    end
+                end
+            end
+        end
+    end)
+
+    -- === Nút cho Tabs.Main (thêm vào GUI có sẵn) ===
+    Tabs.Main:AddToggle("AutoPunch", { Title = "Auto Punch", Default = false })
+        :OnChanged(function(val) autoPunchOn = val end)
+
+    Tabs.Main:AddToggle("AimPunch", { Title = "Punch Aimbot", Default = false })
+        :OnChanged(function(val) aimPunch = val end)
+
+    Tabs.Main:AddToggle("FlingPunch", { Title = "Fling Punch", Default = false })
+        :OnChanged(function(val) flingPunchOn = val end)
+
+    Tabs.Main:AddSlider("Prediction", {
+        Title = "Aim Prediction",
+        Min = 0, Max = 10, Default = 4, Rounding = 1,
+    }):OnChanged(function(val) predictionValue = val end)
+
+    Tabs.Main:AddSlider("FlingPower", {
+        Title = "Fling Power",
+        Min = 5000, Max = 500000, Default = 10000, Rounding = 0,
+    }):OnChanged(function(val) flingPower = val end)
+
+    Tabs.Main:AddInput("CustomAnim", {
+        Title = "Custom Punch",
+        Default = "",
+        Placeholder = "Enter Animation ID"
+    }):OnChanged(function(txt) customPunchAnimId = txt end)
+
+    Tabs.Main:AddToggle("EnableCustomAnim", { Title = "Enable Custom Animation", Default = false })
+        :OnChanged(function(val) customPunchEnabled = val end)
+end
+
+    Tabs.Main:AddSection("↳ c00lkidd")
+
+
+
+do
+    --== ⚙️ Base Globals ==--
+    local Players = game:GetService("Players")
+    local ReplicatedStorage = game:GetService("ReplicatedStorage")
+    local RunService = game:GetService("RunService")
+    local Workspace = game:GetService("Workspace")
+    local Camera = Workspace.CurrentCamera
+    local Player = Players.LocalPlayer
+
+    getgenv().Remote = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Network"):WaitForChild("RemoteEvent")
+    getgenv().walkSpeed = 100
+    getgenv().connection = nil
+    getgenv().blockFootstepPlayed = false
+
+    --== 🧠 Helpers ==--
+    local function getCharacter()
+        return Player.Character or Player.CharacterAdded:Wait()
+    end
+
+    --== 🎯 Target list ==
+    -- Thay specialTargets bằng folder Survivors tự động
+    local survivorsFolder = workspace:WaitForChild("Players"):WaitForChild("Survivors")
+
+    local function isSpecialTarget(char)
+        if not char then return false end
+        if survivorsFolder:FindFirstChild(char.Name) then
+            return true
+        end
+        -- một số model có thể là child của model (cẩn thận)
+        for _, child in ipairs(char:GetChildren()) do
+            if survivorsFolder:FindFirstChild(child.Name) then
+                return true
+            end
+        end
+        return false
+    end
+
+    --== 🏃 Movement Logic ==--
+    local stopMovement = false
+    local validValues = { Timeout = true, Collide = true, Hit = true }
+    local stopTimerTask = nil
+    local STOP_TIMEOUT = 5
+
+    local function startStopTimeout()
+        if stopTimerTask then return end
+        stopTimerTask = task.spawn(function()
+            task.wait(STOP_TIMEOUT)
+            stopMovement = false
+            stopTimerTask = nil
+        end)
+    end
+
+    local function cancelStopTimeout()
+        stopTimerTask = nil
+    end
+
+    local function watchResult(result)
+        local function check()
+            if validValues[result.Value] then
+                stopMovement = true
+                startStopTimeout()
+            else
+                stopMovement = false
+                cancelStopTimeout()
+            end
+        end
+        pcall(check)
+        local conn
+        conn = result:GetPropertyChangedSignal("Value"):Connect(function()
+            pcall(check)
+        end)
+        result.AncestryChanged:Connect(function(_, parent)
+            if not parent then
+                stopMovement = false
+                cancelStopTimeout()
+                if conn then
+                    conn:Disconnect()
+                    conn = nil
+                end
+            end
+        end)
+    end
+
+    local function onCharacterAdded(character)
+        local result = character:FindFirstChild("Result")
+        if result and result:IsA("StringValue") then
+            watchResult(result)
+        end
+        character.ChildAdded:Connect(function(child)
+            if child.Name == "Result" and child:IsA("StringValue") then
+                watchResult(child)
+            end
+        end)
+        character.ChildRemoved:Connect(function(child)
+            if child.Name == "Result" then
+                stopMovement = false
+                cancelStopTimeout()
+            end
+        end)
+    end
+
+    Player.CharacterAdded:Connect(onCharacterAdded)
+    if Player.Character then
+        onCharacterAdded(Player.Character)
+    end
+
+    --== 🔎 Helpers ==--
+    local function getHumRoot(partOrChar)
+        if not partOrChar then return nil end
+        return partOrChar:FindFirstChild("HumanoidRootPart") or partOrChar:FindFirstChild("Torso") or partOrChar:FindFirstChild("UpperTorso")
+    end
+
+    --== 🔄 Movement follow camera ==--
+    local function onHeartbeat()
+        local char = Player.Character
+        -- giữ check c00lkidd như gốc (chỉ áp dụng cho mẫu c00lkidd)
+        if not char or char.Name ~= "c00lkidd" then return end
+        local root = getHumRoot(char)
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        local lv = root and root:FindFirstChild("LinearVelocity")
+        if not root or not hum or not lv then return end
+        lv.Enabled = false
+        if stopMovement then return end
+
+        local look = Camera and Camera.CFrame and Camera.CFrame.LookVector or nil
+        if look then
+            local dir = Vector3.new(look.X, 0, look.Z)
+            if dir.Magnitude > 0 then
+                dir = dir.Unit
+                root.Velocity = Vector3.new(dir.X * getgenv().walkSpeed, root.Velocity.Y, dir.Z * getgenv().walkSpeed)
+                root.CFrame = CFrame.new(root.Position, root.Position + dir)
+            end
+        end
+    end
+
+    --== 🧩 Hook Helpers ==--
+    getgenv().createHook = function(remoteName)
+        if getgenv()["original_" .. remoteName] then
+            return getgenv()["original_" .. remoteName]
+        end
+        getgenv()["original_" .. remoteName] = hookmetamethod(game, "__namecall", function(self, ...)
+            local method = getnamecallmethod()
+            local args = { ... }
+            if self == getgenv().Remote and method == "FireServer" then
+                if args[1] == Player.Name .. remoteName then
+                    return
+                end
+            end
+            return getgenv()["original_" .. remoteName](self, ...)
+        end)
+        return getgenv()["original_" .. remoteName]
+    end
+
+    getgenv().enableHook = function(remoteName)
+        if not getgenv()["hook_" .. remoteName] then
+            getgenv()["hook_" .. remoteName] = getgenv().createHook(remoteName)
+        end
+        if remoteName == "DusekkarCancel" and not getgenv().isFiringDusekkar then
+            getgenv().isFiringDusekkar = true
+            task.spawn(function()
+                task.wait(4)
+                getgenv().Remote:FireServer({ Player.Name .. "DusekkarCancel" })
+                getgenv().isFiringDusekkar = false
+                stopMovement = false
+                cancelStopTimeout()
+            end)
+        end
+    end
+
+    getgenv().disableHook = function(remoteName)
+        if getgenv()["hook_" .. remoteName] then
+            hookmetamethod(game, "__namecall", getgenv()["hook_" .. remoteName])
+            getgenv()["hook_" .. remoteName] = nil
+            getgenv()["original_" .. remoteName] = nil
+        end
+    end
+
+    --== 👣 Footstep Hook ==--
+    getgenv().HookFootstepPlayed = function(enable)
+        if enable then
+            if not getgenv().originalFootstepHook then
+                getgenv().originalFootstepHook = hookmetamethod(game, "__namecall", function(self, ...)
+                    local method = getnamecallmethod()
+                    local args = { ... }
+                    if method == "FireServer" and self.Name == "UnreliableRemoteEvent" then
+                        if args[1] == "FootstepPlayed" and getgenv().blockFootstepPlayed then
+                            return
+                        end
+                    end
+                    return getgenv().originalFootstepHook(self, ...)
+                end)
+            end
+            getgenv().blockFootstepPlayed = true
+        else
+            getgenv().blockFootstepPlayed = false
+        end
+    end
+
+    --== ⚔️ Combat GUI (Fluent style) ==--
+    Tabs.Main:AddToggle("WalkspeedOverride", {
+        Title = "Walkspeed Override Controller",
+        Default = false
+    }):OnChanged(function(value)
+        if value then
+            stopMovement = false
+            cancelStopTimeout()
+            if not getgenv().connection then
+                getgenv().connection = RunService.Heartbeat:Connect(onHeartbeat)
+            end
+        else
+            if getgenv().connection then
+                getgenv().connection:Disconnect()
+                getgenv().connection = nil
+            end
+        end
+    end)
+
+    Tabs.Main:AddToggle("IgnoreC00lkidd", {
+        Title = "Walkspeed Override Ignore Objectables",
+        Default = false
+    }):OnChanged(function(value)
+        if value then
+            getgenv().enableHook("C00lkiddCollision")
+        else
+            getgenv().disableHook("C00lkiddCollision")
+        end
+    end)
+
+    Tabs.Main:AddToggle("IgnoreFootstep", {
+        Title = "Block Footstep Played",
+        Default = false
+    }):OnChanged(function(value)
+        getgenv().HookFootstepPlayed(value)
+    end)
+
+    --== 🧩 New Toggle for Dusekkar ==
+    Tabs.Main:AddToggle("DusekkarMode", {
+        Title = "Anti Dusekarr Attack",
+        Default = false
+    }):OnChanged(function(value)
+        if value then
+            getgenv().enableHook("DusekkarCancel")
+        else
+            getgenv().disableHook("DusekkarCancel")
+        end
+    end)
+
+end
+
+
+
+
+    Tabs.Main:AddSection("↳ Noli")
+
+do
+    local RunService = game:GetService("RunService")
+    local Players = game:GetService("Players")
+    local LocalPlayer = Players.LocalPlayer
+
+    -- ====== CONFIG ======
+    local voidrushcontrol = false
+    local DASH_SPEED = 80
+    local ATTACK_RANGE = 6
+    local ATTACK_INTERVAL = 0.2
+
+    -- ====== DYNAMIC PRIORITY ======
+    local survivorsFolder = workspace:WaitForChild("Players"):WaitForChild("Survivors")
+
+    local function isPriorityTarget(p)
+        if not p or not p.Character then return false end
+        return survivorsFolder:FindFirstChild(p.Name) ~= nil
+    end
+
+    -- ====== STATE ======
+    local isOverrideActive = false
+    local connection
+    local Humanoid, RootPart
+    local lastState = nil
+    local attackingLoop = nil
+
+    -- setup character
+    local function setupCharacter(character)
+        Humanoid = character:WaitForChild("Humanoid")
+        RootPart = character:WaitForChild("HumanoidRootPart")
+        Humanoid.Died:Connect(function()
+            stopOverride()
+        end)
+    end
+
+    if LocalPlayer.Character then
+        setupCharacter(LocalPlayer.Character)
+    end
+    LocalPlayer.CharacterAdded:Connect(setupCharacter)
+
+    -- tìm mục tiêu hợp lệ
+    local function validTarget(p)
+        if p == LocalPlayer then return false end
+        local c = p.Character
+        if not c then return false end
+        local hrp = c:FindFirstChild("HumanoidRootPart")
+        local hum = c:FindFirstChild("Humanoid")
+        return hrp and hum and hum.Health > 0
+    end
+
+    -- tìm player gần nhất (ưu tiên survivorsFolder)
+    local function getClosestTarget()
+        if not RootPart then return nil end
+
+        local closestW, distW = nil, math.huge
+        local closestA, distA = nil, math.huge
+
+        for _, p in ipairs(Players:GetPlayers()) do
+            if validTarget(p) then
+                local c = p.Character
+                local hrp = c and c:FindFirstChild("HumanoidRootPart")
+                if hrp then
+                    local d = (hrp.Position - RootPart.Position).Magnitude
+                    if isPriorityTarget(p) and d < distW then
+                        distW = d
+                        closestW = p
+                    end
+                    if d < distA then
+                        distA = d
+                        closestA = p
+                    end
+                end
+            end
+        end
+
+        return closestW or closestA, distW < math.huge and distW or distA
+    end
+
+    -- cố gắng tấn công (tool:Activate())
+    local function attemptAttack()
+        local char = LocalPlayer.Character
+        if not char then return end
+        local tool = char:FindFirstChildOfClass("Tool")
+        if tool and tool.Parent == char then
+            pcall(function() tool:Activate() end)
+        end
+    end
+
+    -- điều khiển Void Rush
+    local function startOverride()
+        if isOverrideActive or not Humanoid or not RootPart then return end
+        isOverrideActive = true
+
+        connection = RunService.RenderStepped:Connect(function()
+            if not Humanoid or not RootPart or Humanoid.Health <= 0 then return end
+            local target, dist = getClosestTarget()
+
+            if target and target.Character and target.Character:FindFirstChild("HumanoidRootPart") then
+                local hrp = target.Character.HumanoidRootPart
+                local dir = hrp.Position - RootPart.Position
+                local horizontal = Vector3.new(dir.X, 0, dir.Z)
+
+                if horizontal.Magnitude > 0.1 then
+                    RootPart.CFrame = CFrame.new(RootPart.Position, Vector3.new(hrp.Position.X, RootPart.Position.Y, hrp.Position.Z))
+                    RootPart.AssemblyLinearVelocity = horizontal.Unit * DASH_SPEED
+                else
+                    RootPart.AssemblyLinearVelocity = Vector3.zero
+                end
+            else
+                RootPart.AssemblyLinearVelocity = Vector3.zero
+            end
+        end)
+
+        attackingLoop = task.spawn(function()
+            while isOverrideActive do
+                local target, dist = getClosestTarget()
+                if target and dist and dist <= ATTACK_RANGE then
+                    attemptAttack()
+                end
+                task.wait(ATTACK_INTERVAL)
+            end
+        end)
+    end
+
+    function stopOverride()
+        if not isOverrideActive then return end
+        isOverrideActive = false
+        if connection then
+            connection:Disconnect()
+            connection = nil
+        end
+        if RootPart then
+            RootPart.AssemblyLinearVelocity = Vector3.zero
+        end
+    end
+
+    -- kiểm tra trạng thái void rush
+    RunService.RenderStepped:Connect(function()
+        if not voidrushcontrol or not Humanoid then return end
+        local state = Humanoid.Parent and Humanoid.Parent:GetAttribute("VoidRushState")
+        if state ~= lastState then
+            lastState = state
+            if state == "Dashing" then
+                startOverride()
+            else
+                stopOverride()
+            end
+        end
+    end)
+
+    -- toggle GUI
+    Tabs.Main:AddToggle("VoidRushControl", {
+        Title = "Void Rush Aimbot",
+        Default = false
+    }):OnChanged(function(v)
+        voidrushcontrol = v
+        if not v then stopOverride() end
+    end)
+end
+
+
+
+    Tabs.Main:AddSection("↳ 1x1x1x1")
+
+do
+-- 🧩 GUI Toggle + Dropdown
+local toggleOn = false
+local toggleFlag = Instance.new("BoolValue")
+toggleFlag.Name = "1x1x1x1AutoAim_ToggleFlag"
+toggleFlag.Value = false
+
+local aimMode = "One Player"
+local predictMovement = false
+
+Tabs.Main:AddDropdown("AimModeDropdown", {
+    Title = "Aim Mode",
+    Values = {"One Player", "Multi Players", "Teleport"},
+    Default = "One Player",
+}):OnChanged(function(value)
+    aimMode = value
+end)
+
+Tabs.Main:AddToggle("AimSkill1x1x1x1", {
+    Title = "MassInfection Aimbot",
+    Default = toggleOn,
+}):OnChanged(function(state)
+    toggleOn = state
+    toggleFlag.Value = state
+end)
+
+Tabs.Main:AddToggle("PredictMovementToggle", {
+    Title = "Predict Movement",
+    Default = predictMovement,
+}):OnChanged(function(state)
+    predictMovement = state
+end)
+
+-- ⚙️ Setup
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local localPlayer = Players.LocalPlayer
+local workspacePlayers = workspace:WaitForChild("Players")
+local survivorsFolder = workspacePlayers:WaitForChild("Survivors")
+
+local dangerousAnimations = {
+    ["131430497821198"] = true,
+    ["100592913030351"] = true,
+    ["70447634862911"]  = true,
+    ["83685305553364"] = true
 }
 
-local soundHooks = {}
-local soundBlockedUntil = {}
+local killerModels = {["1x1x1x1"] = true}
 
--- 🔥 Новый RemoteEvent вызов
-local function fireRemoteBlock()
-    local remote = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Network"):WaitForChild("RemoteEvent")
-    local args = {
-        "UseActorAbility",
-        {
-            buffer.fromstring("\"Clone\"")
-        }
-    }
-    remote:FireServer(unpack(args))
+-- ⚡ State
+local autoRotateDisabledByScript = false
+local currentTarget, isLockedOn, wasPlayingAnimation = nil, false, false
+
+-- 🧩 Utils
+local function isKiller()
+    local char = localPlayer.Character
+    return char and killerModels[char.Name] or false
 end
 
-local function isFacing(localRoot, targetRoot)
-    local dir = (localRoot.Position - targetRoot.Position).Unit
-    local dot = targetRoot.CFrame.LookVector:Dot(dir)
-    return dot > -0.3
+local function getMyHumanoid()
+    local char = localPlayer.Character
+    return char and char:FindFirstChildWhichIsA("Humanoid")
 end
 
-local function extractNumericSoundId(sound)
-    if not sound or not sound.SoundId then return nil end
-    local sid = tostring(sound.SoundId)
-    local num = sid:match("%d+")
-    if num then return num end
-    return nil
-end
-
-local function getSoundWorldPosition(sound)
-    if not sound then return nil end
-    if sound.Parent and sound.Parent:IsA("BasePart") then
-        return sound.Parent.Position, sound.Parent
-    end
-    if sound.Parent and sound.Parent:IsA("Attachment") and sound.Parent.Parent and sound.Parent.Parent:IsA("BasePart") then
-        return sound.Parent.Parent.Position, sound.Parent.Parent
-    end
-    local found = sound.Parent and sound.Parent:FindFirstChildWhichIsA("BasePart", true)
-    if found then
-        return found.Position, found
-    end
-    return nil, nil
-end
-
-local function getCharacterFromDescendant(inst)
-    if not inst then return nil end
-    local model = inst:FindFirstAncestorOfClass("Model")
-    if model and model:FindFirstChildOfClass("Humanoid") then
-        return model
-    end
-    return nil
-end
-
-local function refreshUIRefs()
-    local playerGui = lp:FindFirstChild("PlayerGui")
-    if not playerGui then return end
-    local main = playerGui:FindFirstChild("MainUI")
-    if main then
-        local ability = main:FindFirstChild("AbilityContainer")
-        local blockBtn = ability and ability:FindFirstChild("Block")
-        cachedCooldown = blockBtn and blockBtn:FindFirstChild("CooldownTime")
-    else
-        cachedCooldown = nil
+local function restoreAutoRotate()
+    local hum = getMyHumanoid()
+    if hum and autoRotateDisabledByScript then
+        hum.AutoRotate = true
+        autoRotateDisabledByScript = false
     end
 end
 
-local function attemptBlockForSound(sound)
-    if not autoBlockAudioOn or not sound or not sound:IsA("Sound") or not sound.IsPlaying then return end
+local function isPlayingDangerousAnimation()
+    local humanoid = getMyHumanoid()
+    if not humanoid then return false end
+    local animator = humanoid:FindFirstChildOfClass("Animator")
+    if not animator then return false end
 
-    local id = extractNumericSoundId(sound)
-    if not id or not autoBlockTriggerSounds[id] then return end
+    for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
+        local animId = tostring(track.Animation.AnimationId):match("%d+")
+        if animId and dangerousAnimations[animId] then
+            return true
+        end
+    end
+    return false
+end
 
-    local t = tick()
-    if soundBlockedUntil[sound] and t < soundBlockedUntil[sound] then return end
+-- 🧭 Tìm survivor gần nhất trong folder "Survivors"
+local function getClosestSurvivor()
+    local myHumanoid = getMyHumanoid()
+    if not myHumanoid then return nil end
+    local myRoot = myHumanoid.Parent and myHumanoid.Parent:FindFirstChild("HumanoidRootPart")
+    if not myRoot then return nil end
 
-    local myChar = lp.Character
-    local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
+    local closest, closestDist = nil, math.huge
+
+    for _, obj in ipairs(survivorsFolder:GetChildren()) do
+        if obj:IsA("Model") then
+            local hrp = obj:FindFirstChild("HumanoidRootPart")
+            local hum = obj:FindFirstChildWhichIsA("Humanoid")
+            if hrp and hum and hum.Health > 0 then
+                local dist = (hrp.Position - myRoot.Position).Magnitude
+                if dist < closestDist then
+                    closest = obj
+                    closestDist = dist
+                end
+            end
+        end
+    end
+    return closest
+end
+
+-- 🌀 Reset khi respawn
+localPlayer.CharacterAdded:Connect(function()
+    task.delay(0.1, function()
+        autoRotateDisabledByScript = false
+    end)
+end)
+
+-- 🔁 Main loop
+RunService.RenderStepped:Connect(function()
+    if not toggleFlag.Value then
+        restoreAutoRotate()
+        currentTarget, isLockedOn, wasPlayingAnimation = nil, false, false
+        return
+    end
+
+    if not isKiller() then
+        restoreAutoRotate()
+        currentTarget, isLockedOn, wasPlayingAnimation = nil, false, false
+        return
+    end
+
+    local myHumanoid = getMyHumanoid()
+    if not myHumanoid then return end
+    local myRoot = myHumanoid.Parent and myHumanoid.Parent:FindFirstChild("HumanoidRootPart")
     if not myRoot then return end
 
-    local soundPos, soundPart = getSoundWorldPosition(sound)
-    if not soundPos or not soundPart then return end
+    local isPlaying = isPlayingDangerousAnimation()
 
-    local char = getCharacterFromDescendant(soundPart)
-    local plr = char and Players:GetPlayerFromCharacter(char)
-    if not plr or plr == lp then return end
-
-    local hrp = char:FindFirstChild("HumanoidRootPart")
-    if not hrp then return end
-
-    local dvec = hrp.Position - myRoot.Position
-    if dvec:Dot(dvec) > detectionRangeSq then return end
-
-    if cachedCooldown and cachedCooldown.Text ~= "" then return end
-
-    if not isFacing(myRoot, hrp) then return end
-
-    fireRemoteBlock()
-    soundBlockedUntil[sound] = t + 1.2
-end
-
-local function hookSound(sound)
-    if not sound or not sound:IsA("Sound") or soundHooks[sound] then return end
-
-    local playedConn = sound.Played:Connect(function() pcall(attemptBlockForSound, sound) end)
-    local propConn = sound:GetPropertyChangedSignal("IsPlaying"):Connect(function()
-        if sound.IsPlaying then pcall(attemptBlockForSound, sound) end
-    end)
-    local destroyConn
-    destroyConn = sound.Destroying:Connect(function()
-        if playedConn and playedConn.Connected then playedConn:Disconnect() end
-        if propConn and propConn.Connected then propConn:Disconnect() end
-        if destroyConn and destroyConn.Connected then destroyConn:Disconnect() end
-        soundHooks[sound] = nil
-        soundBlockedUntil[sound] = nil
-    end)
-
-    soundHooks[sound] = {playedConn, propConn, destroyConn}
-
-    if sound.IsPlaying then
-        task.spawn(function() pcall(attemptBlockForSound, sound) end)
+    -- Lock target 1 lần khi bắt đầu animation
+    if isPlaying and not isLockedOn then
+        currentTarget = getClosestSurvivor()
+        if currentTarget then isLockedOn = true end
     end
-end
 
-lp.CharacterAdded:Connect(function()
-    task.delay(0.5, refreshUIRefs)
+    -- Validate target
+    if isLockedOn and currentTarget then
+        local tHum = currentTarget:FindFirstChildWhichIsA("Humanoid")
+        local tHrp = currentTarget:FindFirstChild("HumanoidRootPart")
+        if (not tHum) or (tHum and tHum.Health <= 0) or (not tHrp) then
+            currentTarget, isLockedOn = nil, false
+        end
+    end
+
+    -- End animation
+    if (not isPlaying) and wasPlayingAnimation then
+        currentTarget, isLockedOn = nil, false
+        restoreAutoRotate()
+    end
+    wasPlayingAnimation = isPlaying
+
+    -- 🎯 Aim / Teleport
+    if isPlaying and isLockedOn and currentTarget and currentTarget:FindFirstChild("HumanoidRootPart") then
+        local hrp = currentTarget.HumanoidRootPart
+        local targetPos = hrp.Position
+
+        if not autoRotateDisabledByScript then
+            myHumanoid.AutoRotate = false
+            autoRotateDisabledByScript = true
+        end
+
+        -- Predict movement
+        if predictMovement then
+            local vel = hrp.Velocity
+            if vel.Magnitude > 2 then
+                targetPos = targetPos + hrp.CFrame.LookVector * 3
+            end
+        end
+
+        local lookAt = Vector3.new(targetPos.X, myRoot.Position.Y, targetPos.Z)
+
+        if aimMode == "One Player" then
+            myRoot.CFrame = myRoot.CFrame:Lerp(CFrame.lookAt(myRoot.Position, lookAt), 0.99)
+
+        elseif aimMode == "Multi Players" then
+            local newTarget = getClosestSurvivor()
+            if newTarget then currentTarget = newTarget end
+            myRoot.CFrame = myRoot.CFrame:Lerp(CFrame.lookAt(myRoot.Position, lookAt), 0.99)
+
+        elseif aimMode == "Teleport" then
+            local behindPos = hrp.Position - hrp.CFrame.LookVector * 3
+            myRoot.CFrame = CFrame.new(behindPos, targetPos)
+        end
+    end
 end)
-refreshUIRefs()
-
-for _, desc in ipairs(game:GetDescendants()) do
-    if desc:IsA("Sound") then pcall(hookSound, desc) end
 end
-game.DescendantAdded:Connect(function(desc)
-    if desc:IsA("Sound") then pcall(hookSound, desc) end
-end)
 
-Tabs.AutoBlock:Toggle({
-    Title = "Auto Clon (Auto Clon 007n7)",
-    Default = autoBlockAudioOn,
-    Callback = function(state)
-        autoBlockAudioOn = state
-    end
-})
 
-Tabs.AutoBlock:Slider({
-    Title = "Detection Range (Auto Clon 007n7)",
-    Step = 1,
-    Value = {Min = 1, Max = 100, Default = detectionRange},
-    Suffix = " studs",
-    Callback = function(val)
-        detectionRange = val
-        detectionRangeSq = val * val
-    end
-})
+-- Tabs.Event
 
+    Tabs.Event:AddSection("↳ Halloween")
+
+
+do
+    local Players = game:GetService("Players")
+    local LocalPlayer = Players.LocalPlayer
+
+    -- 📦 Nút Teleport riêng
+    Tabs.Event:AddButton({
+        Title = "TP to Shop",
+        Description = "Teleport đến khu Shop",
+        Callback = function()
+            local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+            local hrp = char:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                hrp.CFrame = CFrame.new(-3540.36, -392.73, 231.53)
+            end
+        end,
+    })
 end
-})
 
-local TextChatService = game:GetService("TextChatService")
 
-Tabs.Misc:Button({
-    Title = "Chat visibility",
+local TeleportService = game:GetService("TeleportService")
+local Players = game:GetService("Players")
+
+Tabs.Event:AddButton({
+    Title = "Get Skin Sixer",
     Callback = function()
-        if TextChatService:FindFirstChild("ChatWindowConfiguration") and TextChatService:FindFirstChild("ChatInputBarConfiguration") then
-            TextChatService.ChatWindowConfiguration.Enabled = true
-            TextChatService.ChatInputBarConfiguration.Enabled = true
-            print("Р§Р°С‚ РІРєР»СЋС‡С‘РЅ!")
-        else
-            warn("ChatWindowConfiguration РёР»Рё ChatInputBarConfiguration РЅРµ РЅР°Р№РґРµРЅС‹!")
-        end
+        pcall(function()
+            TeleportService:Teleport(139594300138069, Players.LocalPlayer)
+        end)
     end
 })
 
-local fullbrightActive = false
-local originalSettings = {}
 
-local function applyFullbright()
-    if not fullbrightActive then return end
-    Lighting.Ambient = Color3.new(1,1,1)
-    Lighting.OutdoorAmbient = Color3.new(1,1,1)
-    Lighting.Brightness = 2
-    Lighting.ClockTime = 12
+-- 💙 8. SUKKARS / EVENT ESP (v3.2: chạm viền sẽ ẩn ESP)
+-----------------------------------------------------
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+local allowedModels = {
+    ["dumsek"] = true,
+    ["toon dusek"] = true,
+    ["dusek"] = true,
+    ["umdum"] = true,
+    ["doothsek"] = true,
+}
+
+local blockedCenter = Vector3.new(-3485.02, 4.48, 217.77)
+local blockedRadius = 500
+
+_G.ESPManager:RegisterType("Sukkars", Color3.fromRGB(0, 85, 255), function(obj)
+    if not obj:IsA("Model") then return false end
+    if not allowedModels[string.lower(obj.Name)] then return false end
+
+    local part = obj:FindFirstChild("HumanoidRootPart") or obj:FindFirstChildWhichIsA("BasePart")
+    if not part then return false end
+
+    local dist = (part.Position - blockedCenter).Magnitude
+    if dist <= blockedRadius then return false end
+
+    return true
+end, false)
+
+-- ⚡ Gắn .Touched 1 lần duy nhất
+local oldCreate = _G.ESPManager.Create
+_G.ESPManager.Create = function(self, model, typeName)
+    oldCreate(self, model, typeName)
+
+    if typeName == "Sukkars" then
+        local hrp = model:FindFirstChild("HumanoidRootPart") or model:FindFirstChildWhichIsA("BasePart")
+        if hrp and not hrp:FindFirstChild("_TouchedFlag") then
+            local flag = Instance.new("BoolValue")
+            flag.Name = "_TouchedFlag"
+            flag.Parent = hrp
+
+            hrp.Touched:Connect(function(hit)
+                local char = LocalPlayer.Character
+                if char and hit:IsDescendantOf(char) then
+                    _G.ESPManager:Remove(model)
+                end
+            end)
+        end
+    end
 end
 
-local function revertFullbright()
-    if originalSettings.Ambient then
-        Lighting.Ambient = originalSettings.Ambient
-        Lighting.OutdoorAmbient = originalSettings.OutdoorAmbient
-        Lighting.Brightness = originalSettings.Brightness
-        Lighting.ClockTime = originalSettings.ClockTime
+-- 💫 Ẩn ESP khi “chạm viền” (cự ly cực gần)
+task.spawn(function()
+    while task.wait(0.15) do
+        local char = LocalPlayer.Character
+        local hrp = char and char:FindFirstChild("HumanoidRootPart")
+        if not hrp then continue end
+
+        for model, data in pairs(_G.ESPManager.Objects) do
+            if data.type == "Sukkars" then
+                local part = model:FindFirstChild("HumanoidRootPart") or model:FindFirstChildWhichIsA("BasePart")
+                if part then
+                    local dist = (hrp.Position - part.Position).Magnitude
+                    if dist <= 5 then -- 👈 khoảng cách “chạm viền”
+                        _G.ESPManager:Remove(model)
+                    elseif dist > 1200 then -- xa quá thì dọn ESP
+                        _G.ESPManager:Remove(model)
+                    end
+                else
+                    _G.ESPManager:Remove(model)
+                end
+            end
+        end
+    end
+end)
+
+Tabs.Event:AddToggle("ESPSukkarsToggle", {
+    Title = "ESP Sukkars",
+    Default = false,
+}):OnChanged(function(state)
+    _G.ESPManager:SetEnabled("Sukkars", state)
+end)
+
+
+
+-- 🧭 Danh sách model cần teleport tới
+local TargetNames = {
+    "dumsek",
+    "toon dusek",
+    "umdum",
+    "dusek",
+    "doothsek",
+}
+
+-- ⚙️ Cài đặt
+local ScanInterval = 0.5
+local TeleportDelay = 0.25
+local HeightSafe = 5
+local IgnoreCenter = Vector3.new(-3485.02, 4.48, 217.77)
+local IgnoreRadius = 500
+
+-- ⚡ Biến điều khiển
+local autoTeleport = false
+local visitedModels = {}
+local currentTarget = nil
+
+-- === SERVICES ===
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+-- === HÀM HỖ TRỢ ===
+local function getHumanoid()
+	local char = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+	return char:FindFirstChildOfClass("Humanoid"), char
+end
+
+local function getModelCFrame(model)
+	if not model or not model:IsDescendantOf(workspace) then return end
+	local part = model:FindFirstChild("HumanoidRootPart") or model.PrimaryPart or model:FindFirstChildWhichIsA("BasePart")
+	if part then
+		return part.CFrame
+	elseif model.GetPivot then
+		local ok, pivot = pcall(function()
+			return model:GetPivot()
+		end)
+		if ok then return pivot end
+	end
+end
+
+local function isValidModel(model)
+	if not model or not model:IsDescendantOf(workspace) then
+		return false
+	end
+	for _, name in ipairs(TargetNames) do
+		if model.Name:lower() == name:lower() then
+			local cf = getModelCFrame(model)
+			if cf then
+				local pos = cf.Position
+				if (pos - IgnoreCenter).Magnitude > IgnoreRadius then
+					return true
+				end
+			end
+		end
+	end
+	return false
+end
+
+-- === TÌM CÁC MODEL HỢP LỆ ===
+local function findTargets()
+	local list = {}
+	for _, obj in ipairs(workspace:GetDescendants()) do
+		if obj:IsA("Model") and isValidModel(obj) then
+			table.insert(list, obj)
+		end
+	end
+	return list
+end
+
+-- === KIỂM TRA NHÂN VẬT ĐANG CHẠM MODEL HIỆN TẠI ===
+local function isTouchingTarget(target)
+	if not target or not target:IsDescendantOf(workspace) then
+		return false
+	end
+	local char = LocalPlayer.Character
+	if not char then return false end
+
+	local hrp = char:FindFirstChild("HumanoidRootPart")
+	if not hrp then return false end
+
+	local targetPart = target:FindFirstChild("HumanoidRootPart") or target.PrimaryPart or target:FindFirstChildWhichIsA("BasePart")
+	if not targetPart then return false end
+
+	local dist = (hrp.Position - targetPart.Position).Magnitude
+	return dist <= 6
+end
+
+-- === TELEPORT SANG MODEL TIẾP THEO ===
+local function teleportToNext()
+	local humanoid, char = getHumanoid()
+	local hrp = char and char:FindFirstChild("HumanoidRootPart")
+	if not hrp then return end
+
+	-- Dọn dẹp model đã biến mất khỏi danh sách
+	for m in pairs(visitedModels) do
+		if not m:IsDescendantOf(workspace) then
+			visitedModels[m] = nil
+		end
+	end
+
+	-- Lấy danh sách hợp lệ
+	local allTargets = findTargets()
+	local available = {}
+	for _, m in ipairs(allTargets) do
+		if not visitedModels[m] and m:IsDescendantOf(workspace) then
+			table.insert(available, m)
+		end
+	end
+
+	-- Nếu hết mục tiêu thì reset visited để quét lại
+	if #available == 0 then
+		table.clear(visitedModels)
+		return
+	end
+
+	-- Chọn model gần nhất
+	table.sort(available, function(a, b)
+		local pa = getModelCFrame(a).Position
+		local pb = getModelCFrame(b).Position
+		return (hrp.Position - pa).Magnitude < (hrp.Position - pb).Magnitude
+	end)
+
+	local nextTarget = available[1]
+	if nextTarget then
+		local cf = getModelCFrame(nextTarget)
+		if cf then
+			local pos = cf.Position
+			if pos.Y < -10 then
+				pos = Vector3.new(pos.X, HeightSafe, pos.Z)
+			end
+			hrp.CFrame = CFrame.new(pos + Vector3.new(0, 3, 0))
+			currentTarget = nextTarget
+		end
+	end
+end
+
+-- === VÒNG CHÍNH ===
+task.spawn(function()
+	while task.wait(ScanInterval) do
+		if autoTeleport and LocalPlayer.Character then
+			-- nếu target hiện tại biến mất, bỏ qua và chuyển model khác
+			if currentTarget and not currentTarget:IsDescendantOf(workspace) then
+				currentTarget = nil
+				task.wait(TeleportDelay)
+				teleportToNext()
+			elseif currentTarget and isTouchingTarget(currentTarget) then
+				visitedModels[currentTarget] = true
+				task.wait(TeleportDelay)
+				teleportToNext()
+			elseif not currentTarget then
+				teleportToNext()
+			end
+		end
+	end
+end)
+
+-- === TOGGLE GUI ===
+Tabs.Event:AddToggle("AutoFarmSukkars", {
+	Title = "Auto Farm Sukkars",
+	Default = false,
+	Callback = function(state)
+		autoTeleport = state
+		if not state then
+			currentTarget = nil
+			table.clear(visitedModels)
+		end
+	end,
+})
+
+
+-- Tabs.Custom
+
+--// 🌌 Hệ Thống Tu Tiên (Fluent UI Paragraph v3)
+-- Mỗi cấp 3h, 9 tầng (Nhất → Cửu Giai), có tiến trình Đột Phá %
+
+local HttpService = game:GetService("HttpService")
+local SaveFile = "TuTienData.json"
+
+-- Danh sách cảnh giới (mỗi cấp = 3h = 10800s)
+-- Phàm Nhân không có tầng
+local Levels = {
+    {name = "Phàm Nhân", time = 0, hasStage = false},
+    {name = "Kết Đan", time = 10800, hasStage = true},
+    {name = "Luyện Khí", time = 21600, hasStage = true},
+    {name = "Trúc Cơ", time = 32400, hasStage = true},
+    {name = "Kim Đan", time = 43200, hasStage = true},
+    {name = "Nguyên Anh", time = 54000, hasStage = true},
+    {name = "Hóa Thần", time = 64800, hasStage = true},
+    {name = "Luyện Hư", time = 75600, hasStage = true},
+    {name = "Hợp Thể", time = 86400, hasStage = true},
+    {name = "Đại Thừa", time = 97200, hasStage = true},
+    {name = "Độ Kiếp", time = 108000, hasStage = true},
+    {name = "Thánh Cảnh", time = 118800, hasStage = true},
+    {name = "Thánh Vương", time = 129600, hasStage = true},
+    {name = "Chí Tôn", time = 140400, hasStage = true},
+    {name = "Chuẩn Đế", time = 151200, hasStage = true},
+    {name = "Đại Đế", time = 162000, hasStage = true},
+}
+
+-- Các tầng (mỗi tầng = 20 phút = 1200s)
+local Stages = {
+    "Nhất Giai",
+    "Nhị Giai",
+    "Tam Giai",
+    "Tứ Giai",
+    "Ngũ Giai",
+    "Lục Giai",
+    "Thất Giai",
+    "Bát Giai",
+    "Cửu Giai"
+}
+
+-- Đọc dữ liệu
+local function LoadData()
+    if isfile and isfile(SaveFile) then
+        local success, decoded = pcall(function()
+            return HttpService:JSONDecode(readfile(SaveFile))
+        end)
+        if success and decoded then return decoded end
+    end
+    return {totalTime = 0}
+end
+
+-- Lưu dữ liệu
+local function SaveData(data)
+    if writefile then
+        writefile(SaveFile, HttpService:JSONEncode(data))
     end
 end
 
-Tabs.Misc:Toggle({
-    Title = "Fullbright",
-    Default = false,
-    Callback = function(state)
-        fullbrightActive = state
-        if fullbrightActive then
-            if not originalSettings.Ambient then
-                originalSettings.Ambient = Lighting.Ambient
-                originalSettings.OutdoorAmbient = Lighting.OutdoorAmbient
-                originalSettings.Brightness = Lighting.Brightness
-                originalSettings.ClockTime = Lighting.ClockTime
+-- Tính Tu Vi, Tầng, Linh Khí %, Đột Phá %
+local function GetProgress(totalTime)
+    for i = #Levels, 1, -1 do
+        if totalTime >= Levels[i].time then
+            local current = Levels[i]
+            local nextLevel = Levels[i + 1]
+
+            if not nextLevel then
+                return current.name, (current.hasStage and "Cửu Giai" or nil), 1, 1
             end
-            applyFullbright()
+
+            local levelDuration = 10800 -- 3h
+            local elapsedInLevel = totalTime - current.time
+            local percent = math.clamp(elapsedInLevel / levelDuration, 0, 1)
+
+            local stageName, breakthroughPercent
+            if current.hasStage then
+                local elapsedInStage = elapsedInLevel % 1200
+                local stageIndex = math.clamp(math.floor(elapsedInLevel / 1200) + 1, 1, #Stages)
+                stageName = Stages[stageIndex]
+                breakthroughPercent = math.clamp(elapsedInStage / 1200, 0, 1)
+            else
+                breakthroughPercent = 0
+            end
+
+            return current.name, stageName, percent, breakthroughPercent
+        end
+    end
+    return "Phàm Nhân", nil, 0, 0
+end
+
+-- Dữ liệu hiện tại
+local Data = LoadData()
+
+-- UI hiển thị
+local Paragraph = Tabs.Custom:AddParagraph({
+    Title = "Thông Tin",
+    Content = "Đang khởi động..."
+})
+
+-- Vòng cập nhật
+task.spawn(function()
+    while task.wait(1) do
+        Data.totalTime += 1
+        local level, stage, percent, breakP = GetProgress(Data.totalTime)
+
+        local content = string.format("Tu Vi: %s\n", level)
+        if stage then
+            content ..= string.format("Tầng: %s\n", stage)
+        end
+        content ..= string.format("Linh Khí: %.1f%%\n", percent * 100)
+
+        -- Nếu có tầng thì hiện thêm Đột Phá %
+        if stage then
+            content ..= string.format("Đột Phá: %.1f%%", breakP * 100)
+        end
+
+        Paragraph:SetDesc(content)
+
+        -- Lưu định kỳ
+        if Data.totalTime % 10 == 0 then
+            SaveData(Data)
+        end
+
+        -- Khi đạt Đại Đế full
+        if level == "Đại Đế" and percent >= 1 then
+            Paragraph:SetDesc("Tu Vi: Đại Đế\nTầng: Cửu Giai\nLinh Khí: 100%\nĐột Phá: 100%")
+            break
+        end
+    end
+end)
+
+
+    Tabs.Custom:AddSection("↳ Animation")
+
+--// Fake Killers Anim System (hardened)
+do
+    local Players = game:GetService("Players")
+    local RunService = game:GetService("RunService")
+    local UserInputService = game:GetService("UserInputService")
+    local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+    local player = Players.LocalPlayer
+
+    -- thử require sprint module (nếu có)
+    local sprintModule
+    pcall(function()
+        sprintModule = require(ReplicatedStorage:WaitForChild("Systems").Character.Game.Sprinting)
+    end)
+
+    -- ==============================
+    -- 🟢 DỮ LIỆU KILLERS + SKINS (chỉ sửa ở đây)
+    -- ==============================
+    local KillersData = {
+        ["Shasher"] = {
+            ["Default"] = {
+                Idle = "rbxassetid://116050994905421",
+                Walk = "rbxassetid://93622022596108",
+                Run  = "rbxassetid://93054787145505",
+            },
+            ["Pursuer"] = {
+                Idle = "rbxassetid://94895464960972",
+                Walk = "rbxassetid://100206079439305",
+                Run  = "rbxassetid://138660433982140",
+            },
+            ["subject_0"] = {
+                Idle = "rbxassetid://14301056458",
+                Walk = "rbxassetid://122325883800612",
+                Run  = "rbxassetid://97248175252805",
+            }
+        },
+        ["Coolkidd"] = {
+            ["Default"] = {
+                Idle = "rbxassetid://18885903667",
+                Walk = "rbxassetid://18885906143",
+                Run  = "rbxassetid://96571077893813",
+            }
+        },
+        ["John Doe"] = {
+            ["Default"] = {
+                Idle = "rbxassetid://105880087711722",
+                Walk = "rbxassetid://81193817424328",
+                Run  = "rbxassetid://132653655520682",
+            },
+            ["Shadow"] = {
+                Idle = "rbxassetid://00000000001",
+                Walk = "rbxassetid://00000000002",
+                Run  = "rbxassetid://00000000003",
+            }
+        },
+        ["Noli"] = {
+            ["Default"] = {
+                Idle = "rbxassetid://93841120533318",
+                Walk = "rbxassetid://109700476007435",
+                Run  = "rbxassetid://117451341682452",
+            }
+        },
+        ["1x1x1x1"] = {
+            ["Default"] = {
+                Idle = "rbxassetid://138754221537146",
+                Walk = "rbxassetid://131235528875091",
+                Run  = "rbxassetid://106485518413331",
+            },
+            ["Hacklord [Old]"] = {
+                Idle = "rbxassetid://82241652784826",
+                Walk = "rbxassetid://119242164490314",
+                Run  = "rbxassetid://92430101129682",
+            },
+            ["Hacklord [New]"] = {
+                Idle = "rbxassetid://106131211773069",
+                Walk = "rbxassetid://119112338263474",
+                Run  = "rbxassetid://85339002634979",
+            }
+        },
+        ["Herobrine"] = {
+            ["Default"] = {
+                Idle = "rbxassetid://107799240559806",
+                Walk = "rbxassetid://89380107485006",
+                Run  = "rbxassetid://134157363854022",
+            }
+        },
+        ["Gubby"] = {
+            ["Default"] = {
+                Idle = "rbxassetid://88333702239259",
+                Walk = "rbxassetid://115244584291581",
+                Run  = "rbxassetid://115244584291581",
+            }
+        },
+        ["Sancho"] = {
+            ["Default"] = {
+                Idle = "rbxassetid://115073581864188",
+                Walk = "rbxassetid://95213748170889",
+                Run  = "rbxassetid://75409814098993",
+            }
+        },
+        ["Erlking"] = {
+            ["Default"] = {
+                Idle = "rbxassetid://93727662665079",
+                Walk = "rbxassetid://97625643261790",
+                Run  = "rbxassetid://119357938208454",
+            }
+        },
+        ["Sukuna"] = {
+            ["Default"] = {
+                Idle = "rbxassetid://115268929362938",
+                Walk = "rbxassetid://123678890237669",
+                Run  = "rbxassetid://132086389849889",
+                Music = "rbxassetid://73595818073606" -- 🆕 nhạc đặc biệt
+            }
+        }
+    }
+    -- ==============================
+
+    -- state
+    local enabled = false
+    local selectedKiller = "Shasher"
+    local selectedSkin = "Default"
+    local character, humanoid, animator
+    local idleAnim, walkAnim, runAnim
+    local idleTrack, walkTrack, runTrack
+    local _isSprinting = false
+    local musicSound -- 🆕 biến giữ Sound object
+
+    -- conn
+    local runningConn, heartbeatConn, characterRemovingConn, inputBeganConn, inputEndedConn = nil, nil, nil, nil, nil
+    local heartbeatAccumulator = 0
+    local HEARTBEAT_CHECK_INTERVAL = 0.12
+
+    -- utility
+    local function stopAndClearTracks()
+        for _, track in ipairs({idleTrack, walkTrack, runTrack}) do
+            if track then pcall(function() track:Stop() end) end
+        end
+        idleTrack, walkTrack, runTrack = nil, nil, nil
+    end
+
+    local function stopMusic()
+        if musicSound then
+            pcall(function()
+                musicSound:Stop()
+                musicSound:Destroy()
+            end)
+            musicSound = nil
+        end
+    end
+
+    local function playMusicIfSukuna(set)
+        stopMusic()
+        if selectedKiller == "Sukuna" and set and set.Music then
+            local sound = Instance.new("Sound")
+            sound.SoundId = set.Music
+            sound.Looped = true
+            sound.Volume = 2
+            sound.Parent = workspace
+            sound:Play()
+            musicSound = sound
+        end
+    end
+
+    local function disconnectListeners()
+        for _, c in ipairs({runningConn, heartbeatConn, characterRemovingConn, inputBeganConn, inputEndedConn}) do
+            if c then pcall(function() c:Disconnect() end) end
+        end
+        runningConn, heartbeatConn, characterRemovingConn, inputBeganConn, inputEndedConn = nil, nil, nil, nil, nil
+    end
+
+    local function cleanupCurrentCharacter()
+        stopAndClearTracks()
+        stopMusic()
+        disconnectListeners()
+        animator, humanoid, character = nil, nil, nil
+    end
+
+    -- load anim objects theo killer + skin
+    local function loadAnimObjects(killer, skin)
+        local killerTable = KillersData[killer]
+        if not killerTable then
+            warn("loadAnimObjects: killer không tồn tại:", tostring(killer))
+            return
+        end
+        local set = killerTable[skin or "Default"] or killerTable["Default"]
+        if not set then return end
+
+        idleAnim, walkAnim, runAnim = Instance.new("Animation"), Instance.new("Animation"), Instance.new("Animation")
+        idleAnim.Name, walkAnim.Name, runAnim.Name = "IdleAnim", "WalkAnim", "RunAnim"
+        idleAnim.AnimationId, walkAnim.AnimationId, runAnim.AnimationId = set.Idle, set.Walk, set.Run
+
+        playMusicIfSukuna(set) -- 🆕 check phát nhạc nếu là Sukuna
+    end
+
+    -- play anim
+    local function playAnim(animObj, trackType)
+        if not animator then return end
+
+        if trackType ~= "Idle" and idleTrack then pcall(function() idleTrack:Stop() end) idleTrack=nil end
+        if trackType ~= "Walk" and walkTrack then pcall(function() walkTrack:Stop() end) walkTrack=nil end
+        if trackType ~= "Run" and runTrack then pcall(function() runTrack:Stop() end) runTrack=nil end
+
+        local track
+        if trackType=="Idle" and not idleTrack then idleTrack = animator:LoadAnimation(idleAnim) track=idleTrack
+        elseif trackType=="Walk" and not walkTrack then walkTrack = animator:LoadAnimation(walkAnim) track=walkTrack
+        elseif trackType=="Run" and not runTrack then runTrack = animator:LoadAnimation(runAnim) track=runTrack
+        else track = (trackType=="Idle" and idleTrack) or (trackType=="Walk" and walkTrack) or runTrack end
+
+        if track and not track.IsPlaying then pcall(function() track:Play() end) end
+    end
+
+    local function playIdle() playAnim(idleAnim,"Idle") end
+    local function playWalk() playAnim(walkAnim,"Walk") end
+    local function playRun() playAnim(runAnim,"Run") end
+
+    -- update state
+    local function updateMovementState()
+        if not enabled or not character then return end
+        local moving=false
+        if humanoid and humanoid.MoveDirection then
+            moving = humanoid.MoveDirection.Magnitude>0
+            if not moving then
+                local root = character:FindFirstChild("HumanoidRootPart") or character.PrimaryPart
+                if root and root.Velocity.Magnitude>1 then moving=true end
+            end
+        end
+        if moving then
+            local sprintingNow = (sprintModule and sprintModule.IsSprinting) or _isSprinting
+            if sprintingNow then playRun() else playWalk() end
         else
-            revertFullbright()
+            playIdle()
+        end
+    end
+
+    -- listeners
+    local function setupMovementListeners()
+        disconnectListeners()
+        inputBeganConn = UserInputService.InputBegan:Connect(function(input,gp) if gp then return end if input.KeyCode==Enum.KeyCode.LeftShift then _isSprinting=true end end)
+        inputEndedConn = UserInputService.InputEnded:Connect(function(input,gp) if gp then return end if input.KeyCode==Enum.KeyCode.LeftShift then _isSprinting=false end end)
+
+        if humanoid and humanoid.Running then
+            runningConn = humanoid.Running:Connect(function(speed) if not enabled then return end if speed>0 then updateMovementState() else playIdle() end end)
+        else
+            heartbeatAccumulator=0
+            heartbeatConn = RunService.Heartbeat:Connect(function(dt)
+                if not enabled or not character then return end
+                heartbeatAccumulator+=dt
+                if heartbeatAccumulator>=HEARTBEAT_CHECK_INTERVAL then
+                    heartbeatAccumulator=0
+                    updateMovementState()
+                end
+            end)
+        end
+    end
+
+    -- bind character
+    local function onCharacterBound(char)
+        cleanupCurrentCharacter()
+        character=char
+        humanoid=char:FindFirstChildOfClass("Humanoid") or char:FindFirstChildOfClass("AnimationController")
+        if humanoid then
+            animator = humanoid:FindFirstChildOfClass("Animator") or Instance.new("Animator", humanoid)
+        end
+        characterRemovingConn = char.AncestryChanged:Connect(function(_,parent) if not parent then cleanupCurrentCharacter() end end)
+        if enabled then
+            loadAnimObjects(selectedKiller, selectedSkin)
+            setupMovementListeners()
+            updateMovementState()
+        end
+    end
+
+    player.CharacterAdded:Connect(onCharacterBound)
+    if player.Character then onCharacterBound(player.Character) end
+
+    -- ===== UI =====
+    local killerNames = {}
+    for name,_ in pairs(KillersData) do table.insert(killerNames, name) end
+    table.sort(killerNames)
+
+    local SkinDropdown -- khai báo trước
+
+    -- dropdown chính (Killers)
+    local killerDropdown = Tabs.Custom:AddDropdown("ChooseKillersDropdown", {
+        Title = "Choose Killers",
+        Values = killerNames,
+        Default = selectedKiller,
+        Multi = false,
+        Callback = function(value)
+            local ok, err = pcall(function()
+                selectedKiller = value
+                selectedSkin = "Default"
+
+                local skins = {}
+                local t = KillersData[selectedKiller] or {}
+                for sName,_ in pairs(t) do table.insert(skins, sName) end
+                if #skins == 0 then skins = {"Default"} end
+                table.sort(skins)
+
+                if SkinDropdown and type(SkinDropdown.SetValues)=="function" and type(SkinDropdown.SetValue)=="function" then
+                    SkinDropdown:SetValues(skins)
+                    pcall(function() SkinDropdown:SetValue(skins[1] or "Default") end)
+                end
+
+                if enabled and player.Character then
+                    loadAnimObjects(selectedKiller, selectedSkin)
+                    stopAndClearTracks()
+                    updateMovementState()
+                else
+                    stopMusic()
+                end
+            end)
+            if not ok then warn("ChooseKillersDropdown callback error:", err) end
+        end
+    })
+
+    -- dropdown Skin (nằm dưới Killer)
+    SkinDropdown = Tabs.Custom:AddDropdown("ChooseSkinDropdown", {
+        Title = "Choose Skin",
+        Values = {"Default"},
+        Default = "Default",
+        Multi = false,
+        Callback = function(value)
+            local ok, err = pcall(function()
+                selectedSkin = value
+                if enabled and player.Character then
+                    loadAnimObjects(selectedKiller, selectedSkin)
+                    stopAndClearTracks()
+                    updateMovementState()
+                else
+                    stopMusic()
+                end
+            end)
+            if not ok then warn("SkinDropdown callback error:", err) end
+        end
+    })
+
+    -- toggle fake killers
+    Tabs.Custom:AddToggle("FakeKillersToggle", {
+        Title = "Fake Killers",
+        Default = false,
+        Callback = function(state)
+            local ok, err = pcall(function()
+                enabled = state
+                if enabled then
+                    if player.Character then
+                        loadAnimObjects(selectedKiller, selectedSkin)
+                        onCharacterBound(player.Character)
+                    end
+                else
+                    stopAndClearTracks()
+                    disconnectListeners()
+                    stopMusic()
+                end
+            end)
+            if not ok then warn("FakeKillersToggle callback error:", err) end
+        end
+    })
+end
+
+
+
+    Tabs.Custom:AddSection("↳ Skill")
+
+
+do
+-- LocalScript (StarterPlayerScripts)
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- ⚡ Config
+local BUTTON_SIZE = 48
+local FramesLocked = true
+local screenGui
+local createdFrames = {}
+
+-- dữ liệu các nút
+local buttonsData = {
+    {Name = "Btn1", AnimationId = "135853087227453", PlayMusic = true, MusicId = "81361259756089", ImageId = "134210378382767"},
+    {Name = "Btn2", AnimationId = "99784586201997", PlayMusic = false, ImageId = "134210378382767"},
+    {Name = "Btn3", AnimationId = "121162477402224", PlayMusic = true, MusicId = "120185817748858", ImageId = "85785826985052"},
+    {Name = "Btn4", AnimationId = "101816924844805", PlayMusic = true, MusicId = "88406027536494", ImageId = "85785826985052"},
+}
+
+-- vị trí ban đầu
+local startPositions = {
+    UDim2.new(0, 80, 0, 200),
+    UDim2.new(0, 140, 0, 200),
+    UDim2.new(0, 200, 0, 200),
+    UDim2.new(0, 260, 0, 200),
+}
+
+-- 🌟 Drag Module
+local function makeDraggable(frame)
+    local dragging, dragStart, startPos
+
+    frame.InputBegan:Connect(function(input)
+        if not FramesLocked and (input.UserInputType == Enum.UserInputType.MouseButton1 
+            or input.UserInputType == Enum.UserInputType.Touch) then
+            dragging = true
+            dragStart = input.Position
+            startPos = frame.Position
+
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+
+    UserInputService.InputChanged:Connect(function(input)
+        if not FramesLocked and dragging and 
+            (input.UserInputType == Enum.UserInputType.MouseMovement 
+            or input.UserInputType == Enum.UserInputType.Touch) then
+            local delta = input.Position - dragStart
+            frame.Position = UDim2.new(
+                startPos.X.Scale,
+                startPos.X.Offset + delta.X,
+                startPos.Y.Scale,
+                startPos.Y.Offset + delta.Y
+            )
+        end
+    end)
+end
+
+-- 🔹 GUI container
+screenGui = Instance.new("ScreenGui")
+screenGui.Name = "CircleButtonsGUI"
+screenGui.ResetOnSpawn = false
+screenGui.IgnoreGuiInset = true
+screenGui.Enabled = false
+screenGui.Parent = playerGui
+
+-- 🔹 Hàm tạo frame + button
+local function createFrameWithButton(data, pos)
+    local frame = Instance.new("Frame")
+    frame.Name = data.Name .. "_Frame"
+    frame.Size = UDim2.new(0, BUTTON_SIZE, 0, BUTTON_SIZE)
+    frame.Position = pos
+    frame.BackgroundTransparency = 1
+    frame.ZIndex = 1
+    frame.Parent = screenGui
+    frame.Active = true
+
+    -- bo tròn frame
+    local frameCorner = Instance.new("UICorner")
+    frameCorner.CornerRadius = UDim.new(1, 0)
+    frameCorner.Parent = frame
+
+    local btn = Instance.new("ImageButton")
+    btn.Name = data.Name
+    btn.Size = UDim2.new(1, 0, 1, 0)
+    btn.BackgroundTransparency = 1
+    btn.Image = "rbxassetid://" .. data.ImageId
+    btn.ZIndex = 2
+    btn.Parent = frame
+    btn.ScaleType = Enum.ScaleType.Fit -- giữ tỉ lệ ảnh
+
+    -- bo tròn nút
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(1, 0)
+    corner.Parent = btn
+
+    -- click chạy animation/nhạc
+    btn.MouseButton1Click:Connect(function()
+        if FramesLocked then
+            local char = player.Character or player.CharacterAdded:Wait()
+            local humanoid = char:FindFirstChildOfClass("Humanoid")
+            if not humanoid then return end
+
+            local animator = humanoid:FindFirstChildOfClass("Animator") or Instance.new("Animator", humanoid)
+            local anim = Instance.new("Animation")
+            anim.AnimationId = "rbxassetid://" .. data.AnimationId
+            local track = animator:LoadAnimation(anim)
+            track:Play()
+
+            if data.PlayMusic and data.MusicId then
+                local sound = Instance.new("Sound")
+                sound.SoundId = "rbxassetid://" .. data.MusicId
+                sound.Volume = 1
+                sound.Parent = char:FindFirstChild("Head") or playerGui
+                sound:Play()
+                sound.Ended:Connect(function() sound:Destroy() end)
+            end
+        end
+    end)
+
+    makeDraggable(frame)
+
+    btn.Visible = FramesLocked
+    frame.BackgroundTransparency = FramesLocked and 1 or 0.3
+
+    table.insert(createdFrames, frame)
+end
+
+-- tạo nút
+for i, d in ipairs(buttonsData) do
+    createFrameWithButton(d, startPositions[i])
+end
+
+-- 🌟 Tích hợp Toggle + Input
+Tabs.Custom:AddToggle("UnlockSukunaSkill", {
+    Title = "Unlock Sukuna Skill",
+    Default = false
+}):OnChanged(function(state)
+    screenGui.Enabled = state
+end)
+
+Tabs.Custom:AddToggle("LockFrames", {
+    Title = "Lock Buttons",
+    Default = true
+}):OnChanged(function(state)
+    FramesLocked = state
+    for _, frame in ipairs(createdFrames) do
+        local btn = frame:FindFirstChildOfClass("ImageButton")
+        if btn then
+            btn.Visible = FramesLocked
+        end
+        frame.BackgroundTransparency = FramesLocked and 1 or 0.3
+    end
+end)
+
+Tabs.Custom:AddInput("ButtonSizeInput", {
+    Title = "Button Size",
+    Default = tostring(BUTTON_SIZE),
+    Placeholder = "Nhập số px",
+    Numeric = true,
+    Finished = true
+}):OnChanged(function(value)
+    local num = tonumber(value)
+    if num and num > 0 then
+        BUTTON_SIZE = num
+        for _, frame in ipairs(createdFrames) do
+            frame.Size = UDim2.new(0, BUTTON_SIZE, 0, BUTTON_SIZE)
+            local btn = frame:FindFirstChildOfClass("ImageButton")
+            if btn then
+                btn.Size = UDim2.new(1, 0, 1, 0)
+            end
+        end
+    end
+end)
+end
+
+
+
+
+
+
+
+-- 🧠 Services
+getgenv().SoundService = game:GetService("SoundService")
+getgenv().RunService = game:GetService("RunService")
+
+-- 📁 Ensure folders exist
+local folderPath = "HutaoHub/Assets"
+if not isfolder("HutaoHub") then makefolder("HutaoHub") end
+if not isfolder(folderPath) then makefolder(folderPath) end
+
+-- 🎵 Track list (FULL)
+getgenv().tracks = {
+    ["None"] = "",
+    ["----------- UST -----------"] = nil,
+    ["A BRAVE SOUL (MS 4 Killer VS MS 4 Survivor)"] = "https://github.com/NyansakenHub/NyansakenHub/raw/refs/heads/main/A%20BRAVE%20SOUL%20(MS%204%20Killer%20VS%20MS%204%20Survivor).mp3",
+    ["BEGGED (MS 4 Coolkidd vs MS 4 007n7)"] = "https://github.com/NyansakenHub/NyansakenHub/raw/refs/heads/main/BEGGED%20(MS%204%20Coolkidd%20vs%20MS%204%20007n7).mp3",
+    ["DOOMSPIRE (HairyTwinkle VS Pedro.EXE)"] = "https://github.com/NyansakenHub/NyansakenHub/raw/refs/heads/main/DOOMSPIRE%20-%20(HairyTwinkle%20VS%20Pedro.EXE).mp3",
+    ["ECLIPSE (xX4ce0fSpadesXx vs dragondudes3)"] = "https://github.com/NyansakenHub/NyansakenHub/raw/refs/heads/main/ECLIPSE%20(xX4ce0fSpadesXx%20vs%20dragondudes3).mp3",
+    ["ERROR 264 (Noob Cosplay VS Yourself)"] = "https://github.com/NyansakenHub/NyansakenHub/raw/refs/heads/main/ERROR%20264%20-%20(Noob%20Cosplay%20VS%20Yourself).mp3",
+    ["GODS SECOND COMING (NOLI VS. 007n7)"] = "https://github.com/NyansakenHub/NyansakenHub/raw/refs/heads/main/GODS%20SECOND%20COMING%20(NOLI%20VS.%20007n7).mp3",
+    ["Entreat (Bluudude Vs 118o8)"] = "https://github.com/NyansakenHub/NyansakenHub/raw/refs/heads/main/Entreat%20(Bluudude%20Vs%20118o8).mp3",
+    ["Implore (Comic vs Savior)"] = "https://github.com/NyansakenHub/NyansakenHub/raw/refs/heads/main/Implore%20(Comic%20vs%20Savior)%20-%20YouTube.mp3",
+    ["Leftovers (Remix Vanity Jason Vs All)"] = "https://github.com/NyansakenHub/NyansakenHub/raw/refs/heads/main/Leftovers%20(Remix%20Vanity%20Jason%20Vs%20All).mp3",
+    ["ORDER UP (Elliot VS c00lkidd)"] = "https://github.com/NyansakenHub/NyansakenHub/raw/refs/heads/main/ORDER%20UP%20-%20(Elliot%20VS%20c00lkidd).mp3",
+    ["PARADOX (Guest 666 Vs Guest 1337)"] = "https://github.com/NyansakenHub/NyansakenHub/raw/refs/heads/main/PARADOX%20(Guest%20666%20Vs%20Guest%201337).mp3",
+    ["TRUE BEAUTY (PRETTYPRINCESS vs 226w6)"] = "https://github.com/NyansakenHub/NyansakenHub/raw/refs/heads/main/TRUE%20BEAUTY%20(PRETTYPRINCESS%20vs%20226w6).mp3",
+    ["Fall of a Hero (SLASHER vs GUEST 1337)"] = "https://github.com/NyansakenHub/NyansakenHub/raw/refs/heads/main/%5BSLASHER%20vs%20GUEST%201337%20-%20LAST%20MAN%20STANDING%5D%20Fall%20of%20a%20Hero%20-%20Forsaken%20UST.mp3",
+    ["21ST CENTURY HUMOR (MLG Chance vs Hood Irony Whistle Occurrence)"] = "https://github.com/NyansakenHub/NyansakenHub/raw/refs/heads/main/21ST%20CENTURY%20HUMOR%20-%20Last%20Man%20Standing%20(MLG%20Chance%20vs%20Hood%20Irony%20Whistle%20Occurrence)%20%20Forsaken%20UST.mp3",
+    ["SHATTERED GRACE (GR1MX 1x1x1x1 vs. ANGEL SHEDLETSKY)"] = "https://github.com/NyansakenHub/NyansakenHub/raw/refs/heads/main/SHATTERED%20GRACE%20%5BGR1MX%201x1x1x1%20vs.%20ANGEL%20SHEDLETSKY%20LAST%20MAN%20STANDING%5D%20(Roblox%20Forsaken%20UST).mp3",
+    ["----------- Scrapped LMS -----------"] = nil,
+    ["THE DARKNESS IN YOUR HEART (Old 1x4 Vs Shedletsky)"] = "https://github.com/NyansakenHub/NyansakenHub/raw/refs/heads/main/THE%20DARKNESS%20IN%20YOUR%20HEART%20(Old%201x4%20Vs%20Shedletsky).mp3",
+    ["MEET YOUR MAKING (c00lkidd ~ 1x4 Vs 007n7 ~ Shedletsky)"] = "https://github.com/NyansakenHub/NyansakenHub/raw/refs/heads/main/MEET%20YOUR%20MAKING%20(c00lkidd%20~%201x4%20Vs%20007n7%20~%20Shedletsky).mp3",
+    ["A Creation Of Sorrow (Hacklord vs The Heartbroken)"] = "https://github.com/NyansakenHub/NyansakenHub/raw/refs/heads/main/A%20Creation%20Of%20Sorrow%20(Hacklord%20vs%20The%20Heartbroken).mp3",
+    ["Debth (Natrasha Vs Mafioso)"] = "https://github.com/NyansakenHub/NyansakenHub/raw/refs/heads/main/Debth%20(Natrasha%20Vs%20Mafioso).mp3",
+    ["ETERNAL HOPE, ETERNAL FIGHT (Old LMS)"] = "https://github.com/NyansakenHub/NyansakenHub/raw/refs/heads/main/ETERNAL%20HOPE,%20ETERNAL%20FIGHT%20(Old%20LMS).mp3",
+    ["Receading Lifespan (Barber Jason Vs Bald Two Time)"] = "https://github.com/NyansakenHub/NyansakenHub/raw/refs/heads/main/Receading%20Lifespan%20(Barber%20Jason%20Vs%20Bald%20Two%20Time).mp3",
+    ["VIP Jason LMS (VIP Jason Vs All)"] = "https://github.com/NyansakenHub/NyansakenHub/raw/refs/heads/main/VIP%20Jason%20LMS%20(VIP%20Jason%20Vs%20All).mp3",
+    ["Jason Hate This Song"] = "https://github.com/NyansakenHub/NyansakenHub/raw/refs/heads/main/California%20Gurls%20%20Audio%20Edit%20-%20Neonick.mp3",
+    ["----------- Official LMS -----------"] = nil,
+    ["A GRAVE SOUL (NOW, RUN) [All Killers Vs All Survivors]"] = "https://github.com/NyansakenHub/NyansakenHub/raw/refs/heads/main/A%20GRAVE%20SOUL%20(NOW,%20RUN)%20%5BAll%20Killers%20Vs%20All%20Survivors%5D.mp3",
+    ["Plead (c00lkidd Vs 007n7)"] = "https://github.com/NyansakenHub/NyansakenHub/raw/refs/heads/main/Plead%20(c00lkidd%20Vs%20007n7).mp3",
+    ["SMILE (Cupcakes Vs All)"] = "https://github.com/NyansakenHub/NyansakenHub/raw/refs/heads/main/SMILE%20(Cupcakes%20Vs%20All)%20.mp3",
+    ["Vanity (Vanity Jason Vs All)"] = "https://github.com/NyansakenHub/NyansakenHub/raw/refs/heads/main/Vanity%20(Vanity%20Jason%20Vs%20All).mp3",
+    ["Obsession (Gasharpoon Vs All)"] = "https://github.com/NyansakenHub/NyansakenHub/raw/refs/heads/main/Obsession%20(Gasharpoon%20Vs%20All).MP3",
+    ["Burnout (Diva Vs Ghoul)"] = "https://github.com/NyansakenHub/NyansakenHub/raw/refs/heads/main/Burnout%20(Diva%20Vs%20Ghoul).mp3",
+    ["Close To Me (Annihilation Vs Friend)"] = "https://github.com/NyansakenHub/NyansakenHub/raw/refs/heads/main/Close%20To%20Me%20(Annihilation%20Vs%20Friend).mp3",
+    ["Creation Of Hatred (1X4 Vs Shedletsky)"] = "https://github.com/NyansakenHub/NyansakenHub/raw/refs/heads/main/Creation%20Of%20Hatred%20(1X4%20Vs%20Shedletsky).mp3",
+    ["Through Patches of Violet (Hacklord vs The Heartbroken)"] = "https://github.com/NyansakenHub/NyansakenHub/raw/refs/heads/main/Through%20Patches%20of%20Violet%20(Hacklord%20vs%20The%20Heartbroken).mp3"
+}
+
+-- 🔽 Dropdown options
+local options = {}
+for k, _ in pairs(getgenv().tracks) do
+    table.insert(options, k)
+end
+
+-- 🌐 Globals
+getgenv().selectedSong = "None"
+getgenv().customSongUrl = nil
+getgenv().originalSongId = nil
+getgenv().isPlaying = false
+getgenv().isToggleOn = false
+
+-- 💾 Download song (only one at a time)
+local function downloadTrack(name, url)
+    if not url or url == "" then return nil end
+    local path = folderPath .. "/" .. name:gsub("[^%w]", "_") .. ".mp3"
+    if not isfile(path) then
+        local req = http_request or syn.request or request
+        local res = req({Url = url, Method = "GET"})
+        local data = res.Body or res.BodyRaw
+        if data and #data > 0 then writefile(path, data) end
+    end
+    return path
+end
+
+-- 🔍 Find LastSurvivor
+local function getLastSurvivor()
+    local t = workspace:FindFirstChild("Themes")
+    if t then return t:FindFirstChild("LastSurvivor") end
+    return nil
+end
+
+-- ▶️ Set & play track
+local function setLastSurvivorSong(songName)
+    local ls = getLastSurvivor()
+    if not ls then return end
+    local url = getgenv().tracks[songName]
+    if not url or url == "" then return end
+    local path = downloadTrack(songName, url)
+    if not path then return end
+    local sound = getcustomasset(path)
+    if not getgenv().originalSongId then
+        getgenv().originalSongId = ls.SoundId
+    end
+    ls.SoundId = sound
+    ls:Play()
+    getgenv().isPlaying = true
+end
+
+-- 🎛️ GUI Section
+Tabs.Custom:AddSection("↳ Last Man Standing")
+
+Tabs.Custom:AddToggle("LMSReplacerSong", {
+    Title = "LMS Replacer Song",
+    Default = false,
+    Callback = function(Value)
+        getgenv().isToggleOn = Value
+        local ls = getLastSurvivor()
+        if not Value then
+            if ls and getgenv().originalSongId then
+                ls.SoundId = getgenv().originalSongId
+                ls:Play()
+            end
+            getgenv().isPlaying = false
+            getgenv().originalSongId = nil
+        else
+            if getgenv().selectedSong ~= "None" then
+                setLastSurvivorSong(getgenv().selectedSong)
+            elseif getgenv().customSongUrl then
+                local path = downloadTrack("Custom_LMS_Song", getgenv().customSongUrl)
+                if path then
+                    local sound = getcustomasset(path)
+                    if ls then
+                        getgenv().originalSongId = ls.SoundId
+                        ls.SoundId = sound
+                        ls:Play()
+                    end
+                end
+            end
         end
     end
 })
 
-local antiFogActive = false
-local disabledFogElements = {}
+local dropdown = Tabs.Custom:AddDropdown("CustomLMSSong", {
+    Title = "Seclect LMS Song",
+    Values = options,
+    Multi = false,
+    Default = "None",
+    Callback = function(Value)
+        getgenv().selectedSong = Value
+        -- ❌ Gỡ bỏ dòng gây lỗi
+        -- dropdown:SetValue(Value)
+    end
+})
 
-Tabs.Misc:Toggle({
-    Title = "Anti Fog",
-    Default = false,
-    Callback = function(state)
-        antiFogActive = state
-        if antiFogActive then
-            disabledFogElements = {}
-            for _, v in ipairs(Lighting:GetChildren()) do
-                if v:IsA("Atmosphere") or v:IsA("Sky") then
-                    table.insert(disabledFogElements, v)
-                    v.Parent = nil
+Tabs.Custom:AddInput("CustomLMSSongURL", {
+    Title = "Custom LMS",
+    Default = "",
+    Placeholder = "Enter raw MP3 URL",
+    Callback = function(input)
+        if input and input ~= "" then
+            getgenv().customSongUrl = input
+            if getgenv().isToggleOn then
+                local ls = getLastSurvivor()
+                if ls then
+                    local path = downloadTrack("Custom_LMS_Song", input)
+                    local sound = getcustomasset(path)
+                    if not getgenv().originalSongId then
+                        getgenv().originalSongId = ls.SoundId
+                    end
+                    ls.SoundId = sound
+                    ls:Play()
+                    getgenv().isPlaying = true
                 end
             end
-        else
-            for _, v in ipairs(disabledFogElements) do
-                if v then
-                    v.Parent = Lighting
-                end
-            end
-            disabledFogElements = {}
         end
     end
 })
+
+-- ♻️ Maintain playback
+RunService.Heartbeat:Connect(function()
+    local ls = getLastSurvivor()
+    if getgenv().isToggleOn and ls then
+        -- chỉ phát lại nếu chưa phát hoặc đã dừng
+        if not ls.IsPlaying then
+            setLastSurvivorSong(getgenv().selectedSong)
+        end
+    elseif not getgenv().isToggleOn and ls and getgenv().originalSongId and ls.SoundId ~= getgenv().originalSongId then
+        -- khi tắt toggle, khôi phục nhạc gốc
+        ls.SoundId = getgenv().originalSongId
+        ls:Play()
+        getgenv().isPlaying = false
+    end
+end)
+
+
+
+Tabs.Custom:AddSection("↳ Victim")
+
+-- HackerVibe_Toggle.lua
+-- Hiệu ứng hacker thật 3D, có nút bật/tắt (Fake H4CK3R)
+-- Bảo toàn sau khi chết, đổi character, không rung giật
+-- Hiệu ứng hacker 3D + animation tự bật/tắt
+
+local Players = game:GetService("Players")
+local TweenService = game:GetService("TweenService")
+local player = Players.LocalPlayer
+local character = player.Character or player.CharacterAdded:Wait()
+
+-- ⚙️ CONFIG
+local outlineColor = Color3.fromRGB(0, 255, 255)
+local binarySpawnInterval = 0.12
+local binaryLifetime = 1.8
+local binaryRiseDistance = 5
+local binaryMinScale = 0.6
+local binaryMaxScale = 1.1
+local maxSimultaneous = 40
+local spawnRadius = 3
+local animationId = "rbxassetid://86559211184601" -- 🧠 Animation Hacker
+
+math.randomseed(tick() + player.UserId)
+
+-- === Biến ===
+local active = 0
+local running = false
+local folderName = "HackerFX3D"
+local folder = nil
+local animTrack = nil
+
+-- === Danh sách part để spawn chữ ===
+local partNames = {
+	"Head","HumanoidRootPart",
+	"UpperTorso","LowerTorso","Torso",
+	"LeftUpperArm","RightUpperArm","LeftLowerArm","RightLowerArm",
+	"LeftUpperLeg","RightUpperLeg","LeftLowerLeg","RightLowerLeg",
+	"LeftHand","RightHand","LeftFoot","RightFoot"
+}
+
+local function getParts()
+	character = player.Character or player.CharacterAdded:Wait()
+	local list = {}
+	for _, name in ipairs(partNames) do
+		local part = character:FindFirstChild(name)
+		if part and part:IsA("BasePart") then
+			table.insert(list, part)
+		end
+	end
+	return list
+end
+
+-- === Highlight Hacker ===
+local function createHighlight()
+	local old = character:FindFirstChild("HackerHighlight")
+	if old then old:Destroy() end
+	local h = Instance.new("Highlight")
+	h.Name = "HackerHighlight"
+	h.Adornee = character
+	h.OutlineColor = outlineColor
+	h.FillTransparency = 1
+	h.OutlineTransparency = 0
+	h.Parent = character
+end
+
+-- === Folder hiệu ứng ===
+local function ensureFolder()
+	folder = player:WaitForChild("PlayerGui"):FindFirstChild(folderName)
+	if not folder then
+		folder = Instance.new("Folder")
+		folder.Name = folderName
+		folder.Parent = player:WaitForChild("PlayerGui")
+	end
+	return folder
+end
+
+-- === Hiệu ứng số bay ===
+local function spawnBinary()
+	if not running then return end
+	if active >= maxSimultaneous then return end
+
+	local parts = getParts()
+	if #parts == 0 then return end
+	local origin = parts[math.random(1, #parts)]
+	if not origin then return end
+
+	active += 1
+	local s = ""
+	for i = 1, math.random(1, 3) do
+		s ..= tostring(math.random(0, 1))
+	end
+
+	local attach = Instance.new("Part")
+	attach.Anchored = false
+	attach.CanCollide = false
+	attach.Transparency = 1
+	attach.Size = Vector3.new(0.2, 0.2, 0.2)
+	attach.Parent = ensureFolder()
+
+	local weld = Instance.new("WeldConstraint")
+	weld.Part0 = attach
+	weld.Part1 = origin
+	weld.Parent = attach
+
+	local xOff = (math.random() - 0.5) * spawnRadius
+	local yOff = (math.random() - 0.5) * spawnRadius
+	local zOff = (math.random() - 0.5) * spawnRadius
+	attach.CFrame = origin.CFrame * CFrame.new(xOff, yOff, zOff)
+
+	local bb = Instance.new("BillboardGui")
+	bb.Size = UDim2.new(0, 80, 0, 30)
+	bb.AlwaysOnTop = true
+	bb.Adornee = attach
+	bb.Parent = folder
+
+	local txt = Instance.new("TextLabel")
+	txt.BackgroundTransparency = 1
+	txt.BorderSizePixel = 0
+	txt.Size = UDim2.fromScale(1, 1)
+	txt.Font = Enum.Font.Code
+	txt.Text = s
+	txt.TextColor3 = Color3.fromRGB(0, 255, 200)
+	txt.TextScaled = true
+	txt.TextTransparency = 0
+	txt.Parent = bb
+	txt.TextSize = 20 * (math.random() * (binaryMaxScale - binaryMinScale) + binaryMinScale)
+
+	local goal = attach.Position + Vector3.new(0, binaryRiseDistance, 0)
+	local moveTween = TweenService:Create(attach, TweenInfo.new(binaryLifetime, Enum.EasingStyle.Linear), {Position = goal})
+	local fadeTween = TweenService:Create(txt, TweenInfo.new(binaryLifetime, Enum.EasingStyle.Linear), {TextTransparency = 1})
+	moveTween:Play()
+	fadeTween:Play()
+
+	task.delay(binaryLifetime + 0.05, function()
+		pcall(function()
+			bb:Destroy()
+			attach:Destroy()
+		end)
+		active = math.max(0, active - 1)
+	end)
+end
+
+-- === Loop spawn chữ ===
+task.spawn(function()
+	while true do
+		if running then
+			spawnBinary()
+		end
+		task.wait(binarySpawnInterval)
+	end
+end)
+
+-- === Khi respawn / đổi nhân vật ===
+player.CharacterAdded:Connect(function(char)
+	character = char
+	task.wait(0.25)
+	if running then
+		createHighlight()
+
+		-- 🔄 Phát lại animation nếu đang bật
+		local hum = character:FindFirstChildOfClass("Humanoid")
+		if hum then
+			local anim = Instance.new("Animation")
+			anim.AnimationId = animationId
+			animTrack = hum:LoadAnimation(anim)
+			animTrack:Play()
+			animTrack.Looped = true
+		end
+	end
+end)
+
+-- === HÀM CHÍNH BẬT / TẮT ===
+local function ToggleFakeHacker(state)
+	running = state
+
+	local highlight = character:FindFirstChild("HackerHighlight")
+	if not highlight and state then
+		createHighlight()
+	end
+
+	if highlight then
+		highlight.OutlineTransparency = state and 0 or 1
+	end
+
+	if state then
+		ensureFolder().Parent = player:WaitForChild("PlayerGui")
+
+		-- 🎬 Bắt đầu animation
+		local hum = character:FindFirstChildOfClass("Humanoid")
+		if hum then
+			local anim = Instance.new("Animation")
+			anim.AnimationId = animationId
+			animTrack = hum:LoadAnimation(anim)
+			animTrack.Looped = true
+			animTrack:Play()
+		end
+	else
+		-- 🛑 Dừng animation
+		if animTrack then
+			animTrack:Stop()
+			animTrack:Destroy()
+			animTrack = nil
+		end
+
+		-- 🧹 Xóa hiệu ứng chữ
+		local f = player.PlayerGui:FindFirstChild(folderName)
+		if f then
+			for _, v in ipairs(f:GetChildren()) do
+				v:Destroy()
+			end
+		end
+	end
+end
+
+-- === GẮN VÀO UI (ví dụ Fluent) ===
+Tabs.Custom:AddToggle("FakeH4CK3R", {
+	Title = "Fake H4CK3R",
+	Default = false,
+	Callback = function(Value)
+		ToggleFakeHacker(Value)
+	end
+})
+
+
+-- Tabs.Player
+
+
+
+-- ======= DỊCH VỤ =======
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local LocalPlayer = Players.LocalPlayer
+
+-- ======= WHITELIST =======
+local AllowedPlayers = {
+    ["Noob"] = true, ["Guest1337"] = true, ["Elliot"] = true,
+    ["Shedletsky"] = true, ["TwoTime"] = true, ["007n7"] = true,
+    ["Chance"] = true, ["Builderman"] = true, ["Taph"] = true,
+    ["Dusekkar"] = true, ["Veeronica"] = true,
+}
+
+local AllowedKillers = {
+    ["Slasher"] = true, ["1x1x1x1"] = true, ["c00lkidd"] = true,
+    ["Noli"] = true, ["JohnDoe"] = true, ["Guest 666"] = true,
+    ["Sixer"] = true,
+}
+
+-- ======= BIẾN TRẠNG THÁI =======
+local AimlockPlayerEnabled = false
+local AimlockKillerEnabled = false
+local CurrentTarget = nil
+local lastHumanoidAutoRotate = nil
+
+-- ======= HÀM HỖ TRỢ =======
+local function IsAllowed(model, list)
+    return list[model.Name] == true
+end
+
+local function GetModelFromPlayer(plr, list)
+    if not plr.Character then return nil end
+    if IsAllowed(plr.Character, list) and plr.Character:FindFirstChildWhichIsA("Humanoid") then
+        return plr.Character
+    end
+    for _, model in ipairs(workspace:GetChildren()) do
+        if model:IsA("Model") and model:FindFirstChildWhichIsA("Humanoid") then
+            if model:FindFirstChild("Owner") and model.Owner.Value == plr then
+                if IsAllowed(model, list) then
+                    return model
+                end
+            end
+        end
+    end
+    return nil
+end
+
+local function GetClosestTarget(list)
+    local myRoot = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not myRoot then return nil end
+    local closest, dist = nil, math.huge
+
+    for _, plr in ipairs(Players:GetPlayers()) do
+        if plr ~= LocalPlayer then
+            local model = GetModelFromPlayer(plr, list)
+            if model and model.PrimaryPart then
+                local humanoid = model:FindFirstChildWhichIsA("Humanoid")
+                if humanoid and humanoid.Health > 0 then
+                    local distance = (model.PrimaryPart.Position - myRoot.Position).Magnitude
+                    if distance < dist then
+                        dist = distance
+                        closest = model
+                    end
+                end
+            end
+        end
+    end
+    return closest
+end
+
+local function ValidateTarget(target)
+    if not target then return false end
+    local humanoid = target:FindFirstChildWhichIsA("Humanoid")
+    return humanoid and humanoid.Health > 0 and target.PrimaryPart ~= nil
+end
+
+-- reset khi respawn
+LocalPlayer.CharacterAdded:Connect(function(char)
+    CurrentTarget = nil
+    if lastHumanoidAutoRotate ~= nil then
+        local hum = char:FindFirstChildWhichIsA("Humanoid")
+        if hum then
+            hum.AutoRotate = lastHumanoidAutoRotate
+        end
+        lastHumanoidAutoRotate = nil
+    end
+end)
+
+-- ======= AIMBOT LOOP (fix: hướng đúng, không bị đen màn hình) =======
+RunService.RenderStepped:Connect(function()
+    local myChar = LocalPlayer.Character
+    local myRoot = myChar and myChar:FindFirstChild("HumanoidRootPart")
+    local humanoid = myChar and myChar:FindFirstChildWhichIsA("Humanoid")
+
+    if not myRoot then return end
+
+    -- toggle AutoRotate
+    if (AimlockPlayerEnabled or AimlockKillerEnabled) and humanoid then
+        if lastHumanoidAutoRotate == nil then
+            lastHumanoidAutoRotate = humanoid.AutoRotate
+        end
+        humanoid.AutoRotate = false
+    elseif humanoid and lastHumanoidAutoRotate ~= nil then
+        humanoid.AutoRotate = lastHumanoidAutoRotate
+        lastHumanoidAutoRotate = nil
+    end
+
+    -- hàm xoay nhìn target (fix: dùng lookVector:Cross(up) để rightVector đúng)
+    local function faceTarget(target)
+        if not target or not target.PrimaryPart then return end
+        local pos = myRoot.Position
+        local targetPos = target.PrimaryPart.Position
+        local dir = Vector3.new(targetPos.X, pos.Y, targetPos.Z) - pos
+        if dir.Magnitude == 0 then return end
+
+        local lookVector = dir.Unit
+        local up = Vector3.yAxis
+        local rightVector = lookVector:Cross(up) -- CHỈNH: right = look x up (không ngược)
+        if rightVector.Magnitude == 0 then
+            rightVector = Vector3.new(1, 0, 0)
+        else
+            rightVector = rightVector.Unit
+        end
+
+        -- fromMatrix(position, rightVector, up) — chỉ thay orientation, giữ nguyên vị trí
+        myRoot.CFrame = CFrame.fromMatrix(pos, rightVector, up)
+    end
+
+    if AimlockPlayerEnabled then
+        if not ValidateTarget(CurrentTarget) then
+            CurrentTarget = GetClosestTarget(AllowedPlayers)
+        end
+        if ValidateTarget(CurrentTarget) then
+            faceTarget(CurrentTarget)
+        end
+    elseif AimlockKillerEnabled then
+        if not ValidateTarget(CurrentTarget) then
+            CurrentTarget = GetClosestTarget(AllowedKillers)
+        end
+        if ValidateTarget(CurrentTarget) then
+            faceTarget(CurrentTarget)
+        end
+    else
+        CurrentTarget = nil
+    end
+end)
+
+-- ======= FLUENT TOGGLES =======
+Tabs.Player:AddToggle("ForsakenAimbot", {
+    Title = "Aimbot Player",
+    Default = false
+}):OnChanged(function(v)
+    AimlockPlayerEnabled = v
+    if v then 
+        AimlockKillerEnabled = false
+        CurrentTarget = nil
+    end
+end)
+
+Tabs.Player:AddToggle("ForsakenAimbot1", {
+    Title = "Aimbot Killer",
+    Default = false
+}):OnChanged(function(v)
+    AimlockKillerEnabled = v
+    if v then 
+        AimlockPlayerEnabled = false
+        CurrentTarget = nil
+    end
+end)
+
+
+
+
+
+
+    Tabs.Player:AddSection("↳ Cheats")
+
+local ActiveNoStun = false
+local noStunLoop
+
+Tabs.Player:AddToggle("NoStunToggle", {
+    Title = "No Stun",
+    Default = false,
+}):OnChanged(function(value)
+    ActiveNoStun = value
+
+    if value then
+        -- Nếu có loop cũ thì dừng
+        if noStunLoop then
+            task.cancel(noStunLoop)
+            noStunLoop = nil
+        end
+
+        -- Tạo loop mới liên tục đảm bảo HumanoidRootPart không bị anchore
+        noStunLoop = task.spawn(function()
+            while ActiveNoStun do
+                local character = game.Players.LocalPlayer.Character
+                local hrp = character and character:FindFirstChild("HumanoidRootPart")
+                if hrp then
+                    hrp.Anchored = false
+                end
+                task.wait(0.1) -- Không cần quá nhanh, tránh lag
+            end
+        end)
+    else
+        -- Tắt loop khi toggle off
+        if noStunLoop then
+            task.cancel(noStunLoop)
+            noStunLoop = nil
+        end
+    end
+end)
+
+
+
+
+
+
+local InfStaminaEnabled = false  
+local staminaLoop  
+local StaminaModule  
+  
+-- Thử lấy module an toàn  
+pcall(function()  
+    local ReplicatedStorage = game:GetService("ReplicatedStorage")  
+    local path = ReplicatedStorage:FindFirstChild("Systems")  
+        and ReplicatedStorage.Systems:FindFirstChild("Character")  
+        and ReplicatedStorage.Systems.Character:FindFirstChild("Game")  
+        and ReplicatedStorage.Systems.Character.Game:FindFirstChild("Sprinting")  
+  
+    if path then  
+        StaminaModule = require(path)  
+    end  
+end)  
+  
+-- Hàm hồi stamina an toàn  
+local function restoreStamina()  
+    if not StaminaModule then return end  
+
+    local maxStamina = StaminaModule.MaxStamina or 100  
+    if StaminaModule.Stamina then  
+        -- Nếu module có hàm "SetStamina" thì dùng  
+        if typeof(StaminaModule.SetStamina) == "function" then  
+            StaminaModule:SetStamina(maxStamina)  
+
+        -- Nếu có hàm "UpdateStamina" thì dùng  
+        elseif typeof(StaminaModule.UpdateStamina) == "function" then  
+            StaminaModule:UpdateStamina(maxStamina)  
+
+        -- Nếu không có thì set trực tiếp  
+        else  
+            StaminaModule.Stamina = maxStamina  
+        end  
+    end  
+end  
+  
+-- Chỉ tạo toggle nếu module tồn tại  
+if StaminaModule then  
+    Tabs.Player:AddToggle("InfStamina", {  
+        Title = "Infinite Stamina",  
+        Default = false  
+    }):OnChanged(function(value)  
+        -- luôn bọc trong pcall để Fluent không báo "Callback error"  
+        local ok = pcall(function()  
+            InfStaminaEnabled = value  
+            if StaminaModule.StaminaLossDisabled ~= nil then  
+                StaminaModule.StaminaLossDisabled = value  
+            end  
+  
+            if value then  
+                restoreStamina()  
+                if not staminaLoop then  
+                    staminaLoop = task.spawn(function()  
+                        while InfStaminaEnabled do  
+                            task.wait(0.01)  
+                            restoreStamina()  
+                        end  
+                        staminaLoop = nil  
+                    end)  
+                end  
+            end  
+        end)  
+    end)  
+else  
+    warn("[InfStamina] Sprinting module not found, toggle disabled.")  
+end
+
+
+
+
+Tabs.Player:AddToggle("InfiniteZoom", {
+    Title = "Infinite Zoom",
+    Default = false,
+    Callback = function(Value)
+        local player = game.Players.LocalPlayer
+        local camera = workspace.CurrentCamera
+
+        if Value then
+            -- Bật zoom vô hạn
+            player.CameraMaxZoomDistance = math.huge
+            player.CameraMinZoomDistance = 0.5
+            print("[ZoomCam] Infinite Zoom Enabled ✅")
+        else
+            -- Tắt zoom vô hạn, trở lại bình thường
+            player.CameraMaxZoomDistance = 128
+            player.CameraMinZoomDistance = 0.5
+            print("[ZoomCam] Infinite Zoom Disabled ❌")
+        end
+    end
+})
+
+
+
+    Tabs.Player:AddSection("↳ Troller")
+
+
+
+
+Tabs.Player:AddButton({
+    Title = "Fake Block",
+    Callback = function()
+        -- Tạo Animation object
+        local animation = Instance.new("Animation")
+        animation.AnimationId = "rbxassetid://72722244508749"
+
+        -- Lấy Humanoid của nhân vật
+        local player = game.Players.LocalPlayer
+        local character = player.Character or player.CharacterAdded:Wait()
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+
+        if humanoid then
+            local animator = humanoid:FindFirstChildOfClass("Animator")
+            if not animator then
+                animator = Instance.new("Animator")
+                animator.Parent = humanoid
+            end
+
+            -- Load và Play animation
+            local animTrack = animator:LoadAnimation(animation)
+            animTrack:Play()
+        end
+    end
+})
+
+
+
+Tabs.Player:AddButton({
+    Title = "Fake Punch",
+    Callback = function()
+        -- Tạo Animation object
+        local animation = Instance.new("Animation")
+        animation.AnimationId = "rbxassetid://87259391926321"
+
+        -- Lấy Humanoid của nhân vật
+        local player = game.Players.LocalPlayer
+        local character = player.Character or player.CharacterAdded:Wait()
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+
+        if humanoid then
+            local animator = humanoid:FindFirstChildOfClass("Animator")
+            if not animator then
+                animator = Instance.new("Animator")
+                animator.Parent = humanoid
+            end
+
+            -- Load và Play animation
+            local animTrack = animator:LoadAnimation(animation)
+            animTrack:Play()
+        end
+
+        -- Âm thanh đầu tiên
+        local sound1 = Instance.new("Sound")
+        sound1.SoundId = "rbxassetid://81976396729343"
+        sound1.Parent = character:FindFirstChild("Head") or character:FindFirstChild("HumanoidRootPart")
+        sound1:Play()
+
+        -- Sau 0.75 giây thì tắt sound1 và phát sound2
+        task.delay(0.75, function()
+            if sound1.IsPlaying then
+                sound1:Stop()
+            end
+            local sound2 = Instance.new("Sound")
+            sound2.SoundId = "rbxassetid://122560631718612"
+            sound2.Parent = character:FindFirstChild("Head") or character:FindFirstChild("HumanoidRootPart")
+            sound2:Play()
+        end)
+    end
+})
+
+
+
+
+Tabs.Player:AddButton({
+    Title = "Fake Punch v2",
+    Callback = function()
+        -- Tạo Animation object
+        local animation = Instance.new("Animation")
+        animation.AnimationId = "rbxassetid://86709774283672"
+
+        -- Lấy Humanoid của nhân vật
+        local player = game.Players.LocalPlayer
+        local character = player.Character or player.CharacterAdded:Wait()
+        local humanoid = character:FindFirstChildOfClass("Humanoid")
+
+        if humanoid then
+            local animator = humanoid:FindFirstChildOfClass("Animator")
+            if not animator then
+                animator = Instance.new("Animator")
+                animator.Parent = humanoid
+            end
+
+            -- Load và Play animation
+            local animTrack = animator:LoadAnimation(animation)
+            animTrack:Play()
+        end
+
+        -- Âm thanh đầu tiên
+        local sound1 = Instance.new("Sound")
+        sound1.SoundId = "rbxassetid://81976396729343"
+        sound1.Parent = character:FindFirstChild("Head") or character:FindFirstChild("HumanoidRootPart")
+        sound1:Play()
+
+        -- Sau 0.5 giây thì tắt sound1 và phát sound2
+        task.delay(0.5, function()
+            if sound1.IsPlaying then
+                sound1:Stop()
+            end
+            local sound2 = Instance.new("Sound")
+            sound2.SoundId = "rbxassetid://122560631718612"
+            sound2.Parent = character:FindFirstChild("Head") or character:FindFirstChild("HumanoidRootPart")
+            sound2:Play()
+        end)
+    end
+})
+
+
+
+do
+-- Lưu callback Backflip để toggle gọi lại
+local function doBackflip()
+    local plr = game.Players.LocalPlayer
+    local char = plr and plr.Character
+    if not char then return end
+
+    local hum = char:FindFirstChild("Humanoid")
+    local hrp = char:FindFirstChild("HumanoidRootPart")
+    local animator = hum and hum:FindFirstChildOfClass("Animator")
+    if not (hum and hrp) then return end
+
+    if char:FindFirstChild("Animate") then
+        char.Animate.Disabled = true
+    end
+
+    if animator then
+        for _, v in ipairs(animator:GetPlayingAnimationTracks()) do
+            v:Stop()
+        end
+    end
+
+    for _, s in ipairs({
+        Enum.HumanoidStateType.FallingDown,
+        Enum.HumanoidStateType.Freefall,
+        Enum.HumanoidStateType.Running,
+        Enum.HumanoidStateType.Seated,
+        Enum.HumanoidStateType.Climbing
+    }) do
+        hum:SetStateEnabled(s, false)
+    end
+    hum:ChangeState(Enum.HumanoidStateType.Physics)
+
+    local d, s = 0.45, 120
+    local cf = hrp.CFrame
+    local dir = cf.LookVector -- ✅ bay theo hướng nhìn
+    local up = Vector3.yAxis
+
+    task.spawn(function()
+        local t0 = tick()
+        for i = 1, s do
+            local t = i / s
+            local y = 4 * (t - t ^ 2) * 10
+            local targetPos = cf.Position + dir * (35 * t) + up * y
+            local r = CFrame.Angles(math.rad(360 * t), 0, 0)
+
+            -- ✅ Raycast check trước khi PivotTo
+            local rayParams = RaycastParams.new()
+            rayParams.FilterDescendantsInstances = {char}
+            rayParams.FilterType = Enum.RaycastFilterType.Blacklist
+
+            local result = workspace:Raycast(hrp.Position, (targetPos - hrp.Position), rayParams)
+
+            if result then
+                -- Nếu có tường chặn → dừng tại vị trí va chạm
+                targetPos = result.Position + result.Normal * 2
+            end
+
+            char:PivotTo(CFrame.new(targetPos) * cf.Rotation * r)
+
+            local wt = (d / s) * i - (tick() - t0)
+            if wt > 0 then task.wait(wt) end
+        end
+
+        -- Kiểm tra va chạm tại điểm kết thúc
+        local finalTarget = cf.Position + dir * 35
+        local rayParams = RaycastParams.new()
+        rayParams.FilterDescendantsInstances = {char}
+        rayParams.FilterType = Enum.RaycastFilterType.Blacklist
+        local result = workspace:Raycast(hrp.Position, (finalTarget - hrp.Position), rayParams)
+        if result then
+            finalTarget = result.Position + result.Normal * 2
+        end
+
+        char:PivotTo(CFrame.new(finalTarget) * cf.Rotation)
+
+        for _, s in ipairs({
+            Enum.HumanoidStateType.FallingDown,
+            Enum.HumanoidStateType.Freefall,
+            Enum.HumanoidStateType.Running,
+            Enum.HumanoidStateType.Seated,
+            Enum.HumanoidStateType.Climbing
+        }) do
+            hum:SetStateEnabled(s, true)
+        end
+        hum:ChangeState(Enum.HumanoidStateType.Running)
+        char.Animate.Disabled = false
+    end)
+end
+
+-- Nút Backflip
+Tabs.Player:AddButton({
+    Title = "Backflip",
+    -- Description = "Perform a backflip",
+    Callback = doBackflip
+})
+
+-- Toggle Auto Backflip
+local autoFlip = false
+Tabs.Player:AddToggle("AutoBackflip", {
+    Title = "Auto Backflip",
+    Default = false,
+    Callback = function(Value)
+        autoFlip = Value
+        if autoFlip then
+            task.spawn(function()
+                while autoFlip do
+                    doBackflip()
+                    task.wait(1.25)
+                end
+            end)
+        end
+    end
+})
+end
+
+
+
+
+
+
+
+
+
+
+do
+    local Players = game:GetService("Players")
+    local player = Players.LocalPlayer
+
+    -- Animation object
+    local fakeFixAnim = Instance.new("Animation")
+    fakeFixAnim.AnimationId = "rbxassetid://82691533602949"
+
+    local animator, fakeFixTrack
+
+    -- Hàm tìm animator của nhân vật
+    local function getAnimator()
+        local char = player.Character
+        if not char then return nil end
+        local humanoid = char:FindFirstChildOfClass("Humanoid") or char:FindFirstChildOfClass("AnimationController")
+        if not humanoid then return nil end
+        local anim = humanoid:FindFirstChildOfClass("Animator")
+        if not anim then
+            anim = Instance.new("Animator")
+            anim.Parent = humanoid
+        end
+        return anim
+    end
+
+    -- Toggle UI
+    Tabs.Player:AddToggle("FakeFixGen", {
+        Title = "Fake Fix Gen",
+        Default = false,
+        Callback = function(state)
+            animator = getAnimator()
+            if not animator then return end
+
+            if state then
+                if not fakeFixTrack then
+                    local ok, track = pcall(function()
+                        return animator:LoadAnimation(fakeFixAnim)
+                    end)
+                    if ok and track then
+                        fakeFixTrack = track
+                        fakeFixTrack.Looped = true
+                        fakeFixTrack:Play()
+                    end
+                end
+            else
+                if fakeFixTrack then
+                    fakeFixTrack:Stop()
+                    fakeFixTrack = nil
+                end
+            end
+        end
+    })
+end
+
+
+
+
+do
+-- Fake Die Toggle (start at 50%, stop at 90%)
+Tabs.Player:AddToggle("FakeDieV2", {
+    Title = "Fake Die V2",
+    Default = false
+}):OnChanged(function(state)
+    local Players = game:GetService("Players")
+    local RunService = game:GetService("RunService")
+
+    local plr = Players.LocalPlayer
+    local char = plr.Character or plr.CharacterAdded:Wait()
+    local hum = char:WaitForChild("Humanoid")
+
+    if not getgenv().FakeDieData then
+        getgenv().FakeDieData = {track=nil, conn=nil}
+    end
+
+    if state then
+        -- === BẬT Fake Die ===
+        local anim = Instance.new("Animation")
+        anim.AnimationId = "rbxassetid://118795597134269"
+
+        local track = hum:LoadAnimation(anim)
+        track:Play()
+
+        -- Nhảy thẳng đến 50%
+        if track.Length > 0 then
+            track.TimePosition = track.Length * 0.5
+        end
+
+        getgenv().FakeDieData.track = track
+
+        local stopped = false
+        local conn = RunService.Heartbeat:Connect(function()
+            if track.IsPlaying and not stopped and track.Length > 0 then
+                local percent = track.TimePosition / track.Length
+                if percent >= 0.9 then
+                    track:AdjustSpeed(0) -- pause ở 90%
+                    stopped = true
+                    print("FakeDie: Animation paused at 90%")
+                end
+            end
+        end)
+
+        getgenv().FakeDieData.conn = conn
+
+    else
+        -- === TẮT Fake Die ===
+        local data = getgenv().FakeDieData
+        if data.track then
+            data.track:Stop()
+            data.track = nil
+        end
+        if data.conn then
+            data.conn:Disconnect()
+            data.conn = nil
+        end
+
+        -- Khôi phục animation mặc định (idle)
+        pcall(function()
+            hum:PlayEmote("idle")
+        end)
+    end
+end)
+end
+
+
+
+
+
+    Tabs.Player:AddSection("↳ Hitbox")
+
+
+repeat task.wait() until game:IsLoaded()
+
+-- biến cấu hình
+local ForsakenReachEnabled = false
+local NearestDist = 120
+
+-- thêm toggle + slider vào Fluent (Tabs.Player bạn đã có sẵn)
+Tabs.Player:AddToggle("ForsakenReachToggle", {
+    Title = "Hitbox Devil",
+    Default = false,
+    Save = true
+}):OnChanged(function(Value)
+    ForsakenReachEnabled = Value
+end)
+
+Tabs.Player:AddSlider("ForsakenReachSlider", {
+    Title = "Distance",
+    Default = 120,
+    Min = 10,
+    Max = 300,
+    Rounding = 0,
+    Save = true,
+    Suffix = " studs"
+}):OnChanged(function(Value)
+    NearestDist = Value
+end)
+
+-- services & player setup
+local Players = game:GetService('Players')
+local Player = Players.LocalPlayer
+local Character = Player.Character or Player.CharacterAdded:Wait()
+local Humanoid = Character:WaitForChild("Humanoid")
+local HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+
+Player.CharacterAdded:Connect(function(NewCharacter)
+    Character = NewCharacter
+    Humanoid = Character:WaitForChild("Humanoid")
+    HumanoidRootPart = Character:WaitForChild("HumanoidRootPart")
+end)
+
+local RNG = Random.new()
+
+-- full danh sách animations giữ nguyên từ code 1
+local AttackAnimations = {
+    'rbxassetid://131430497821198',
+    'rbxassetid://83829782357897',
+    'rbxassetid://126830014841198',
+    'rbxassetid://126355327951215',
+    'rbxassetid://121086746534252',
+    'rbxassetid://105458270463374',
+    'rbxassetid://127172483138092',
+    'rbxassetid://18885919947',
+    'rbxassetid://18885909645',
+    'rbxassetid://87259391926321',
+    'rbxassetid://106014898528300',
+    'rbxassetid://87259391926321',
+    'rbxassetid://86545133269813',
+    'rbxassetid://89448354637442',
+    'rbxassetid://90499469533503',
+    'rbxassetid://116618003477002',
+    'rbxassetid://106086955212611',
+    'rbxassetid://107640065977686',
+    'rbxassetid://77124578197357',
+    'rbxassetid://101771617803133',
+    'rbxassetid://134958187822107',
+    'rbxassetid://111313169447787',
+    'rbxassetid://71685573690338',
+    'rbxassetid://129843313690921',
+    'rbxassetid://97623143664485',
+    'rbxassetid://129843313690921',
+    'rbxassetid://136007065400978',
+    'rbxassetid://136007065400978',
+    'rbxassetid://86096387000557',
+    'rbxassetid://108807732150251',
+    'rbxassetid://138040001965654',
+    'rbxassetid://73502073176819',
+    'rbxassetid://129843313690921',
+    'rbxassetid://97623143664485',
+    'rbxassetid://129843313690921',
+    'rbxassetid://97623143664485',
+    'rbxassetid://86709774283672',
+    'rbxassetid://106014898528300',
+    'rbxassetid://87259391926321',
+    'rbxassetid://140703210927645',
+    'rbxassetid://96173857867228',
+    'rbxassetid://121255898612475',
+    'rbxassetid://98031287364865',
+    'rbxassetid://119462383658044',
+    'rbxassetid://77448521277146',
+    'rbxassetid://77448521277146',
+    'rbxassetid://103741352379819',
+    'rbxassetid://119462383658044',
+    'rbxassetid://131696603025265',
+    'rbxassetid://122503338277352',
+    'rbxassetid://97648548303678',
+    'rbxassetid://94162446513587',
+    'rbxassetid://84426150435898',
+    'rbxassetid://93069721274110',
+    'rbxassetid://114620047310688',
+    'rbxassetid://97433060861952',
+    'rbxassetid://82183356141401',
+    'rbxassetid://100592913030351',
+    'rbxassetid://121293883585738',
+    'rbxassetid://100592913030351',
+    'rbxassetid://121293883585738',
+    'rbxassetid://100592913030351',
+    'rbxassetid://121293883585738',
+    'rbxassetid://70447634862911',
+    'rbxassetid://92173139187970',
+    'rbxassetid://106847695270773',
+    'rbxassetid://125403313786645',
+    'rbxassetid://81639435858902',
+    'rbxassetid://137314737492715',
+    'rbxassetid://120112897026015',
+    'rbxassetid://82113744478546',
+    'rbxassetid://118298475669935',
+    'rbxassetid://82113744478546',
+    'rbxassetid://118298475669935',
+    'rbxassetid://126681776859538',
+    'rbxassetid://129976080405072',
+    'rbxassetid://109667959938617',
+    'rbxassetid://74707328554358',
+    'rbxassetid://133336594357903',
+    'rbxassetid://86204001129974',
+    'rbxassetid://82113744478546',
+    'rbxassetid://118298475669935',
+    'rbxassetid://124243639579224',
+    'rbxassetid://70371667919898',
+    'rbxassetid://131543461321709',
+    'rbxassetid://136323728355613',
+    'rbxassetid://109230267448394',
+    'rbxassetid://139835501033932',
+    'rbxassetid://106538427162796',
+    'rbxassetid://109667959938617',
+    'rbxassetid://126681776859538',
+    'rbxassetid://129976080405072',
+    'rbxassetid://110400453990786',
+    'rbxassetid://83685305553364',
+    'rbxassetid://126171487400618',
+    'rbxassetid://122709416391891',
+    'rbxassetid://87989533095285',
+    'rbxassetid://119326397274934',
+    'rbxassetid://140365014326125',
+    'rbxassetid://139309647473555',
+    'rbxassetid://133363345661032',
+    'rbxassetid://128414736976503',
+    'rbxassetid://121808371053483'
+}
+
+-- danh sách model killers và survivors (theo yêu cầu của bạn)
+local Killers = {
+    ["Slasher"] = true, ["1x1x1x1"] = true, ["c00lkidd"] = true,
+    ["Noli"] = true, ["JohnDoe"] = true, ["Guest 666"] = true,
+    ["Sixer"] = true
+}
+
+local Survivors = {
+    ["Noob"] = true, ["Guest1337"] = true, ["Elliot"] = true,
+    ["Shedletsky"] = true, ["TwoTime"] = true, ["007n7"] = true,
+    ["Chance"] = true, ["Builderman"] = true, ["Taph"] = true,
+    ["Dusekkar"] = true, ["Veeronica"] = true
+}
+
+-- gom reach logic thành hàm (đã chỉnh để ưu tiên nhắm phe đối nghịch nếu bạn ở dạng model)
+local function ForsakenReachLogic()
+    if not ForsakenReachEnabled or not HumanoidRootPart then
+        return
+    end
+
+    -- kiểm tra animation attack (giữ nguyên)
+    local Playing = false
+    for _,v in Humanoid:GetPlayingAnimationTracks() do
+        if table.find(AttackAnimations, v.Animation.AnimationId) and (v.TimePosition / v.Length < 0.75) then
+            Playing = true
+        end
+    end
+
+    if not Playing then
+        return
+    end
+
+    -- xác định bạn đang là model thuộc phe nào (nếu có)
+    local PlayerRole = nil -- "Killer" | "Survivor" | nil
+    local myModelName = Character and Character.Name
+    if myModelName and Killers[myModelName] then
+        PlayerRole = "Killer"
+    elseif myModelName and Survivors[myModelName] then
+        PlayerRole = "Survivor"
+    end
+
+    local OppositeTable = nil
+    if PlayerRole == "Killer" then
+        OppositeTable = Survivors
+    elseif PlayerRole == "Survivor" then
+        OppositeTable = Killers
+    end
+
+    local Target = nil
+    local CurrentNearestDist = NearestDist
+
+    -- 1) Nếu bạn đang là model (có OppositeTable), ưu tiên tìm mục tiêu thuộc phe đối nghịch trước
+    local OppTarget = nil
+    local OppNearestDist = NearestDist
+
+    local function loopForOpp(t)
+        for _,v in pairs(t) do
+            if v == Character or not v:FindFirstChild("HumanoidRootPart") or not v:FindFirstChild("Humanoid") then
+                continue
+            end
+            local modelName = v.Name
+            if OppositeTable and OppositeTable[modelName] then
+                local Dist = (v.HumanoidRootPart.Position - HumanoidRootPart.Position).Magnitude
+                if Dist < OppNearestDist then
+                    OppNearestDist = Dist
+                    OppTarget = v
+                end
+            end
+        end
+    end
+
+    if OppositeTable then
+        loopForOpp(workspace.Players:GetDescendants())
+        local npcsFolder = workspace.Map:FindFirstChild("NPCs", true)
+        if npcsFolder then
+            loopForOpp(npcsFolder:GetChildren())
+        end
+    end
+
+    -- 2) Nếu không tìm được phe đối nghịch thì fallback về logic gốc nhưng vẫn bỏ qua model cùng phe với bạn
+    local function loopAll(t)
+        for _,v in pairs(t) do
+            if v == Character or not v:FindFirstChild("HumanoidRootPart") or not v:FindFirstChild("Humanoid") then
+                continue
+            end
+            local modelName = v.Name
+            -- bỏ qua cùng phe nếu bạn đang ở dạng model
+            if PlayerRole == "Killer" and Killers[modelName] then
+                continue
+            end
+            if PlayerRole == "Survivor" and Survivors[modelName] then
+                continue
+            end
+            local Dist = (v.HumanoidRootPart.Position - HumanoidRootPart.Position).Magnitude
+            if Dist < CurrentNearestDist then
+                CurrentNearestDist = Dist
+                Target = v
+            end
+        end
+    end
+
+    -- nếu tìm thấy OppTarget thì dùng luôn, không cần tìm tiếp
+    local FinalTarget = nil
+    if OppTarget then
+        FinalTarget = OppTarget
+    else
+        -- fallback: quét players + npcs giống trước nhưng đã loại cùng phe
+        loopAll(workspace.Players:GetDescendants())
+        local npcsFolder2 = workspace.Map:FindFirstChild("NPCs", true)
+        if npcsFolder2 then
+            loopAll(npcsFolder2:GetChildren())
+        end
+        FinalTarget = Target
+    end
+
+    if not FinalTarget then
+        return
+    end
+
+    -- giữ nguyên phần tính velocity + áp dụng hit
+    local OldVelocity = HumanoidRootPart.Velocity
+    local NeededVelocity =
+        (FinalTarget.HumanoidRootPart.Position + Vector3.new(
+            RNG:NextNumber(-1.5, 1.5),
+            0,
+            RNG:NextNumber(-1.5, 1.5)
+        ) + (FinalTarget.HumanoidRootPart.Velocity * (Player:GetNetworkPing() * 1.25))
+            - HumanoidRootPart.Position
+        ) / (Player:GetNetworkPing() * 2)
+
+    HumanoidRootPart.Velocity = NeededVelocity
+    game:GetService('RunService').RenderStepped:Wait()
+    HumanoidRootPart.Velocity = OldVelocity
+end
+
+-- vòng lặp auto gọi lại mỗi 0s (giữ nguyên)
+task.spawn(function()
+    while true do
+        task.wait(0)
+        pcall(ForsakenReachLogic)
+    end
+end)
+
+
+
+
+    Tabs.Player:AddSection("↳ Walk Speed")
+
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+local ValueSpeed = 16
+local ActiveSpeedBoost = false
+local speedLoop
+
+local function setSpeed(speed)
+    local character = LocalPlayer.Character
+    if not character then return end
+    local humanoid = character:FindFirstChildOfClass("Humanoid")
+    if humanoid then
+        humanoid.WalkSpeed = speed
+        humanoid:SetAttribute("BaseSpeed", speed)
+    end
+end
+
+-- Khi respawn áp dụng lại tốc độ nếu bật
+LocalPlayer.CharacterAdded:Connect(function()
+    task.wait(0.1)
+    if ActiveSpeedBoost then
+        setSpeed(ValueSpeed)
+    end
+end)
+
+-- Slider chỉnh tốc độ
+Tabs.Player:AddSlider("PlayerSpeedSlider", {
+    Title = "Set Speed",
+    Min = 0,
+    Max = 40,
+    Default = ValueSpeed,
+    Rounding = 1,
+}):OnChanged(function(value)
+    ValueSpeed = value
+    if ActiveSpeedBoost then
+        setSpeed(ValueSpeed)
+    end
+end)
+
+-- Toggle bật/tắt tốc độ và loop tăng tốc liên tục
+Tabs.Player:AddToggle("PlayerSpeedToggle", {
+    Title = "Walk Speed",
+    Default = false,
+}):OnChanged(function(value)
+    ActiveSpeedBoost = value
+    if value then
+        setSpeed(ValueSpeed)
+        -- Bắt đầu vòng lặp liên tục set tốc độ mỗi 0.5 giây
+        speedLoop = task.spawn(function()
+            while ActiveSpeedBoost do
+                setSpeed(ValueSpeed)
+                task.wait(0.5)
+            end
+        end)
+    else
+        -- Tắt vòng lặp và reset tốc độ về mặc định 16
+        if speedLoop then
+            speedLoop = nil
+        end
+        setSpeed(16)
+    end
+end)
+
+
+
+    Tabs.Player:AddSection("↳ Teleport Speed")
+
+
+-- === Teleport Speed Setup ===
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+
+local LocalPlayer = Players.LocalPlayer
+local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+local Humanoid = Character:WaitForChild("Humanoid")
+local HRP = Character:WaitForChild("HumanoidRootPart")
+
+local defaultSpeed = 50
+local maxSpeed = 300
+local currentSpeed = defaultSpeed
+local teleportSpeedEnabled = false
+
+-- Cập nhật lại khi respawn
+LocalPlayer.CharacterAdded:Connect(function(char)
+    Character = char
+    Humanoid = Character:WaitForChild("Humanoid")
+    HRP = Character:WaitForChild("HumanoidRootPart")
+end)
+
+-- Loop để dịch chuyển (teleport speed)
+RunService.Heartbeat:Connect(function(dt)
+    if teleportSpeedEnabled and Humanoid and HRP then
+        if Humanoid.MoveDirection.Magnitude > 0 then
+            local moveDir = Humanoid.MoveDirection.Unit
+            HRP.CFrame = HRP.CFrame + (moveDir * (currentSpeed * dt))
+        end
+    end
+end)
+
+-- === GUI Bindings ===
+-- Slider Teleport Speed
+Tabs.Player:AddSlider("TeleportSpeedSlider", {
+    Title = "Set Speed",
+    Min = 1,
+    Max = maxSpeed,
+    Default = defaultSpeed,
+    Rounding = 1,
+}):OnChanged(function(value)
+    currentSpeed = value
+end)
+
+-- Toggle bật/tắt Teleport Speed
+Tabs.Player:AddToggle("TeleportSpeedToggle", {
+    Title = "Teleport Speed",
+    Default = false,
+}):OnChanged(function(enabled)
+    teleportSpeedEnabled = enabled
+end)
+
+     
+
+-- Tabs.Visual
+
+--// ⚙️ ESP Loại: Clone, Player, Survivors, Killers, Generator, Items, Buildman
+--// Tất cả đều dùng chung ESPManager (đã định nghĩa ở trên)
+
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+-----------------------------------------------------
+-- 🟢 1. CLONE ESP
+-----------------------------------------------------
+local allowedModelsClone = {
+    ["1x1x1x1Zombie"] = true,
+    ["PizzaDeliveryRig"] = true,
+    ["Mafia1"] = true,
+    ["Mafia2"] = true,
+    ["Mafia3"] = true,
+    ["Mafia4"] = true,
+}
+
+_G.ESPManager:RegisterType("Clone", Color3.fromRGB(0, 255, 0), function(obj)
+    return obj:IsA("Model") and allowedModelsClone[obj.Name]
+end, false)
+
+Tabs.Visual:AddToggle("ESPCloneToggle", {
+    Title = "ESP Clone",
+    Default = false,
+}):OnChanged(function(state)
+    _G.ESPManager:SetEnabled("Clone", state)
+end)
+
+
+-----------------------------------------------------
+-- 🔵 2. PLAYER ESP
+-----------------------------------------------------
+
+    Tabs.Visual:AddSection("↳ Player")
+
+_G.ESPManager:RegisterType("Player", Color3.fromRGB(0, 255, 255), function(obj)
+    local plr = Players:GetPlayerFromCharacter(obj)
+    return plr and plr ~= LocalPlayer
+end, false)
+
+Tabs.Visual:AddToggle("ESPPlayerToggle", {
+    Title = "ESP Player",
+    Default = false,
+}):OnChanged(function(state)
+    _G.ESPManager:SetEnabled("Player", state)
+end)
+
+
+-----------------------------------------------------
+-- ⚪ 3. SURVIVORS ESP (có HP)
+-----------------------------------------------------
+local survivorsFolder = workspace:WaitForChild("Players"):WaitForChild("Survivors")
+_G.ESPManager:RegisterType("Survivor", Color3.fromRGB(255, 255, 255), function(obj)
+    return obj:IsA("Model") and obj.Parent == survivorsFolder and obj:FindFirstChildOfClass("Humanoid")
+end, true)
+
+Tabs.Visual:AddToggle("ESPModelWhiteToggle", {
+    Title = "ESP Survivors",
+    Default = false,
+}):OnChanged(function(state)
+    _G.ESPManager:SetEnabled("Survivor", state)
+end)
+
+
+-----------------------------------------------------
+-- 🔴 4. KILLERS ESP (có HP)
+-----------------------------------------------------
+local killersFolder = workspace:WaitForChild("Players"):WaitForChild("Killers")
+_G.ESPManager:RegisterType("Killer", Color3.fromRGB(255, 0, 0), function(obj)
+    return obj:IsA("Model") and obj.Parent == killersFolder and obj:FindFirstChildOfClass("Humanoid")
+end, true)
+
+Tabs.Visual:AddToggle("ESPModelRedToggle", {
+    Title = "ESP Killers",
+    Default = false,
+}):OnChanged(function(state)
+    _G.ESPManager:SetEnabled("Killer", state)
+end)
+
+
+-----------------------------------------------------
+-- ⚙️ 5. GENERATOR ESP
+-----------------------------------------------------
+
+    Tabs.Visual:AddSection("↳ Other")
+
+_G.ESPManager:RegisterType("Generator", Color3.fromRGB(255,255,255), function(obj)
+    if not (obj and obj:IsA("Model") and obj.Name == "Generator") then
+        return false
+    end
+
+    local progress = obj:FindFirstChild("Progress", true)
+    if not progress or not progress:IsA("NumberValue") then
+        return false
+    end
+
+    -- Gắn kết một lần để theo dõi khi Progress.Value thay đổi
+    if not progress:GetAttribute("ESP_Watch") then
+        progress:SetAttribute("ESP_Watch", true)
+        progress:GetPropertyChangedSignal("Value"):Connect(function()
+            -- Nếu đạt 100% thì remove ESP ngay
+            if progress.Value >= 100 then
+                _G.ESPManager:Remove(obj)
+            else
+                -- Nếu ESP chưa có, tạo lại
+                if not _G.ESPManager.Objects[obj] then
+                    _G.ESPManager:_ScheduleCreate(obj, "Generator")
+                end
+            end
+        end)
+    end
+
+    -- Chỉ hiển thị khi chưa hoàn thành
+    return progress.Value < 100
+end, false)
+
+Tabs.Visual:AddToggle("ESPGeneratorToggle", {
+    Title = "ESP Generator",
+    Default = false,
+}):OnChanged(function(state)
+    _G.ESPManager:SetEnabled("Generator", state)
+end)
+
+
+-----------------------------------------------------
+-- 🟡 6. ITEMS ESP
+-----------------------------------------------------
+_G.ESPManager:RegisterType("Item", Color3.fromRGB(255,215,0), function(obj)
+    return obj:IsA("Tool") and obj.Parent and obj:IsDescendantOf(workspace:FindFirstChild("Map"))
+end, false)
+
+Tabs.Visual:AddToggle("ESPItemsToggle", {
+    Title = "ESP Items",
+    Default = false,
+}):OnChanged(function(state)
+    _G.ESPManager:SetEnabled("Item", state)
+end)
+
+
+-----------------------------------------------------
+-- 🟣 7. BUILDMAN ESP
+-----------------------------------------------------
+_G.ESPManager:RegisterType("Dispenser", Color3.fromRGB(0, 162, 255), function(obj)
+    return obj:IsA("Model") and obj.Name:lower():find("dispenser")
+end, false)
+
+_G.ESPManager:RegisterType("Sentry", Color3.fromRGB(128, 128, 128), function(obj)
+    return obj:IsA("Model") and obj.Name:lower():find("sentry")
+end, false)
+
+_G.ESPManager:RegisterType("Tripwire", Color3.fromRGB(255, 85, 0), function(obj)
+    return obj:IsA("Model") and obj.Name:find("TaphTripwire")
+end, false)
+
+_G.ESPManager:RegisterType("Subspace", Color3.fromRGB(160, 32, 240), function(obj)
+    return obj:IsA("Model") and obj.Name == "SubspaceTripmine"
+end, false)
+
+Tabs.Visual:AddSection("↳ Buildman")
+
+Tabs.Visual:AddToggle("DispenserESP_Toggle", {
+    Title = "ESP Dispenser",
+    Default = false,
+}):OnChanged(function(state)
+    _G.ESPManager:SetEnabled("Dispenser", state)
+end)
+
+Tabs.Visual:AddToggle("SentryESP_Toggle", {
+    Title = "ESP Sentry",
+    Default = false,
+}):OnChanged(function(state)
+    _G.ESPManager:SetEnabled("Sentry", state)
+end)
+
+Tabs.Visual:AddSection("↳ Tapt/Trap")
+
+Tabs.Visual:AddToggle("TripwireESP_Toggle", {
+    Title = "ESP Trip Wire",
+    Default = false,
+}):OnChanged(function(state)
+    _G.ESPManager:SetEnabled("Tripwire", state)
+end)
+
+Tabs.Visual:AddToggle("SubspaceESP_Toggle", {
+    Title = "ESP Bomb Trap",
+    Default = false,
+}):OnChanged(function(state)
+    _G.ESPManager:SetEnabled("Subspace", state)
+end)
+
+-- Tabs.Misc
+
+
+
+
+local Lighting = game:GetService("Lighting")
+local RunService = game:GetService("RunService")
+
+-- ✅ FullBright Settings
+local fullBrightEnabled = false
+local fullBrightLoop
+
+local function applyFullBright()
+    if not fullBrightEnabled then return end
+
+    Lighting.Ambient = Color3.fromRGB(200, 200, 200) -- sáng nhẹ
+    Lighting.Brightness = 4 -- giảm độ sáng từ 10 → 4
+    Lighting.GlobalShadows = false
+end
+
+local function enableFullBright()
+    if fullBrightLoop then fullBrightLoop:Disconnect() end
+    applyFullBright()
+    fullBrightLoop = Lighting:GetPropertyChangedSignal("ClockTime"):Connect(applyFullBright)
+end
+
+local function disableFullBright()
+    if fullBrightLoop then
+        fullBrightLoop:Disconnect()
+        fullBrightLoop = nil
+    end
+
+    Lighting.Ambient = Color3.fromRGB(128, 128, 128)
+    Lighting.Brightness = 1
+    Lighting.GlobalShadows = true
+end
+
+-- ✅ Toggle: FullBright
+local FbToggle = Tabs.Misc:AddToggle("FbToggle", {
+    Title = "Auto Full Bright",
+    Default = false
+})
+FbToggle:OnChanged(function(Value)
+    fullBrightEnabled = Value
+    if fullBrightEnabled then
+        enableFullBright()
+    else
+        disableFullBright()
+    end
+end)
+
+-- ✅ Remove Fog Settings
+local fogEnabled = false
+local fogLoop
+
+local function removeFog()
+    Lighting.FogStart = 0
+    Lighting.FogEnd = 1000000
+
+    local atmosphere = Lighting:FindFirstChild("Atmosphere")
+    if atmosphere then
+        atmosphere.Density = 0
+        atmosphere.Offset = 0
+        atmosphere.Haze = 0
+        atmosphere.Color = Color3.new(1, 1, 1)
+    end
+end
+
+local function restoreFog()
+    Lighting.FogStart = 200
+    Lighting.FogEnd = 1000
+
+    local atmosphere = Lighting:FindFirstChild("Atmosphere")
+    if atmosphere then
+        atmosphere.Density = 0.3
+        atmosphere.Offset = 0
+        atmosphere.Haze = 0.5
+        atmosphere.Color = Color3.fromRGB(200, 200, 200)
+    end
+end
+
+-- ✅ Toggle: Remove Fog
+local FogToggle = Tabs.Misc:AddToggle("FogToggle", {
+    Title = "Remove Fog",
+    Default = false
+})
+FogToggle:OnChanged(function(Value)
+    fogEnabled = Value
+    if fogEnabled then
+        removeFog()
+        fogLoop = RunService.Heartbeat:Connect(removeFog)
+    else
+        if fogLoop then fogLoop:Disconnect() fogLoop = nil end
+        restoreFog()
+    end
+end)
+
+
 
 local Lighting = game:GetService("Lighting")
 local Players = game:GetService("Players")
 local LP = Players.LocalPlayer
 local PlayerGui = LP:WaitForChild("PlayerGui")
 
-local ActiveRemoveEffects = false
-local removeEffectsLoop
+-- Flag bật/tắt
+local ActiveRemoveAll = false
 
--- РЎРїРёСЃРѕРє РёР·РІРµСЃС‚РЅС‹С… СЌС„С„РµРєС‚РѕРІ
+-- Danh sách tên hiệu ứng thường gặp
 local effectNames = {
     "BlurEffect", "ColorCorrectionEffect", "BloomEffect", "SunRaysEffect", 
     "DepthOfFieldEffect", "ScreenFlash", "HitEffect", "DamageOverlay", 
@@ -1440,6 +7022,7 @@ local effectNames = {
     "Darkness", "JumpScare", "LowHealthOverlay", "Flashbang", "FadeEffect"
 }
 
+-- Danh sách class hiệu ứng trong Lighting
 local effectClasses = {
     "BlurEffect",
     "BloomEffect",
@@ -1448,15 +7031,16 @@ local effectClasses = {
     "ColorCorrectionEffect"
 }
 
-local function removeEffects()
-    -- РЈР±РёСЂР°РµРј СЌС„С„РµРєС‚С‹ РёР· Lighting
+-- 🌟 Hàm xoá tất cả (effects + popups)
+local function removeAll()
+    -- Xoá hiệu ứng trong Lighting
     for _, obj in pairs(Lighting:GetDescendants()) do
         if table.find(effectNames, obj.Name) or table.find(effectClasses, obj.ClassName) then
             obj:Destroy()
         end
     end
 
-    -- РЈР±РёСЂР°РµРј GUI-РѕРІРµСЂР»РµРё
+    -- Xoá GUI overlay
     for _, obj in pairs(PlayerGui:GetDescendants()) do
         if table.find(effectNames, obj.Name) then
             obj:Destroy()
@@ -1468,2298 +7052,1373 @@ local function removeEffects()
             end
         end
     end
+
+    -- Xoá popup 1x1x1x1
+    local temp = PlayerGui:FindFirstChild("TemporaryUI")
+    if temp then
+        local popup = temp:FindFirstChild("1x1x1x1Popup")
+        if popup then
+            popup:Destroy()
+            warn("[Remover] 1x1x1x1Popup removed")
+        end
+    end
 end
 
-Tabs.Misc:Toggle({
-    Title = "Remove Effects",
+-- Toggle Fluent - chỉ 1 cái
+Tabs.Misc:AddToggle("RemoveAllBadStuff", {
+    Title = "Remove Effects V2",
     Default = true,
     Callback = function(state)
-        ActiveRemoveEffects = state
+        ActiveRemoveAll = state
         if state then
-            if removeEffectsLoop then
-                task.cancel(removeEffectsLoop)
-                removeEffectsLoop = nil
-            end
-            removeEffectsLoop = task.spawn(function()
-                while ActiveRemoveEffects do
-                    removeEffects()
+            task.spawn(function()
+                while ActiveRemoveAll do
+                    removeAll()
                     task.wait(0.5)
                 end
             end)
+        end
+    end
+})
+
+
+
+    Tabs.Misc:AddSection("↳ Server")
+
+
+------------------------------------------------------------
+-- ⚡ SERVER HOP (Mobile-friendly + Fluent Button)
+------------------------------------------------------------
+
+local TeleportService = game:GetService("TeleportService")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+-- 🌀 Hàm thực hiện teleport sang server mới
+local function ServerHop()
+    local placeId = game.PlaceId
+    local jobId = game.JobId
+    print("[ServerHop] Đang rời server hiện tại...")
+
+    -- pcall để tránh lỗi Teleport crash
+    local success, err = pcall(function()
+        TeleportService:Teleport(placeId, LocalPlayer)
+    end)
+
+    if success then
+        if Fluent and Fluent.Notify then
+            Fluent:Notify({
+                Title = "Rejoin Starting",
+                Content = "Bắt Đầu Vào Máy Chủ Đã Fix Lag",
+                Duration = 3
+            })
         else
-            if removeEffectsLoop then
-                task.cancel(removeEffectsLoop)
-                removeEffectsLoop = nil
-            end
+            print("[ServerHop] Đang chuyển server...")
         end
-    end
-})
-
--- ANTI SLOWS 
-local Survivors = workspace:WaitForChild("Players"):WaitForChild("Survivors")
-local RunService = game:GetService("RunService")
-
--- Anti-Slow Configs
-local AntiSlowConfigs = {
-    Slowness = {Values = {"SlowedStatus"}, Connection = nil, Enabled = false},
-    Skills = {Values = {"StunningKiller", "EatFriedChicken", "GuestBlocking", "PunchAbility", "SubspaceTripmine",
-                        "TaphTripwire", "PlasmaBeam", "SpawnProtection", "c00lgui", "ShootingGun", 
-                        "TwoTimeStab", "TwoTimeCrouching", "DrinkingCola", "DrinkingSlateskin", 
-                        "SlateskinStatus", "EatingGhostburger"}, Connection = nil, Enabled = false},
-    Items = {Values = {"BloxyColaItem", "Medkit"}, Connection = nil, Enabled = false},
-    Emotes = {Values = {"Emoting"}, Connection = nil, Enabled = false},
-    Builderman = {Values = {"DispenserConstruction", "SentryConstruction"}, Connection = nil, Enabled = false}
-}
-
--- Hide Slowness UI
-local function hideSlownessUI()
-    local mainUI = game:GetService("Players").LocalPlayer.PlayerGui:FindFirstChild("MainUI")
-    if mainUI then
-        local statusContainer = mainUI:FindFirstChild("StatusContainer")
-        if statusContainer then
-            local slownessUI = statusContainer:FindFirstChild("Slowness")
-            if slownessUI then
-                slownessUI.Visible = false
-            end
-        end
-    end
-end
-
--- Handle Anti-Slow
-local function handleAntiSlow(survivor, config)
-    if survivor:GetAttribute("Username") ~= game:GetService("Players").LocalPlayer.Name then return end
-    local function onRenderStep()
-        if not survivor.Parent or not config.Enabled then return end
-        local speedMultipliers = survivor:FindFirstChild("SpeedMultipliers")
-        if speedMultipliers then
-            for _, valName in ipairs(config.Values) do
-                local val = speedMultipliers:FindFirstChild(valName)
-                if val and val:IsA("NumberValue") and val.Value ~= 1 then
-                    val.Value = 1
-                end
-            end
-        end
-        hideSlownessUI()
-    end
-
-    config.Connection = RunService.RenderStepped:Connect(onRenderStep)
-end
-
--- Start Anti-Slow
-local function startAntiSlow(config)
-    config.Enabled = true
-    for _, survivor in pairs(Survivors:GetChildren()) do
-        handleAntiSlow(survivor, config)
-    end
-    Survivors.ChildAdded:Connect(function(child)
-        task.wait(0.1)
-        handleAntiSlow(child, config)
-    end)
-end
-
--- Stop Anti-Slow
-local function stopAntiSlow(config)
-    config.Enabled = false
-    if config.Connection then
-        config.Connection:Disconnect()
-        config.Connection = nil
-    end
-end
-
-Tabs.Misc:Toggle({
-    Title = "Anti Slow",
-    Default = false,
-    Callback = function(state)
-        for _, config in pairs(AntiSlowConfigs) do
-            if state then
-                startAntiSlow(config)
-            else
-                stopAntiSlow(config)
-            end
-        end
-    end
-})
-
-Tabs.Misc:Button({
-    Title = "Load Invisibility",
-    Callback = function()
-    
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-
-local animationId = "75804462760596"
-local animationSpeed = 0
-local loopRunning = false
-local loopThread
-local currentAnim = nil
-
-function StartInvisibility()
-    loopRunning = true
-    local speaker = LocalPlayer
-    local humanoid = speaker.Character and speaker.Character:FindFirstChildOfClass("Humanoid")
-    if not humanoid or humanoid.RigType ~= Enum.HumanoidRigType.R6 then return end
-
-    loopThread = task.spawn(function()
-        while loopRunning do
-            local anim = Instance.new("Animation")
-            anim.AnimationId = "rbxassetid://" .. animationId
-            local loadedAnim = humanoid:LoadAnimation(anim)
-            currentAnim = loadedAnim
-            loadedAnim.Looped = false
-            loadedAnim:Play()
-            loadedAnim:AdjustSpeed(animationSpeed)
-            task.wait(0.000001)
-        end
-    end)
-end
-
-function StopInvisibility()
-    loopRunning = false
-    if loopThread then
-        task.cancel(loopThread)
-        loopThread = nil
-    end
-    if currentAnim then
-        currentAnim:Stop()
-        currentAnim = nil
-    end
-    local speaker = LocalPlayer
-    local humanoid = speaker.Character and (speaker.Character:FindFirstChildOfClass("Humanoid") or speaker.Character:FindFirstChildOfClass("AnimationController"))
-    if humanoid then
-        for _, v in pairs(humanoid:GetPlayingAnimationTracks()) do
-            v:AdjustSpeed(100000)
-        end
-    end
-    local animateScript = speaker.Character and speaker.Character:FindFirstChild("Animate")
-    if animateScript then
-        animateScript.Disabled = true
-        animateScript.Disabled = false
-    end
-end
-
-Tabs.Misc:Toggle({
-    Title = "Invisibility(R6 only)",
-    Default = false,
-    Callback = function(state)
-        if state then
-            StartInvisibility()
-        else
-            StopInvisibility()
-        end
-    end
-})
-
-end
-})
-
---NOLI ANTI WALL CRUSH 
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-local Remote = game:GetService("ReplicatedStorage").Modules.Network.RemoteEvent
-
--- Р“Р»РѕР±Р°Р»СЊРЅС‹Рµ РїРµСЂРµРјРµРЅРЅС‹Рµ
-getgenv()._oldFireServer = getgenv()._oldFireServer or nil
-getgenv()._VoidRushBypass = getgenv()._VoidRushBypass or false -- toggle СЃРѕСЃС‚РѕСЏРЅРёРµ
-
--- РҐСѓРє СЃС‚Р°РІРёРј С‚РѕР»СЊРєРѕ РѕРґРёРЅ СЂР°Р·
-if not getgenv()._oldFireServer then
-    local old
-    old = hookmetamethod(game, "__namecall", function(self, ...)
-        local method = getnamecallmethod()
-        local args = {...}
-        if self == Remote and method == "FireServer" then
-            if args[1] == LocalPlayer.Name .. "VoidRushCollision" then
-                if getgenv()._VoidRushBypass then
-                    return -- Р±Р»РѕРєРёСЂСѓРµРј С‚РѕР»СЊРєРѕ РµСЃР»Рё toggle РІРєР»СЋС‡С‘РЅ
-                end
-            end
-        end
-        return old(self, ...)
-    end)
-
-    getgenv()._oldFireServer = old
-end
-
--- Р”РѕР±Р°РІР»СЏРµРј Toggle РІ GUI
-Tabs.Misc:Toggle({
-    Title = "VoidRush No-Crash",
-    Default = false,
-    Callback = function(state)
-        getgenv()._VoidRushBypass = state
-    end
-})
-
---NOLI FULL VOID CONTROL 
-local RunService = game:GetService("RunService")
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-
-local voidrushcontrol = false
-local ORIGINAL_DASH_SPEED = 60
-local isOverrideActive = false
-local connection
-
--- РџРµСЂРµРјРµРЅРЅС‹Рµ РїРµСЂСЃРѕРЅР°Р¶Р°
-local humanoid, rootPart
-local function setupCharacter(character)
-    humanoid = character:WaitForChild("Humanoid")
-    rootPart = character:WaitForChild("HumanoidRootPart")
-end
-
-if LocalPlayer.Character then
-    setupCharacter(LocalPlayer.Character)
-end
-
-LocalPlayer.CharacterAdded:Connect(setupCharacter)
-
-Tabs.Misc:Toggle({
-    Title = "Void Rush full Control (Noli)",
-    Default = false,
-    Callback = function(state)
-        voidrushcontrol = state
-    end
-})
-
--- Р¤СѓРЅРєС†РёСЏ СЃС‚Р°СЂС‚Р° РѕРІРµСЂСЂР°Р№РґР°
-local function startOverride()
-    if isOverrideActive then return end
-    isOverrideActive = true
-
-    connection = RunService.RenderStepped:Connect(function()
-        if not humanoid or not rootPart then return end
-
-        humanoid.WalkSpeed = ORIGINAL_DASH_SPEED
-        humanoid.AutoRotate = false
-
-        local direction = rootPart.CFrame.LookVector
-        local horizontal = Vector3.new(direction.X, 0, direction.Z)
-        if horizontal.Magnitude > 0 then
-            humanoid:Move(horizontal.Unit)
-        end
-    end)
-end
-
--- Р¤СѓРЅРєС†РёСЏ РѕСЃС‚Р°РЅРѕРІРєРё РѕРІРµСЂСЂР°Р№РґР°
-local function stopOverride()
-    if not isOverrideActive then return end
-    isOverrideActive = false
-
-    if humanoid then
-        humanoid.WalkSpeed = 16 -- РґРµС„РѕР»С‚РЅР°СЏ СЃРєРѕСЂРѕСЃС‚СЊ
-        humanoid.AutoRotate = true
-        humanoid:Move(Vector3.new(0, 0, 0))
-    end
-
-    if connection then
-        connection:Disconnect()
-        connection = nil
-    end
-end
-
--- Р“Р»Р°РІРЅС‹Р№ С†РёРєР»
-RunService.RenderStepped:Connect(function()
-    if not voidrushcontrol then return end
-
-    local char = humanoid and humanoid.Parent
-    local voidRushState = char and char:GetAttribute("VoidRushState")
-
-    if voidRushState == "Dashing" then
-        startOverride()
     else
-        stopOverride()
-    end
-end)
-
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-
-local hpThreshold = 50
-local autoPizzaEnabled = false
-local healthConnection
-local charAddedConnection
-
-local function log(msg)
-    print("[AutoPizzaHeal] " .. msg)
-end
-
-local function teleportTo(position)
-    local char = LocalPlayer.Character
-    if char and char:FindFirstChild("HumanoidRootPart") then
-        char.HumanoidRootPart.CFrame = CFrame.new(position)
-        log("РўРµР»РµРїРѕСЂС‚ Рє: " .. tostring(position))
-    end
-end
-
-local function tryPizzaHeal()
-    local character = LocalPlayer.Character
-    if not character then return end
-
-    local humanoid = character:FindFirstChild("Humanoid")
-    local root = character:FindFirstChild("HumanoidRootPart")
-    if not humanoid or not root then
-        log("вќЊ РќРµ РЅР°Р№РґРµРЅ Humanoid РёР»Рё HumanoidRootPart")
-        return
-    end
-
-    local startPos = root.Position
-    local beforeHP = humanoid.Health
-
-    local pizza = workspace:FindFirstChild("Map") and workspace.Map:FindFirstChild("Ingame") and workspace.Map.Ingame:FindFirstChild("Pizza")
-    if not pizza or not pizza:IsA("BasePart") then
-        log("вќЊ Pizza РЅРµ РЅР°Р№РґРµРЅР° РёР»Рё РЅРµ СЏРІР»СЏРµС‚СЃСЏ BasePart")
-        return
-    end
-
-    teleportTo(pizza.Position)
-    task.wait(0.5)
-
-    if humanoid.Health <= beforeHP then
-        log("рџЌ• HP РЅРµ РІРѕСЃСЃС‚Р°РЅРѕРІР»РµРЅРѕ, Р¶РґС‘Рј РµС‰С‘ 0.5 СЃРµРє")
-        task.wait(0.5)
-    end
-
-    teleportTo(startPos)
-    log("в†©пёЏ Р’РѕР·РІСЂР°С‚ РЅР° РёСЃС…РѕРґРЅСѓСЋ РїРѕР·РёС†РёСЋ")
-end
-
-local function setupHealthMonitor(character)
-    if healthConnection then
-        healthConnection:Disconnect()
-    end
-
-    local humanoid = character:WaitForChild("Humanoid", 5)
-    if not humanoid then
-        log("вќЊ Humanoid РЅРµ РЅР°Р№РґРµРЅ")
-        return
-    end
-
-    log("вњ… РњРѕРЅРёС‚РѕСЂРёРЅРі HP Р°РєС‚РёРІРµРЅ")
-
-    healthConnection = humanoid.HealthChanged:Connect(function(currentHP)
-        if autoPizzaEnabled and currentHP < hpThreshold and currentHP > 0 then
-            log("вљ пёЏ HP РЅРёР¶Рµ РїРѕСЂРѕРіР°: " .. currentHP)
-            tryPizzaHeal()
-        end
-    end)
-end
-
--- РџРѕРґРєР»СЋС‡РµРЅРёРµ РїСЂРё СЃС‚Р°СЂС‚Рµ
-if LocalPlayer.Character then
-    setupHealthMonitor(LocalPlayer.Character)
-end
-
-charAddedConnection = LocalPlayer.CharacterAdded:Connect(setupHealthMonitor)
-
--- вЏ¬ РЎРѕР·РґР°РЅРёРµ UI РІ РєРѕРЅС†Рµ, РєР°Рє С‚С‹ РїСЂРѕСЃРёР»
-Tabs.Misc:Toggle({
-    Title = "Auto Eat Pizza",
-    Default = false,
-    Callback = function(v)
-        autoPizzaEnabled = v
-        log("Auto Pizza: " .. (v and "вњ… Р’РљР›" or "вќЊ Р’Р«РљР›"))
-    end
-})
-
-Tabs.Misc:Slider({
-    Title = "HP Threshold",
-    Value = {Min = 1, Max = 100, Default = hpThreshold},
-    Step = 1,
-    Suffix = "%",
-    Callback = function(val)
-        hpThreshold = val
-        log("РџРѕСЂРѕРі HP СѓСЃС‚Р°РЅРѕРІР»РµРЅ РЅР°: " .. val)
-    end
-})
-
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
-local LocalPlayer = Players.LocalPlayer
-local cooldown = false
-local backOffset = Vector3.new(0, 0, 3)
-local hpThreshold = 50
-local featureEnabled = false
-
--- UI
-Tabs.Misc:Toggle({
-    Title = "Auto heal Teammates (Elliot)",
-    Default = false,
-    Callback = function(value)
-        featureEnabled = value
-    end
-})
-
-Tabs.Misc:Slider({
-    Title = "HP Threshold",
-    Step = 1,
-    Value = {Min = 1, Max = 100, Default = hpThreshold},
-    Suffix = "HP",
-    Callback = function(value)
-        hpThreshold = tonumber(value)
-    end
-})
-
--- телепорт за спину + кидание пиццы
-local function teleportBehind(targetChar)
-    if not targetChar or not targetChar:FindFirstChild("HumanoidRootPart") then return end
-    
-    local character = LocalPlayer.Character
-    if not character or not character:FindFirstChild("HumanoidRootPart") then return end
-
-    local rootPart = character.HumanoidRootPart
-    local targetRootPart = targetChar.HumanoidRootPart
-    
-    local returnPos = rootPart.CFrame
-
-    -- "прилипание" за спиной
-    local stickConnection
-    stickConnection = RunService.Heartbeat:Connect(function()
-        if not targetRootPart or not targetRootPart.Parent or not rootPart or not rootPart.Parent then
-            stickConnection:Disconnect()
-            return
-        end
-        
-        local backPos = targetRootPart.CFrame * CFrame.new(backOffset)
-        rootPart.CFrame = backPos
-    end)
-    
-    -- отправляем remote
-    local args = {
-        "UseActorAbility",
-        {
-            buffer.fromstring("\"ThrowPizza\"")
-        }
-    }
-    ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Network"):WaitForChild("RemoteEvent"):FireServer(unpack(args))
-
-    -- возврат через 2 сек
-    task.delay(2, function()
-        stickConnection:Disconnect()
-        if character and rootPart and rootPart.Parent then
-            rootPart.CFrame = returnPos
-        end
-    end)
-end
-
--- мониторинг HP союзника
-local function monitorPlayerHP(player)
-    local function onCharacterAdded(character)
-        local humanoid = character:WaitForChild("Humanoid", 5)
-        if humanoid then
-            humanoid.HealthChanged:Connect(function(currentHP)
-                if featureEnabled and not cooldown and currentHP > 0 and currentHP < hpThreshold then
-                    cooldown = true
-                    teleportBehind(character)
-                    task.delay(46, function()
-                        cooldown = false
-                    end)
-                end
-            end)
+        warn("[ServerHop] Lỗi khi Teleport:", err)
+        if Fluent and Fluent.Notify then
+            Fluent:Notify({
+                Title = "Lỗi Teleport",
+                Content = tostring(err),
+                Duration = 4
+            })
         end
     end
-
-    if player.Character then
-        onCharacterAdded(player.Character)
-    end
-
-    player.CharacterAdded:Connect(onCharacterAdded)
 end
 
--- следим за всеми игроками кроме себя
-for _, player in ipairs(Players:GetPlayers()) do
-    if player ~= LocalPlayer then
-        monitorPlayerHP(player)
-    end
-end
 
-Players.PlayerAdded:Connect(function(player)
-    if player ~= LocalPlayer then
-        monitorPlayerHP(player)
-    end
-end)
+------------------------------------------------------------
+-- 🧩 THÊM NÚT TRONG FLUENT UI
+------------------------------------------------------------
 
+-- Giả sử bạn có tab Dev sẵn, tương tự ví dụ của bạn:
+-- Tabs.Dev:AddButton(...)
 
--- AAAA
-Tabs.Misc:Button({
-    Title = "Load Auto RaginPace(Slasher)",
+Tabs.Misc:AddButton({
+    Title = "Rejoin To Fix Lag",
+    Description = "Tham Gia Lại Máy Chủ Để Giảm Lag",
     Callback = function()
-    
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
-local lp = Players.LocalPlayer
-local playerGui = lp:WaitForChild("PlayerGui")
-
--- == Persistent Storage ==
-local savedRange = lp:FindFirstChild("RagingPaceRange")
-if not savedRange then
-    savedRange = Instance.new("NumberValue")
-    savedRange.Name = "RagingPaceRange"
-    savedRange.Value = 19 -- default range
-    savedRange.Parent = lp
-end
-
-local savedEnabled = lp:FindFirstChild("RagingPaceEnabled")
-if not savedEnabled then
-    savedEnabled = Instance.new("BoolValue")
-    savedEnabled.Name = "RagingPaceEnabled"
-    savedEnabled.Value = false -- default state
-    savedEnabled.Parent = lp
-end
-
-local RANGE = savedRange.Value
-local SPAM_DURATION = 3
-local COOLDOWN_TIME = 5
-local activeCooldowns = {}
-local enabled = savedEnabled.Value
-
--- == Animation ID List ==
-local animsToDetect = {
-    ["116618003477002"] = true,
-    ["119462383658044"] = true,
-    ["131696603025265"] = true,
-    ["121255898612475"] = true,
-    ["133491532453922"] = true,
-    ["103601716322988"] = true,
-    ["86371356500204"] = true,
-    ["72722244508749"] = true,
-    ["87259391926321"] = true,
-    ["96959123077498"] = true,
-}
-
--- == Remote ==
-local function fireRagingPace()
-    local args = {
-        "UseActorAbility",
-        {
-            buffer.fromstring("\"RagingPace\"")
-        }
-    }
-    ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Network"):WaitForChild("RemoteEvent"):FireServer(unpack(args))
-end
-
--- == Animation Checker ==
-local function isAnimationMatching(anim)
-    local id = tostring(anim.Animation and anim.Animation.AnimationId or "")
-    local numId = id:match("%d+")
-    return animsToDetect[numId] or false
-end
-
--- == Main Detection ==
-RunService.Heartbeat:Connect(function()
-    if not enabled then return end
-
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= lp and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-            local targetHRP = player.Character.HumanoidRootPart
-            local myChar = lp.Character
-            if myChar and myChar:FindFirstChild("HumanoidRootPart") then
-                local dist = (targetHRP.Position - myChar.HumanoidRootPart.Position).Magnitude
-                if dist <= RANGE and (not activeCooldowns[player] or tick() - activeCooldowns[player] >= COOLDOWN_TIME) then
-                    local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
-                    if humanoid then
-                        for _, track in pairs(humanoid:GetPlayingAnimationTracks()) do
-                            if isAnimationMatching(track) then
-                                activeCooldowns[player] = tick()
-                                task.spawn(function()
-                                    local startTime = tick()
-                                    while tick() - startTime < SPAM_DURATION do
-                                        fireRagingPace()
-                                        task.wait(0.05)
-                                    end
-                                end)
-                                break
-                            end
-                        end
-                    end
-                end
-            end
+        -- Hiện thông báo chuẩn bị
+        if Fluent and Fluent.Notify then
+            Fluent:Notify({
+                Title = "Rejoin Settings",
+                Content = "Đang Giảm Lag Cho Các Máy Chủ...",
+                Duration = 2
+            })
         end
-    end
-end)
 
--- == UI ==
-Tabs.Misc:Toggle({
-    Title = "RagingPace(slasher)",
-    Default = enabled,
-    Callback = function(state)
-        enabled = state
-        savedEnabled.Value = state
+        task.wait(0.3)
+        ServerHop()
     end
 })
 
-Tabs.Misc:Slider({
-    Title = "RagingPace Range",
-    Step = 1,
-    Value = {Min = 1, Max = 30, Default = RANGE},
-    Suffix = "studs",
-    Callback = function(val)
-        RANGE = val
-        savedRange.Value = val -- сохраняем в persistent value
-    end
-})
 
-end
-})
 
--- HSHSHSHDHDHDHDHDHEIIEJDJXJXNDDN
-
-Tabs.Misc:Button({
-    Title = "Load Auto Error 404",
+-- 🌐 Server Hop Button
+Tabs.Misc:AddButton({
+    Title = "Server Hop To Low Player",
+    Description = "Dùng Để Đổi Server Có Thể Vào Server Ít Player",
     Callback = function()
-        local Players = game:GetService("Players")
-        local ReplicatedStorage = game:GetService("ReplicatedStorage")
-        local lp = Players.LocalPlayer
+        local PlaceID = game.PlaceId
+        local AllIDs = {}
+        local foundAnything = ""
+        local actualHour = os.date("!*t").hour
 
-        -- Vars
-        local autoErrorEnabled = false
-        local detectionRange = 14
-        local soundHooks = {}
-        local soundTriggeredUntil = {}
-
-        -- Trigger sounds
-        local autoErrorTriggerSounds = {
-            ["86710781315432"] = true,
-            ["99820161736138"] = true,
-            ["609342351"] = true,
-            ["81976396729343"] = true,
-            ["12222225"] = true,
-            ["80521472651047"] = true,
-            ["139012439429121"] = true,
-            ["91194698358028"] = true,
-            ["111910850942168"] = true,
-            ["83851356262523"] = true,
-        }
-
-        -- Helpers
-        local function extractNumericSoundId(sound)
-            if not sound or not sound.SoundId then return nil end
-            return tostring(sound.SoundId):match("%d+")
-        end
-
-        local function getSoundWorldPosition(sound)
-            if sound.Parent and sound.Parent:IsA("BasePart") then
-                return sound.Parent.Position
-            elseif sound.Parent and sound.Parent:IsA("Attachment") and sound.Parent.Parent:IsA("BasePart") then
-                return sound.Parent.Parent.Position
-            end
-            local found = sound.Parent and sound.Parent:FindFirstChildWhichIsA("BasePart", true)
-            if found then return found.Position end
-            return nil
-        end
-
-        local function attemptError404ForSound(sound)
-            if not autoErrorEnabled then return end
-            if not sound or not sound:IsA("Sound") or not sound.IsPlaying then return end
-
-            local id = extractNumericSoundId(sound)
-            if not id or not autoErrorTriggerSounds[id] then return end
-
-            local myRoot = lp.Character and lp.Character:FindFirstChild("HumanoidRootPart")
-            if not myRoot then return end
-
-            if soundTriggeredUntil[sound] and tick() < soundTriggeredUntil[sound] then return end
-
-            local pos = getSoundWorldPosition(sound)
-            local shouldTrigger = (not pos) or ((myRoot.Position - pos).Magnitude <= detectionRange)
-
-            if shouldTrigger then
-                warn("[AUTO ERROR 404] Triggered for Sound ID:", id)
-                local args = {
-                    "UseActorAbility",
-                    {
-                        buffer.fromstring("\"404Error\"")
-                    }
-                }
-                ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Network"):WaitForChild("RemoteEvent"):FireServer(unpack(args))
-                soundTriggeredUntil[sound] = tick() + 1.2
-            end
-        end
-
-        local function hookSound(sound)
-            if soundHooks[sound] then return end
-            
-            local connections = {}
-            
-            local playedConn = sound.Played:Connect(function() 
-                attemptError404ForSound(sound) 
-            end)
-            table.insert(connections, playedConn)
-            
-            local propConn = sound:GetPropertyChangedSignal("IsPlaying"):Connect(function()
-                if sound.IsPlaying then 
-                    attemptError404ForSound(sound) 
-                end
-            end)
-            table.insert(connections, propConn)
-            
-            local destroyConn
-            destroyConn = sound.Destroying:Connect(function()
-                for _, conn in ipairs(connections) do
-                    if conn and typeof(conn) == "RBXScriptConnection" then
-                        pcall(function() conn:Disconnect() end)
-                    end
-                end
-                if destroyConn and typeof(destroyConn) == "RBXScriptConnection" then
-                    pcall(function() destroyConn:Disconnect() end)
-                end
-                soundHooks[sound] = nil
-                soundTriggeredUntil[sound] = nil
-            end)
-            table.insert(connections, destroyConn)
-            
-            soundHooks[sound] = connections
-            if sound.IsPlaying then 
-                attemptError404ForSound(sound) 
-            end
-        end
-
-        for _, s in ipairs(game:GetDescendants()) do
-            if s:IsA("Sound") then 
-                pcall(function() hookSound(s) end)
-            end
-        end
-
-        game.DescendantAdded:Connect(function(d)
-            if d:IsA("Sound") then 
-                pcall(function() hookSound(d) end)
-            end
+        -- Đọc file nếu có
+        local File = pcall(function()
+            AllIDs = game:GetService("HttpService"):JSONDecode(readfile("NotSameServers.json"))
         end)
 
-        Tabs.Misc:Toggle({
-            Title = "Auto Error 404(John Doe)",
-            Default = autoErrorEnabled,
-            Callback = function(state)
-                autoErrorEnabled = state
-            end
-        })
-
-        Tabs.Misc:Slider({
-            Title = "Error 404 Range",
-            Step = 1,
-            Value = {Min = 1, Max = 20, Default = detectionRange},
-            Suffix = "studs",
-            Callback = function(val)
-                detectionRange = val
-            end
-        })
-    end
-})
-
-local Players = game:GetService("Players")  
-local Workspace = game:GetService("Workspace")  
-
--- Таблица диаметров (редактируй по желанию)  
-local killerDiameters = {  
-	["Jason"] = 15,  
-	["John Doe"] = 15,  
-	["1x1x1x1"] = 15,  
-	["Noli"] = 15,  
-	["c00lkidd"] = 15,  
-	["Slasher"] = 15  
-}  
-
-local circleColor = Color3.fromRGB(255, 105, 180) -- розовый  
-
--- Параметры кольца  
-local SEGMENTS = 96        
-local SEGMENT_HEIGHT = 0.2 
-local SEGMENT_WIDTH = 0.35 
-
-local circles = {} -- circles[killer] = { model = Model, segments = {...}, diameter = number }  
-local enabled = false -- флаг работы  
-
-local function createRingForKiller(killer, diameter)  
-	if not killer or not killer.Parent then return end  
-	local hrp = killer:FindFirstChild("HumanoidRootPart")  
-	if not hrp then return end  
-
-	if circles[killer] then  
-		if circles[killer].model then  
-			pcall(function() circles[killer].model:Destroy() end)  
-		end  
-		circles[killer] = nil  
-	end  
-
-	local model = Instance.new("Model")  
-	model.Name = "HitboxRing_" .. killer.Name  
-	model.Parent = Workspace  
-
-	local radius = diameter / 2  
-	local circumference = 2 * math.pi * radius  
-	local segLen = circumference / SEGMENTS  
-
-	local segments = {}  
-
-	for i = 1, SEGMENTS do  
-		local angle = (i - 1) * (2 * math.pi / SEGMENTS)  
-		local offset = Vector3.new(radius * math.cos(angle), 0, radius * math.sin(angle))  
-		local worldPos = hrp.Position + offset  
-
-		local part = Instance.new("Part")  
-		part.Size = Vector3.new(segLen, SEGMENT_HEIGHT, SEGMENT_WIDTH)  
-		part.Anchored = false  
-		part.CanCollide = false  
-		part.Material = Enum.Material.Neon  
-		part.Color = circleColor  
-		part.Transparency = 0.3  
-		part.CFrame = CFrame.new(worldPos) * CFrame.Angles(0, angle + math.pi/2, 0)  
-		part.Parent = model  
-
-		local weld = Instance.new("WeldConstraint")  
-		weld.Part0 = part  
-		weld.Part1 = hrp  
-		weld.Parent = part  
-
-		table.insert(segments, part)  
-	end  
-
-	circles[killer] = { model = model, segments = segments, diameter = diameter }  
-end  
-
-local function updateCircle(killer)  
-	local hrp = killer:FindFirstChild("HumanoidRootPart")  
-	if not hrp then return end  
-
-	local diameter = killerDiameters[killer.Name]  
-	if not diameter then return end  
-
-	local info = circles[killer]  
-	if not info then  
-		createRingForKiller(killer, diameter)  
-		return  
-	end  
-
-	if info.diameter ~= diameter then  
-		createRingForKiller(killer, diameter)  
-		return  
-	end  
-end  
-
-local function cleanupCircles()  
-	for killer, data in pairs(circles) do  
-		if not killer.Parent then  
-			if data.model then  
-				pcall(function() data.model:Destroy() end)  
-			end  
-			circles[killer] = nil  
-		end  
-	end  
-end  
-
-local function clearAll()  
-	for killer, data in pairs(circles) do  
-		if data.model then  
-			pcall(function() data.model:Destroy() end)  
-		end  
-	end  
-	table.clear(circles)  
-end  
-
-task.spawn(function()  
-	while true do  
-		if enabled then  
-			cleanupCircles()  
-			if Workspace:FindFirstChild("Players") and Workspace.Players:FindFirstChild("Killers") then  
-				for _, killer in ipairs(Workspace.Players.Killers:GetChildren()) do  
-					pcall(updateCircle, killer)  
-				end  
-			end  
-		end  
-		task.wait(5)  
-	end  
-end)  
-
-Tabs.Misc:Toggle({
-    Title = "Hitbox visualization",
-    Default = false,
-    Callback = function(state)
-        enabled = state
-        if not state then
-            clearAll()
+        if not File then
+            table.insert(AllIDs, actualHour)
+            writefile("NotSameServers.json", game:GetService("HttpService"):JSONEncode(AllIDs))
         end
+
+        local function TPReturner()
+            local Site
+            if foundAnything == "" then
+                Site = game.HttpService:JSONDecode(game:HttpGet(
+                    "https://games.roblox.com/v1/games/" .. PlaceID .. "/servers/Public?sortOrder=Asc&limit=100"
+                ))
+            else
+                Site = game.HttpService:JSONDecode(game:HttpGet(
+                    "https://games.roblox.com/v1/games/" .. PlaceID .. "/servers/Public?sortOrder=Asc&limit=100&cursor=" .. foundAnything
+                ))
+            end
+
+            if Site.nextPageCursor and Site.nextPageCursor ~= "null" and Site.nextPageCursor ~= nil then
+                foundAnything = Site.nextPageCursor
+            end
+
+            local num = 0
+            for _, v in pairs(Site.data) do
+                local Possible, ID = true, tostring(v.id)
+                if tonumber(v.maxPlayers) > tonumber(v.playing) then
+                    for _, Existing in pairs(AllIDs) do
+                        if num ~= 0 then
+                            if ID == tostring(Existing) then
+                                Possible = false
+                            end
+                        else
+                            if tonumber(actualHour) ~= tonumber(Existing) then
+                                pcall(function()
+                                    delfile("NotSameServers.json")
+                                    AllIDs = {}
+                                    table.insert(AllIDs, actualHour)
+                                end)
+                            end
+                        end
+                        num = num + 1
+                    end
+                    if Possible then
+                        table.insert(AllIDs, ID)
+                        pcall(function()
+                            writefile("NotSameServers.json", game:GetService("HttpService"):JSONEncode(AllIDs))
+                            game:GetService("TeleportService"):TeleportToPlaceInstance(PlaceID, ID, game.Players.LocalPlayer)
+                        end)
+                        task.wait(4)
+                    end
+                end
+            end
+        end
+
+        local function Teleport()
+            while task.wait() do
+                pcall(function()
+                    TPReturner()
+                    if foundAnything ~= "" then
+                        TPReturner()
+                    end
+                end)
+            end
+        end
+
+        -- Gọi để bắt đầu Server Hop
+        Teleport()
     end
 })
 
 
--- AAAAA
 
-Tabs.Auto_Stun:Button({
-    Title = "Load Auto Invisibility",
-    Callback = function()
 
+    Tabs.Misc:AddSection("↳ Bypass")
+
+local antiAFKCons = {}
+
+-- Chỉ tạo toggle nếu executor có getconnections
+if getconnections then
+    Tabs.Misc:AddToggle("AntiAFK", {
+        Title = "Anti-AFK",
+        Default = true
+    }):OnChanged(function(state)
+        local idleCons = getconnections(game.Players.LocalPlayer.Idled)
+        
+        if state then
+            -- Lưu & disable
+            for _, c in ipairs(idleCons) do
+                antiAFKCons[c] = true
+                c:Disable()
+            end
+            print("[AntiAFK] Đã bật, bạn sẽ không bị kick AFK.")
+        else
+            -- Enable lại
+            for c,_ in pairs(antiAFKCons) do
+                if c and c.Enable then
+                    pcall(function() c:Enable() end)
+                end
+            end
+            antiAFKCons = {}
+            print("[AntiAFK] Đã tắt, Roblox sẽ xử lý AFK bình thường.")
+        end
+    end)
+else
+    warn("[AntiAFK] Executor không hỗ trợ getconnections, toggle bị vô hiệu.")
+end
+
+
+
+
+
+
+do
     local Players = game:GetService("Players")
     local LocalPlayer = Players.LocalPlayer
+    local LocalizationService = game:GetService("LocalizationService")
 
-    -- Настройки анимации
-    local animationId = "75804462760596"
-    local loopRunning = false
-    local loopThread
-    local currentAnim = nil
+    shared.AntiBanSafe = shared.AntiBanSafe or {running = false, hooks = {}}
+    local data = shared.AntiBanSafe
 
-    -- GUI переменные
-    local autoInvis = false
-    local animationSpeed = 0
-    local invisDuration = 5 -- по умолчанию 5 секунд
+    local oldNamecall, oldIndex
+    local protectionThread
 
-    -- Toggle
-    Tabs.Auto_Stun:Toggle({
-        Title = "Auto Invisibility when Clone (007n7)",
-        Default = false,
-        Callback = function(value)
-            autoInvis = value
-            if not autoInvis then
-                StopInvisibility()
-            end
+    local function safe(func, ...)
+        local ok, res = pcall(func, ...)
+        if ok then return res end
+    end
+
+    -- Disable screenshot/video flags khi bật protection
+    local function disableReportFlags()
+        if typeof(setfflag) == "function" then
+            pcall(function()
+                setfflag("AbuseReportScreenshot", "False")
+                setfflag("AbuseReportScreenshotPercentage", "0") -- chỉnh về 0
+                setfflag("AbuseReportEnabled", "False")
+                setfflag("ReportAbuseMenu", "False")
+                setfflag("EnableAbuseReportScreenshot", "False")
+                setfflag("AbuseReportVideo", "False")
+                setfflag("AbuseReportVideoPercentage", "0")
+                setfflag("VideoCaptureEnabled", "False")
+                setfflag("RecordVideo", "False")
+            end)
         end
-    })
+    end
 
-    -- Slider длительности эффекта Invisibility
-    Tabs.Auto_Stun:Slider({
-        Title = "Invisibility Duration",
-        Step = 1,
-        Value = {Min = 1, Max = 45, Default = invisDuration},
-        Suffix = "s",
-        Callback = function(val)
-            invisDuration = val
+    -- Restore flag về bình thường khi tắt protection
+    local function setFlagsOn()
+        if typeof(setfflag) == "function" then
+            pcall(function()
+                setfflag("AbuseReportScreenshot", "True")
+                setfflag("AbuseReportScreenshotPercentage", "100")
+            end)
         end
-    })
+    end
 
-    -- Функции запуска/остановки анимации
-    function StartInvisibility()
-        if loopRunning then return end
-        loopRunning = true
-        print("[AutoInvis] Starting invisibility")
-
-        local speaker = LocalPlayer
-        local humanoid = speaker.Character and speaker.Character:FindFirstChildOfClass("Humanoid")
-        if not humanoid or humanoid.RigType ~= Enum.HumanoidRigType.R6 then return end
-
-        loopThread = task.spawn(function()
-            while loopRunning do
-                local anim = Instance.new("Animation")
-                anim.AnimationId = "rbxassetid://" .. animationId
-                local loadedAnim = humanoid:LoadAnimation(anim)
-                currentAnim = loadedAnim
-                loadedAnim.Looped = false
-                loadedAnim:Play()
-                loadedAnim:AdjustSpeed(animationSpeed)
-                while loadedAnim.IsPlaying and loopRunning do
-                    loadedAnim:AdjustSpeed(animationSpeed)
-                    task.wait(0.05)
+    -- Hook requests (block report)
+    local function hookRequests()
+        if data.hooks.requestHooked then return end
+        local oldRequest = (syn and syn.request) or request or http_request
+        if typeof(oldRequest) == "function" and typeof(hookfunction) == "function" then
+            hookfunction(oldRequest, function(req)
+                if req and req.Url and tostring(req.Url):lower():find("abuse") then
+                    return {StatusCode = 200, Body = "Blocked"}
                 end
-                task.wait(0.01)
+                return oldRequest(req)
+            end)
+            data.hooks.requestHooked = true
+        end
+    end
+
+    -- Hook FindFirstChild (block GUI video/screenshot)
+    local function hookFindFirstChild()
+        if data.hooks.findHooked then return end
+        local oldFind = workspace.FindFirstChild
+        if typeof(oldFind) == "function" and typeof(hookfunction) == "function" then
+            hookfunction(oldFind, function(self, name, ...)
+                if name and tostring(name):lower():find("screenshot") then return nil end
+                if name and tostring(name):lower():find("video") then return nil end
+                return oldFind(self, name, ...)
+            end)
+            data.hooks.findHooked = true
+        end
+    end
+
+    -- Safe bypass (__namecall)
+    local function safeBypass()
+        if getrawmetatable and hookmetamethod and newcclosure then
+            local mt = getrawmetatable(game)
+            setreadonly(mt, false)
+            oldNamecall = oldNamecall or mt.__namecall
+            oldIndex = oldIndex or mt.__index
+
+            mt.__namecall = newcclosure(function(self, ...)
+                local method = getnamecallmethod()
+                local args = {...}
+
+                -- Block LocalPlayer kick/ban
+                if (method == "Kick" or method == "Ban") and self == LocalPlayer then return nil end
+
+                -- Block remote kick/ban
+                if (method == "FireServer" or method == "InvokeServer") and args[1] then
+                    local msg = tostring(args[1]):lower()
+                    if msg:find("kick") or msg:find("ban") then return nil end
+                end
+
+                -- Block LocalizationService
+                if self == LocalizationService and method == "GetCountryRegionForPlayerAsync" then
+                    local success, result = pcall(function()
+                        return LocalizationService:GetCountryRegionForPlayerAsync(LocalPlayer)
+                    end)
+                    if success then return result else return "US" end
+                end
+
+                return oldNamecall(self, ...)
+            end)
+
+            mt.__index = newcclosure(function(t, k)
+                local key = tostring(k):lower()
+                if key:find("kick") or key:find("ban") then return function() return nil end end
+                return oldIndex(t, k)
+            end)
+
+            setreadonly(mt, true)
+        end
+    end
+
+    -- Restore hooks
+    local function restoreHooks()
+        if getrawmetatable then
+            local mt = getrawmetatable(game)
+            setreadonly(mt, false)
+            if oldNamecall then mt.__namecall = oldNamecall end
+            if oldIndex then mt.__index = oldIndex end
+            setreadonly(mt, true)
+            oldNamecall, oldIndex = nil, nil
+        end
+    end
+
+    -- Start protection
+    local function startAntiBanSafe()
+        if data.running then return end
+        data.running = true
+
+        safe(hookRequests)
+        safe(hookFindFirstChild)
+        safe(safeBypass)
+
+        -- Disable screenshot/video
+        protectionThread = task.spawn(function()
+            while data.running do
+                safe(disableReportFlags)
+                task.wait(0.2)
             end
         end)
+
+        print("[Anti-Ban Safe] 🛡️ ENABLED!")
     end
 
-    function StopInvisibility()
-        loopRunning = false
-        if loopThread then
-            task.cancel(loopThread)
-            loopThread = nil
-        end
-        if currentAnim then
-            currentAnim:Stop()
-            currentAnim = nil
-        end
-        local speaker = LocalPlayer
-        local humanoid = speaker.Character and (speaker.Character:FindFirstChildOfClass("Humanoid") or speaker.Character:FindFirstChildOfClass("AnimationController"))
-        if humanoid then
-            for _, v in pairs(humanoid:GetPlayingAnimationTracks()) do
-                v:AdjustSpeed(100000)
-            end
-        end
-        local animateScript = speaker.Character and speaker.Character:FindFirstChild("Animate")
-        if animateScript then
-            animateScript.Disabled = true
-            animateScript.Disabled = false
-        end
-        print("[AutoInvis] Stopped invisibility")
+    -- Stop protection
+    local function stopAntiBanSafe()
+        data.running = false
+        protectionThread = nil
+        restoreHooks()
+        setFlagsOn() -- phục hồi flag về bình thường
+        print("[Anti-Ban Safe] ⚠️ DISABLED!")
     end
 
-    -- Проверка GUI каждые 0.1 секунды
-    task.spawn(function()
-        while true do
-            task.wait(0.1)
-            if autoInvis then
-                local abilityContainer = LocalPlayer.PlayerGui:FindFirstChild("MainUI") 
-                                        and LocalPlayer.PlayerGui.MainUI:FindFirstChild("AbilityContainer")
-                local cloneGui = abilityContainer and abilityContainer:FindFirstChild("Clone")
-                
-                if cloneGui then
-                    local cloneText = cloneGui:FindFirstChildOfClass("TextLabel")
-                    local cloneValue = cloneText and tonumber(cloneText.Text)
-
-                    if cloneValue and cloneValue >= 26 then
-                        print("[AutoInvis] Clone count >= 26, activating invis")
-                        StartInvisibility()
-                        task.delay(invisDuration, StopInvisibility)
-                        task.wait(invisDuration + 0.1) -- Ждём, чтобы не спамить
-                    end
-                end
+    -- Toggle
+    Tabs.Misc:AddToggle("AntiBanV3", {
+        Title = "Anti Ban V3.5",
+        Default = true,
+        Callback = function(state)
+            if state then
+                startAntiBanSafe()
+            else
+                stopAntiBanSafe()
             end
         end
-    end)
-
+    })
 end
-})
 
-local autoStunChanceActive = false
-local autoStunChanceThread = nil
 
-Tabs.Auto_Stun:Toggle({
-    Title = "Auto Stun Killer(Chance)",
-    Default = false,
-    Callback = function(state)
-        autoStunChanceActive = state
-        if autoStunChanceActive then
-            WindUI:Notify({ Title = "Auto Stun (Chance)", Content = "Enabled!", Duration = 2 })
-            autoStunChanceThread = task.spawn(function()
-                local function getBehindPosition(targetRoot, distance)
-                    local back = -targetRoot.CFrame.LookVector * distance
-                    return targetRoot.Position + back
-                end
 
-                local function stickToBack(playerRoot, targetRoot, duration, offset)
-                    local startTime = tick()
-                    while tick() - startTime < duration and autoStunChanceActive do
-                        if not playerRoot or not targetRoot or not playerRoot.Parent or not targetRoot.Parent then break end
-                        local behindPos = getBehindPosition(targetRoot, offset)
-                        playerRoot.CFrame = CFrame.new(behindPos, targetRoot.Position)
-                        RunService.Heartbeat:Wait()
-                    end
-                end
 
-                local REMOTE = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Network"):WaitForChild("RemoteEvent")
-                local KILLERS_FOLDER = Workspace:WaitForChild("Players"):WaitForChild("Killers")
-                local CHECK_RADIUS = 16
-                local TELEPORT_DELAY = 2
-                local CHECK_INTERVAL = 0.2
-                local COOLDOWN = 43
-                
-                local lastActivation = 0
 
-                while autoStunChanceActive do
-                    task.wait(CHECK_INTERVAL)
-                    if tick() - lastActivation < COOLDOWN then continue end
 
-                    local char = LocalPlayer.Character
-                    local root = char and char:FindFirstChild("HumanoidRootPart")
-                    if not root then continue end
-
-                    for _, killer in ipairs(KILLERS_FOLDER:GetChildren()) do
-                        local targetRoot = killer:FindFirstChild("HumanoidRootPart")
-                        if targetRoot and (root.Position - targetRoot.Position).Magnitude <= CHECK_RADIUS then
-                            lastActivation = tick()
-                            local originalCFrame = root.CFrame
-
-                            REMOTE:FireServer("UseActorAbility", "Shoot")
-                            WindUI:Notify({ Title = "Auto Stun (Chance)", Content = "Stunned killer: " .. killer.Name, Duration = 2 })
-
-                            stickToBack(root, targetRoot, TELEPORT_DELAY, 3)
-
-                            if root and root.Parent then
-                                root.CFrame = originalCFrame
-                            end
-
-                            break
-                        end
-                    end
-                end
-            end)
-        else
-            if autoStunChanceThread then
-                task.cancel(autoStunChanceThread)
-                autoStunChanceThread = nil
-            end
-            WindUI:Notify({ Title = "Auto Stun (Chance)", Content = "Disabled!", Duration = 2 })
-        end
-    end
-})
-
+do
+-- === SafeGenTeleport (Anti: ALL Moving Models/Parts/Effects) ===
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local LocalPlayer = Players.LocalPlayer
+local LP = Players.LocalPlayer
 
-local active = false
-local aimDuration = 1.7
-local prediction = 4
-local aimTargets = { "Slasher", "c00lkidd", "JohnDoe", "1x1x1x1", "Noli" }
-local trackedAnimations = {
-    ["103601716322988"] = true,
-    ["133491532453922"] = true,
-    ["86371356500204"] = true,
-    ["76649505662612"] = true,
-    ["81698196845041"] = true
+local SafeGenRunning = false
+local SafeGenThread
+local DetectRadius = 20 -- mặc định 20, có thể chỉnh bằng ô input
+
+-- Danh sách account thật dùng V2
+local AllowedPlayers = {
+    ["Hu1a0_Hu9"] = true,
+    ["hdksakst"] = true
 }
 
-local Humanoid, HRP = nil, nil
-local lastTriggerTime = 0
-local aiming = false
-local originalWS, originalJP, originalAutoRotate = nil, nil, nil
-
-local function setupCharacter(char)
-    Humanoid = char:WaitForChild("Humanoid")
-    HRP = char:WaitForChild("HumanoidRootPart")
-end
-
-if LocalPlayer.Character then
-    setupCharacter(LocalPlayer.Character)
-end
-LocalPlayer.CharacterAdded:Connect(setupCharacter)
-
-local function getValidTarget()
-    local killersFolder = workspace:FindFirstChild("Players") and workspace.Players:FindFirstChild("Killers")
-    if killersFolder then
-        for _, name in ipairs(aimTargets) do
-            local target = killersFolder:FindFirstChild(name)
-            if target and target:FindFirstChild("HumanoidRootPart") then
-                return target.HumanoidRootPart
-            end
-        end
-    end
-    return nil
-end
-
-local function getPlayingAnimationIds()
-    local ids = {}
-    if Humanoid then
-        for _, track in ipairs(Humanoid:GetPlayingAnimationTracks()) do
-            if track.Animation and track.Animation.AnimationId then
-                local id = track.Animation.AnimationId:match("%d+")
-                if id then
-                    ids[id] = true
-                end
-            end
-        end
-    end
-    return ids
-end
-
-RunService.RenderStepped:Connect(function()
-    if not active or not Humanoid or not HRP then return end
-
-    local playing = getPlayingAnimationIds()
-    local triggered = false
-    for id in pairs(trackedAnimations) do
-        if playing[id] then
-            triggered = true
-            break
-        end
-    end
-
-    if triggered then
-        lastTriggerTime = tick()
-        aiming = true
-    end
-
-    if aiming and tick() - lastTriggerTime <= aimDuration then
-        if not originalWS then
-            originalWS = Humanoid.WalkSpeed
-            originalJP = Humanoid.JumpPower
-            originalAutoRotate = Humanoid.AutoRotate
-        end
-
-        Humanoid.AutoRotate = false
-        HRP.AssemblyAngularVelocity = Vector3.zero
-
-        local targetHRP = getValidTarget()
-        if targetHRP then
-            local predictedPos = targetHRP.Position + (targetHRP.CFrame.LookVector * prediction)
-            local direction = (predictedPos - HRP.Position).Unit
-            local yRot = math.atan2(-direction.X, -direction.Z)
-            HRP.CFrame = CFrame.new(HRP.Position) * CFrame.Angles(0, yRot, 0)
-        end
-    elseif aiming then
-        aiming = false
-        if originalWS and originalJP and originalAutoRotate ~= nil then
-            Humanoid.WalkSpeed = originalWS
-            Humanoid.JumpPower = originalJP
-            Humanoid.AutoRotate = originalAutoRotate
-            originalWS, originalJP, originalAutoRotate = nil, nil, nil
-        end
-    end
-end)
-
-Tabs.Auto_Stun:Toggle({
-    Title = "Chance Aimbot",
-    Default = false,
-    Callback = function(value)
-        active = value
-    end
-})
-
-Tabs.Auto_Stun:Slider({
-    Title = "Sharpness (high ping = > 4)",
-    Step = 1,
-    Value = {Min = 1, Max = 10, Default = prediction},
-    Suffix = "studs",
-    Callback = function(val)
-        prediction = val
-    end
-})
-
---BACKSTAB
-
-local Players = game:GetService("Players")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
-local lp = Players.LocalPlayer
-
--- Vars
-local enabled = false
-local cooldown = false
-local lastTarget = nil
-local range = 4
-local mode = "Behind"
-local matchFacing = false
-local attackType = "Normal"
-
-local daggerRemote = ReplicatedStorage:WaitForChild("Modules"):WaitForChild("Network"):WaitForChild("RemoteEvent")
-local killerNames = { "Jason", "c00lkidd", "JohnDoe", "1x1x1x1", "Noli" }
-local killersFolder = workspace:WaitForChild("Players"):WaitForChild("Killers")
-
-local counterAnimIDs = {
-	"126830014841198", "126355327951215", "121086746534252", "18885909645",
-	"98456918873918", "105458270463374", "83829782357897", "125403313786645",
-	"118298475669935", "82113744478546", "70371667919898", "99135633258223",
-	"97167027849946", "109230267448394", "139835501033932", "126896426760253",
-	"109667959938617", "126681776859538", "129976080405072", "121293883585738",
-	"81639435858902", "137314737492715", "92173139187970", "rbxassetid://126830014841198", "rbxassetid://126355327951215", "rbxassetid://121086746534252"
+-- Danh sách Killers
+local DangerousKillers = {
+    Slasher = true, ["1x1x1x1"] = true, c00lkidd = true,
+    Noli = true, JohnDoe = true, ["Guest 666"] = true,
+    PizzaDeliveryRig = true, Mafia1 = true, Mafia2 = true,
+    ["1x1x1x1Zombie"] = true, ["Sixer"] = true
 }
 
-----------------------------------------------------------------
--- WindUI
-----------------------------------------------------------------
-Tabs.Auto_Stun:Toggle({
-    Title = "Backstab V2",
-    Default = false,
-    Callback = function(state)
-        enabled = state
-    end
-})
+-- Danh sách Clones (coi như Killers)
+local DangerousClones = {
+    PizzaDeliveryRig = true, Mafia1 = true, Mafia2 = true,
+    ["1x1x1x1Zombie"] = true
+}
 
-Tabs.Auto_Stun:Slider({
-    Title = "Backstab Range",
-    Step = 0.5,
-    Value = {Min = 1, Max = 30, Default = range},
-    Suffix = " studs",
-    Callback = function(val)
-        local n = tonumber(val)
-        if n then range = n end
-    end
-})
+-- Danh sách Survivors (bạn có thể biến thành)
+local Survivors = {
+    Noob = true, Guest1337 = true, Elliot = true, Shedletsky = true,
+    TwoTime = true, ["007n7"] = true, Chance = true,
+    Builderman = true, Taph = true, Dusekkar = true
+}
 
-Tabs.Auto_Stun:Dropdown({
-    Title = "Backstab Mode",
-    Values = {"Behind", "Around"},
-    Multi = false,
-    AllowNone = false,
-    Callback = function(selected)
-        mode = selected
-    end
-})
+-- Whitelist
+local SafeObjects = {Pet=true, Decoration=true, Terrain=true, Map=true}
 
-Tabs.Auto_Stun:Dropdown({
-    Title = "Backstab Type",
-    Values = {"Normal", "Counter", "Legit"},
-    Multi = false,
-    AllowNone = false,
-    Callback = function(selected)
-        attackType = selected
-    end
-})
+-- Cấu hình detect
+local MOVE_THRESHOLD = 0.5
+local VEL_THRESHOLD  = 1
+local SCAN_DELAY     = 0.12
 
-Tabs.Auto_Stun:Toggle({
-    Title = "AimBot fot legit mode",
-    Default = false,
-    Callback = function(state)
-        matchFacing = state
-    end
-})
+local lastPositions = {}
 
-----------------------------------------------------------------
--- Helpers
-----------------------------------------------------------------
-local function killerPlayingCounterAnim(killer)
-    local humanoid = killer:FindFirstChildOfClass("Humanoid")
-    if not humanoid then return false end
-    local animator = humanoid:FindFirstChildOfClass("Animator")
-    if not animator then return false end
-
-    for _, track in ipairs(animator:GetPlayingAnimationTracks()) do
-        local anim = track.Animation
-        if anim and anim.AnimationId then
-            local animIdNum = anim.AnimationId:match("%d+")
-            for _, id in ipairs(counterAnimIDs) do
-                if tostring(animIdNum) == id then
-                    return true
-                end
-            end
+local function findOwningCharacter(inst)
+    local cur = inst
+    while cur and cur ~= workspace and cur.Parent do
+        if cur:IsA("Model") then
+            local p = Players:GetPlayerFromCharacter(cur)
+            if p then return cur, p end
         end
+        cur = cur.Parent
+    end
+    return nil, nil
+end
+
+local function hasForceOnPart(part)
+    if not part then return false end
+    if part:FindFirstChildOfClass("BodyVelocity")
+    or part:FindFirstChildOfClass("BodyPosition")
+    or part:FindFirstChildOfClass("BodyForce")
+    or part:FindFirstChildOfClass("BodyGyro")
+    or part:FindFirstChildOfClass("LinearVelocity")
+    or part:FindFirstChildOfClass("VectorForce")
+    or part:FindFirstChildOfClass("AlignPosition")
+    or part:FindFirstChildOfClass("AlignOrientation") then
+        return true
     end
     return false
 end
 
-local function isBehindTarget(hrp, targetHRP)
-    local r = tonumber(range) or 4
-    local distance = (hrp.Position - targetHRP.Position).Magnitude
-    if distance > r then return false end
-
-    if mode == "Around" then
-        return true
+local function isPartMoving(part)
+    if not part or not part:IsA("BasePart") then return false end
+    local ok, asmVel = pcall(function() return part.AssemblyLinearVelocity end)
+    local velMag = (ok and asmVel) and asmVel.Magnitude or 0
+    if velMag == 0 then
+        local ok2, v2 = pcall(function() return part.Velocity end)
+        if ok2 and v2 then velMag = v2.Magnitude end
+    end
+    local last = lastPositions[part]
+    local pos = part.Position
+    local moved = false
+    if last then
+        if (pos - last).Magnitude >= MOVE_THRESHOLD then moved = true end
     else
-        local direction = -targetHRP.CFrame.LookVector
-        local toPlayer = (hrp.Position - targetHRP.Position)
-        return toPlayer:Dot(direction) > 0.5
+        if velMag >= VEL_THRESHOLD or hasForceOnPart(part) then moved = true end
+    end
+    lastPositions[part] = pos
+    if velMag >= VEL_THRESHOLD or hasForceOnPart(part) then moved = true end
+    return moved
+end
+
+local function pruneLastPositions()
+    for inst,_ in pairs(lastPositions) do
+        if not inst or not inst.Parent then lastPositions[inst] = nil end
     end
 end
 
-----------------------------------------------------------------
--- Cooldown text finder
-----------------------------------------------------------------
-local daggerCooldownText
-local function refreshDaggerRef()
-	local mainui = lp:FindFirstChild("PlayerGui") and lp.PlayerGui:FindFirstChild("MainUI")
-	if mainui then
-		local ability = mainui:FindFirstChild("AbilityContainer")
-		if ability then
-			local dagger = ability:FindFirstChild("Dagger")
-			if dagger then
-				local ct = dagger:FindFirstChild("CooldownTime")
-				daggerCooldownText = ct
-				return
-			end
-		end
-	end
-	daggerCooldownText = nil
-end
-lp.PlayerGui.DescendantAdded:Connect(refreshDaggerRef)
-lp.PlayerGui.DescendantRemoving:Connect(function(obj)
-	if obj == daggerCooldownText then
-		daggerCooldownText = nil
-	end
-end)
-refreshDaggerRef()
-
-----------------------------------------------------------------
--- Main Loop
-----------------------------------------------------------------
-RunService.RenderStepped:Connect(function()
-    if not daggerCooldownText or not daggerCooldownText.Parent then return end
-    if tonumber(daggerCooldownText.Text or "") ~= nil then return end
-    if not enabled or cooldown then return end
-    
-	local char = lp.Character
-	if not (char and char:FindFirstChild("HumanoidRootPart")) then return end
-	local hrp = char.HumanoidRootPart
-
-	local stats = game:GetService("Stats")
-	local pingItem = stats.Network and stats.Network.ServerStatsItem and stats.Network.ServerStatsItem["Data Ping"]
-
-	for _, name in ipairs(killerNames) do
-		local killer = killersFolder:FindFirstChild(name)
-		if killer and killer:FindFirstChild("HumanoidRootPart") then
-			local kHRP = killer.HumanoidRootPart
-
-            if attackType == "Legit" then
-                local dist = (kHRP.Position - hrp.Position).Magnitude
-                local r = tonumber(range) or 4
-                if dist <= r then
-                    if matchFacing then
-                        hrp.CFrame = CFrame.new(hrp.Position, hrp.Position + kHRP.CFrame.LookVector)
-                    end
-                    if mode == "Behind" then
-                        local directionToTarget = (kHRP.Position - hrp.Position).Unit
-                        local dot = hrp.CFrame.LookVector:Dot(directionToTarget)
-                        if dot > 0.6 then return end
-                    end
-                    daggerRemote:FireServer("UseActorAbility", { buffer.fromstring("\"Dagger\"") })
-                end
-                return
-            end
-
-            if attackType == "Counter" and not killerPlayingCounterAnim(killer) then
-            	continue
-            end
-
-			if isBehindTarget(hrp, kHRP) and killer ~= lastTarget then
-				cooldown = true
-				lastTarget = killer
-
-				local start = tick()
-				local didDagger = false
-				local connection
-				connection = RunService.Heartbeat:Connect(function()
-					if not (char and char.Parent and kHRP and kHRP.Parent) then
-						if connection then connection:Disconnect() end
-						return
-					end
-
-					local elapsed = tick() - start
-					if elapsed >= 0.5 then
-						if connection then connection:Disconnect() end
-						return
-					end
-
-					-- Prediction
-					local pingMs = 50
-					if pingItem and typeof(pingItem.GetValueString) == "function" then
-						pingMs = tonumber((pingItem:GetValueString() or ""):match("%d+")) or pingMs
-					end
-					local pingSeconds = pingMs / 1000
-
-					local killerVelocity = kHRP.Velocity
-					local moveDir = killerVelocity.Magnitude > 0.1 and killerVelocity.Unit or Vector3.new()
-					local pingOffset = moveDir * (pingSeconds * killerVelocity.Magnitude)
-					local predictedPos = kHRP.Position + pingOffset
-
-					local targetPos
-					if mode == "Behind" then
-						targetPos = predictedPos - (kHRP.CFrame.LookVector * 0.3)
-					else
-						local rightVec = kHRP.CFrame.RightVector
-						local rel = (hrp.Position - kHRP.Position)
-						local lateralSpeed = killerVelocity:Dot(rightVec)
-						local baseOffset = (rel.Magnitude > 0.1) and rel.Unit * 0.3 or Vector3.new()
-						local lateralOffset = rightVec * lateralSpeed * 0.3
-						targetPos = predictedPos + baseOffset + lateralOffset
-					end
-
-					hrp.CFrame = CFrame.new(targetPos, targetPos + kHRP.CFrame.LookVector)
-
-					if not didDagger then
-						didDagger = true
-						daggerRemote:FireServer("UseActorAbility", { buffer.fromstring("\"Dagger\"") })
-					end
-				end)
-
-				task.delay(2, function()
-					RunService.Heartbeat:Wait()
-					while kHRP and kHRP.Parent and isBehindTarget(hrp, kHRP) do
-						RunService.Heartbeat:Wait()
-					end
-					lastTarget = nil
-					cooldown = false
-				end)
-				
-				break
-			end
-		end
-	end
-end)
-
-Tabs.Hitbox_expander:Button({
-    Title = "Load Hitbox Expander V12(expands where u looking at working better with Guest)",
-    Callback = function()
-
-        -- Службы Roblox
-        local srvPlayers = game:GetService("Players")
-        local srvRun = game:GetService("RunService")
-
-        -- Локальный игрок
-        local client = srvPlayers.LocalPlayer
-        repeat task.wait() until client and client.Character
-
-        -- Переменные персонажа
-        local char = client.Character
-        local humanoid = char:WaitForChild("Humanoid")
-        local animator = humanoid:WaitForChild("Animator")
-        local root = char:WaitForChild("HumanoidRootPart")
-
-        -- Обновление при респавне
-        client.CharacterAdded:Connect(function(newChar)
-            char = newChar
-            humanoid = char:WaitForChild("Humanoid")
-            animator = humanoid:WaitForChild("Animator")
-            root = char:WaitForChild("HumanoidRootPart")
-        end)
-
-        -- ID атак
-        local attackIds = {
-            "rbxassetid://131430497821198", "rbxassetid://83829782357897", "rbxassetid://126830014841198",
-            "rbxassetid://126355327951215", "rbxassetid://121086746534252", "rbxassetid://105458270463374",
-            "rbxassetid://127172483138092", "rbxassetid://18885919947", "rbxassetid://18885909645",
-            "rbxassetid://87259391926321", "rbxassetid://106014898528300", "rbxassetid://86545133269813",
-            "rbxassetid://89448354637442", "rbxassetid://90499469533503", "rbxassetid://116618003477002",
-            "rbxassetid://106086955212611", "rbxassetid://107640065977686", "rbxassetid://77124578197357",
-            "rbxassetid://101771617803133", "rbxassetid://134958187822107", "rbxassetid://111313169447787",
-            "rbxassetid://71685573690338", "rbxassetid://129843313690921", "rbxassetid://97623143664485",
-            "rbxassetid://136007065400978", "rbxassetid://86096387000557", "rbxassetid://108807732150251",
-            "rbxassetid://138040001965654", "rbxassetid://73502073176819", "rbxassetid://86709774283672",
-            "rbxassetid://140703210927645", "rbxassetid://96173857867228", "rbxassetid://121255898612475",
-            "rbxassetid://98031287364865", "rbxassetid://119462383658044", "rbxassetid://77448521277146",
-            "rbxassetid://103741352379819", "rbxassetid://131696603025265", "rbxassetid://122503338277352",
-            "rbxassetid://97648548303678", "rbxassetid://94162446513587", "rbxassetid://84426150435898",
-            "rbxassetid://93069721274110", "rbxassetid://114620047310688", "rbxassetid://97433060861952",
-            "rbxassetid://82183356141401", "rbxassetid://100592913030351", "rbxassetid://121293883585738",
-            "rbxassetid://70447634862911", "rbxassetid://92173139187970", "rbxassetid://106847695270773",
-            "rbxassetid://125403313786645", "rbxassetid://81639435858902", "rbxassetid://137314737492715",
-            "rbxassetid://120112897026015", "rbxassetid://82113744478546", "rbxassetid://118298475669935",
-            "rbxassetid://126681776859538", "rbxassetid://129976080405072", "rbxassetid://109667959938617",
-            "rbxassetid://74707328554358", "rbxassetid://133336594357903", "rbxassetid://86204001129974",
-            "rbxassetid://124243639579224", "rbxassetid://70371667919898", "rbxassetid://131543461321709",
-            "rbxassetid://136323728355613", "rbxassetid://109230267448394"
-        }
-
-        -- === Настройки (GUI) ===
-        local VELOCITY_ENABLED = false
-        local VELOCITY_STRENGTH = 50
-
-        Tabs.Hitbox_expander:Toggle({
-            Title = "hitbox  expander V17",
-            Default = VELOCITY_ENABLED,
-            Callback = function(val)
-                VELOCITY_ENABLED = val
-            end
-        })
-
-        Tabs.Hitbox_expander:Slider({
-            Title = "Hitbox increase",
-            Step = 1,
-            Value = {Min = 10, Max = 500, Default = VELOCITY_STRENGTH},
-            Suffix = " studs",
-            Callback = function(val)
-                VELOCITY_STRENGTH = tonumber(val)
-            end
-        })
-
-        -- Основной цикл
-        srvRun.Heartbeat:Connect(function()
-            if not VELOCITY_ENABLED or not root then return end
-
-            local attack = false
-            for _, track in humanoid:GetPlayingAnimationTracks() do
-                local animId = track.Animation and track.Animation.AnimationId
-                if animId and table.find(attackIds, animId) and (track.TimePosition / track.Length < 0.75) then
-                    attack = true
-                    break
-                end
-            end
-
-            if not attack then return end
-
-            local look = root.CFrame.LookVector
-            local original = root.Velocity
-
-            root.Velocity = look * VELOCITY_STRENGTH
-            srvRun.RenderStepped:Wait()
-            root.Velocity = original
-        end)
-
-    end
-})
-
-Tabs.Teleport:Button({
-    Title = "Tp to Killer",
-    Callback = function()
-        local Players = game:GetService("Players")
-        local lp = Players.LocalPlayer
-        local workspace = game:GetService("Workspace")
-
-        local KillersFolder = workspace:FindFirstChild("Players") and workspace.Players:FindFirstChild("Killers")
-        if not KillersFolder then
-            warn("Killers РЅРµ РЅР°Р№РґРµРЅРѕ РІ Workspace.Players")
-            return
-        end
-
-        local targetKiller = KillersFolder:FindFirstChildWhichIsA("Model")
-        if not targetKiller or not targetKiller.PrimaryPart then
-            warn("РЈР±РёР№С†Р° РЅРµ РёРјРµРµС‚ PrimaryPart")
-            return
-        end
-
-        lp.Character:SetPrimaryPartCFrame(targetKiller.PrimaryPart.CFrame + Vector3.new(0, 0, 0))
-    end
-})
-
-Tabs.Teleport:Button({
-    Title = "Tp to Survivor",
-    Callback = function()
-        local Players = game:GetService("Players")
-        local lp = Players.LocalPlayer
-        local workspace = game:GetService("Workspace")
-
-        if not lp.Character or not lp.Character.PrimaryPart then
-            warn("РќРµ РЅР°Р№РґРµРЅ Character РёР»Рё PrimaryPart")
-            return
-        end
-
-        local SurvivorsFolder = workspace:FindFirstChild("Players") and workspace.Players:FindFirstChild("Survivors")
-        if not SurvivorsFolder then
-            warn("Survivors РЅРµ РЅР°Р№РґРµРЅ")
-            return
-        end
-
-        local myPos = lp.Character.PrimaryPart.Position
-        local nearest, nearestDist
-
-        for _, survivor in ipairs(SurvivorsFolder:GetChildren()) do
-            if survivor:IsA("Model") and survivor.PrimaryPart then
-                local dist = (survivor.PrimaryPart.Position - myPos).Magnitude
-                if not nearestDist or dist < nearestDist then
-                    nearest = survivor
-                    nearestDist = dist
+-- 🔎 Phát hiện nguy hiểm gần
+local function isDangerNear(position, radius)
+    local killersFolder = workspace:FindFirstChild("Players") and workspace.Players:FindFirstChild("Killers")
+    if killersFolder then
+        for _, killer in ipairs(killersFolder:GetChildren()) do
+            local hrp = killer:FindFirstChild("HumanoidRootPart")
+            if hrp then
+                local dist = (hrp.Position - position).Magnitude
+                if (DangerousKillers[killer.Name] or DangerousClones[killer.Name]) and dist <= radius then
+                    return true, hrp.Position
                 end
             end
         end
-
-        if nearest and nearest.PrimaryPart then
-            lp.Character:SetPrimaryPartCFrame(nearest.PrimaryPart.CFrame + Vector3.new(0, 5, 0))
-        else
-            warn("Р‘Р»РёР¶Р°Р№С€РёР№ Survivor РЅРµ РЅР°Р№РґРµРЅ")
-        end
     end
-})
-
-Tabs.Teleport:Button({
-    Title = "Tp to Generator",
-    Callback = function()
-        local Players = game:GetService("Players")
-        local lp = Players.LocalPlayer
-        local workspace = game:GetService("Workspace")
-
-        if not lp.Character or not lp.Character.PrimaryPart then
-            warn("РќРµ РЅР°Р№РґРµРЅ Character РёР»Рё PrimaryPart")
-            return
-        end
-
-        -- РС‰РµРј Generator РІ Workspace:GetDescendants()
-        local target
-        for _, obj in ipairs(workspace:GetDescendants()) do
-            if obj.Name == "Generator" and obj:IsA("BasePart") then
-                target = obj
-                break
-            elseif obj.Name == "Generator" and obj:IsA("Model") and obj.PrimaryPart then
-                target = obj.PrimaryPart
-                break
-            end
-        end
-
-        if not target then
-            warn("Generator РЅРµ РЅР°Р№РґРµРЅ")
-            return
-        end
-
-        -- РўРµР»РµРїРѕСЂС‚РёСЂСѓРµРј РёРіСЂРѕРєР°
-        lp.Character:SetPrimaryPartCFrame(target.CFrame + Vector3.new(0, 0, 0))
-    end
-})
-
-local function teleportTo(part)
-    local char = game.Players.LocalPlayer.Character
-    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
-    char.HumanoidRootPart.CFrame = part.CFrame + Vector3.new(0, 3, 0)
-end
-
-local function getItem(itemName)
-    for _, v in pairs(workspace:GetDescendants()) do
-        if v:IsA("BasePart") and v.Name == "ItemRoot" and v.Parent and v.Parent.Name == itemName then
-            return v
-        end
-    end
-end
-
-Tabs.Teleport:Button({
-    Title = "Tp to Medkit",
-    Callback = function()
-        local item = getItem("Medkit")
-        if item then
-            teleportTo(item)
-        end
-    end,
-})
-
-Tabs.Teleport:Button({
-    Title = "Tp to BloxyCola",
-    Callback = function()
-        local item = getItem("BloxyCola")
-        if item then
-            teleportTo(item)
-        end
-    end,
-})
-
-Tabs.Random:Button({
-    Title = "Fling (works only on killer)",
-    Callback = function()
-        -- СЃРѕР·РґР°С‘Рј GUI Рё РІРµСЃСЊ С„СѓРЅРєС†РёРѕРЅР°Р» С‚РѕР»СЊРєРѕ РїСЂРё РЅР°Р¶Р°С‚РёРё РєРЅРѕРїРєРё
-
-        local ScreenGui = Instance.new("ScreenGui")
-        local Frame = Instance.new("Frame")
-        local ToggleButton = Instance.new("TextButton")
-        local TextLabel = Instance.new("TextLabel")
-        local HideButton = Instance.new("TextButton")
-        local PowerLabel = Instance.new("TextLabel")
-        local PowerSlider = Instance.new("TextButton")
-        local PowerBar = Instance.new("Frame")
-        local UICorner = Instance.new("UICorner")
-        local TimerLabel = Instance.new("TextLabel")
-
-        ScreenGui.Parent = game.Players.LocalPlayer:WaitForChild("PlayerGui")
-        ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-        ScreenGui.ResetOnSpawn = false
-
-        Frame.Parent = ScreenGui
-        Frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
-        Frame.Position = UDim2.new(0.35, 0, 0.4, 0)
-        Frame.Size = UDim2.new(0, 220, 0, 180)
-        Frame.Active = true
-        Frame.Draggable = true
-        UICorner.Parent = Frame
-
-        TextLabel.Parent = Frame
-        TextLabel.BackgroundTransparency = 1
-        TextLabel.Size = UDim2.new(1, 0, 0.2, 0)
-        TextLabel.Font = Enum.Font.SourceSansBold
-        TextLabel.Text = "Fling | Bublik6241"
-        TextLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-        TextLabel.TextSize = 22
-
-        ToggleButton.Parent = Frame
-        ToggleButton.Position = UDim2.new(0.1, 0, 0.3, 0)
-        ToggleButton.Size = UDim2.new(0.8, 0, 0.2, 0)
-        ToggleButton.Font = Enum.Font.SourceSansBold
-        ToggleButton.Text = "OFF"
-        ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-        ToggleButton.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
-        ToggleButton.TextSize = 24
-        UICorner:Clone().Parent = ToggleButton
-
-        PowerLabel.Parent = Frame
-        PowerLabel.BackgroundTransparency = 1
-        PowerLabel.Position = UDim2.new(0.1, 0, 0.55, 0)
-        PowerLabel.Size = UDim2.new(0.8, 0, 0.15, 0)
-        PowerLabel.Font = Enum.Font.SourceSansBold
-        PowerLabel.Text = "Fling Power: 10000"
-        PowerLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-        PowerLabel.TextSize = 18
-
-        PowerBar.Parent = Frame
-        PowerBar.Position = UDim2.new(0.1, 0, 0.7, 0)
-        PowerBar.Size = UDim2.new(0.8, 0, 0.1, 0)
-        PowerBar.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-        UICorner:Clone().Parent = PowerBar
-
-        PowerSlider.Parent = PowerBar
-        PowerSlider.Size = UDim2.new(0.1, 0, 1, 0)
-        PowerSlider.BackgroundColor3 = Color3.fromRGB(0, 150, 255)
-        UICorner:Clone().Parent = PowerSlider
-
-        TimerLabel.Parent = Frame
-        TimerLabel.BackgroundTransparency = 1
-        TimerLabel.Position = UDim2.new(0.1, 0, 0.85, 0)
-        TimerLabel.Size = UDim2.new(0.8, 0, 0.15, 0)
-        TimerLabel.Font = Enum.Font.SourceSansBold
-        TimerLabel.Text = "Timer: 0s"
-        TimerLabel.TextColor3 = Color3.fromRGB(0, 200, 255)
-        TimerLabel.TextSize = 18
-
-        HideButton.Parent = ScreenGui
-        HideButton.Position = UDim2.new(0.05, 0, 0.9, 0)
-        HideButton.Size = UDim2.new(0, 50, 0, 30)
-        HideButton.Font = Enum.Font.SourceSansBold
-        HideButton.Text = "рџ‘Ѓ"
-        HideButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-        HideButton.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
-        UICorner:Clone().Parent = HideButton
-
-        -- РЎР»СѓР¶Р±С‹
-        local RunService = game:GetService("RunService")
-        local Players = game:GetService("Players")
-        local UserInputService = game:GetService("UserInputService")
-
-        -- РџРµСЂРµРјРµРЅРЅС‹Рµ
-        local hiddenfling = false
-        local flingPower = 10000
-        local lp = Players.LocalPlayer
-        local dragging = false
-
-        -- РћСЃРЅРѕРІРЅР°СЏ fling-С„СѓРЅРєС†РёСЏ СЃ С‚Р°Р№РјРµСЂРѕРј
-        local function fling()
-            local hrp, c, vel, movel = nil, nil, nil, 0.1
-
-            while true do
-                RunService.Heartbeat:Wait()
-
-                if hiddenfling then
-                    -- 4 СЃРµРєСѓРЅРґС‹ fling СЂР°Р±РѕС‚Р°РµС‚
-                    local start = tick()
-                    while hiddenfling and tick() - start < 4 do
-                        local left = 4 - math.floor(tick() - start)
-                        TimerLabel.Text = "Active: " .. left .. "s"
-
-                        RunService.Heartbeat:Wait()
-                        c = lp.Character
-                        hrp = c and c:FindFirstChild("HumanoidRootPart")
-
-                        if hrp then
-                            vel = hrp.Velocity
-                            hrp.Velocity = vel * flingPower + Vector3.new(0, flingPower, 0)
-                            RunService.RenderStepped:Wait()
-                            hrp.Velocity = vel
-                            RunService.Stepped:Wait()
-                            hrp.Velocity = vel + Vector3.new(0, movel, 0)
-                            movel = movel * -1
-                        end
-                    end
-
-                    -- 3 СЃРµРєСѓРЅРґС‹ РїР°СѓР·Р°
-                    local pauseStart = tick()
-                    while hiddenfling and tick() - pauseStart < 4 do
-                        local left = 4 - math.floor(tick() - pauseStart)
-                        TimerLabel.Text = "Pause: " .. left .. "s"
-                        RunService.Heartbeat:Wait()
+    for _, inst in ipairs(workspace:GetDescendants()) do
+        if inst:IsA("BasePart") and not SafeObjects[inst.Name] then
+            local dist = (inst.Position - position).Magnitude
+            if dist <= radius and isPartMoving(inst) then
+                local charModel, playerOwner = findOwningCharacter(inst)
+                if playerOwner then
+                    local charName = charModel and charModel.Name or ""
+                    if DangerousKillers[charName] or DangerousClones[charName] then
+                        return true, inst.Position
                     end
                 else
-                    TimerLabel.Text = "Timer: 0s"
+                    return true, inst.Position
                 end
             end
         end
-
-        -- РљРЅРѕРїРєРё
-        ToggleButton.MouseButton1Click:Connect(function()
-            hiddenfling = not hiddenfling
-            if hiddenfling then
-                ToggleButton.Text = "ON"
-                ToggleButton.BackgroundColor3 = Color3.fromRGB(0, 150, 0)
-            else
-                ToggleButton.Text = "OFF"
-                ToggleButton.BackgroundColor3 = Color3.fromRGB(150, 0, 0)
-                TimerLabel.Text = "Timer: 0s"
-            end
-        end)
-
-        HideButton.MouseButton1Click:Connect(function()
-            Frame.Visible = not Frame.Visible
-            if Frame.Visible then
-                HideButton.Text = "рџ‘Ѓ"
-            else
-                HideButton.Text = "рџ‘Ђ"
-            end
-        end)
-
-        -- РЎР»Р°Р№РґРµСЂ РјРѕС‰РЅРѕСЃС‚Рё fling
-        PowerSlider.InputBegan:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                dragging = true
-            end
-        end)
-
-        PowerSlider.InputEnded:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-                dragging = false
-            end
-        end)
-
-        UserInputService.InputChanged:Connect(function(input)
-            if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
-                local mousePos = input.Position.X
-                local barPos = PowerBar.AbsolutePosition.X
-                local barSize = PowerBar.AbsoluteSize.X
-                local newPos = math.clamp((mousePos - barPos) / barSize, 0, 1)
-
-                PowerSlider.Position = UDim2.new(newPos, 0, 0, 0)
-                flingPower = math.floor(newPos * 50000) + 5000
-                PowerLabel.Text = "Fling Power: " .. flingPower
-            end
-        end)
-
-        -- Р—Р°РїСѓСЃРє fling С†РёРєР»Р°
-        task.spawn(fling)
     end
-})
+    pruneLastPositions()
+    return false, nil
+end
+
+-- 📌 Tìm vị trí an toàn cách xa danger 7 stud
+local function getSafePosFromDanger(myPos, dangerPos, safeDist)
+    local dir = (myPos - dangerPos).Unit
+    local target = myPos + dir * safeDist
+    local rayParams = RaycastParams.new()
+    rayParams.FilterDescendantsInstances = {LP.Character}
+    rayParams.FilterType = Enum.RaycastFilterType.Blacklist
+    local rayResult = workspace:Raycast(myPos + Vector3.new(0,3,0), dir*safeDist, rayParams)
+    if rayResult then
+        local perp1 = Vector3.new(-dir.Z,0,dir.X).Unit
+        local perp2 = -perp1
+        if not workspace:Raycast(myPos+Vector3.new(0,3,0), perp1*safeDist, rayParams) then
+            return myPos + perp1*safeDist
+        elseif not workspace:Raycast(myPos+Vector3.new(0,3,0), perp2*safeDist, rayParams) then
+            return myPos + perp2*safeDist
+        else
+            return myPos + Vector3.new(0,0,safeDist)
+        end
+    end
+    return target
+end
+
+-- 🚀 Lùi ra xa 7 stud khỏi nguy hiểm (giữ hướng nhìn, bước nhỏ siêu nhanh)
+local function teleportAwayFromDanger()
+    local character = LP.Character
+    local hrp = character and character:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+
+    local myPos = hrp.Position
+    local isNear, dangerPos = isDangerNear(myPos, DetectRadius)
+    if isNear and dangerPos then
+        local safePos = getSafePosFromDanger(myPos, dangerPos, 7)
+
+        local dir = (safePos - myPos).Unit
+        local totalDist = (safePos - myPos).Magnitude
+        local stepSize = 1.2
+        local stepDelay = 0.01
+        local steps = math.ceil(totalDist / stepSize)
+
+        for i = 1, steps do
+            local stepPos = myPos + dir * (i * stepSize)
+            hrp.CFrame = CFrame.new(stepPos, stepPos + hrp.CFrame.LookVector)
+            task.wait(stepDelay)
+        end
+
+        print("⚠️ Né nguy hiểm bằng nhiều bước nhỏ (giữ hướng nhìn)!")
+    end
+end
+
+-- === GUI Control ===
+Tabs.Misc:AddToggle("SafeGenTeleport", {
+    Title = "Anti Killers V7",
+    Default = false
+}):OnChanged(function(state)
+    SafeGenRunning = state
+    if state then
+        SafeGenThread = task.spawn(function()
+            local delayTime = SCAN_DELAY
+            if AllowedPlayers[LP.Name] then
+                print("🚀 V2 Mode enabled for:", LP.Name)
+                delayTime = 0.000000000001
+            else
+                print("🐢 V1 Mode enabled for:", LP.Name)
+            end
+            while SafeGenRunning do
+                local character = LP.Character
+                local hrp = character and character:FindFirstChild("HumanoidRootPart")
+                if hrp then
+                    local charName = character.Name
+                    if DangerousKillers[charName] or DangerousClones[charName] then
+                        -- bạn là killer → không né
+                    elseif Survivors[charName] or charName == LP.Name then
+                        teleportAwayFromDanger()
+                    end
+                end
+                task.wait(delayTime)
+            end
+        end)
+    else
+        SafeGenRunning = false
+        SafeGenThread = nil
+        print("[SafeGenTeleport] Đã tắt.")
+    end
+end)
+
+-- 📝 Input box chỉnh khoảng cách DetectRadius (1 - 100, mặc định 20)
+Tabs.Misc:AddInput("DetectRadiusInput", {
+    Title = "Detect Radius",
+    Default = "20",
+    Placeholder = "1 - 100"
+}):OnChanged(function(value)
+    local num = tonumber(value)
+    if num then
+        num = math.clamp(num, 1, 100)
+        DetectRadius = num
+        print("🔧 DetectRadius set to:", DetectRadius)
+    end
+end)
+
+end
 
 
 
-local aimbotEnabled = false
-local aimbotConnection = nil
+    Tabs.Misc:AddSection("↳ Game Play")
 
-Tabs.Random:Toggle({
-    Title = "Aimbot",
-    Default = false,
-    Callback = function(state)
-        aimbotEnabled = state
-        if aimbotEnabled then
-            aimbotConnection = RunService.RenderStepped:Connect(function()
-                local cam = Workspace.CurrentCamera
-                local myChar = LocalPlayer.Character
-                if not (myChar and myChar:FindFirstChild("Head")) then return end
-                local myHeadPos = myChar.Head.Position
-                local minDist = math.huge
-                local target
-                for _, pl in pairs(Players:GetPlayers()) do
-                    if pl ~= LocalPlayer and pl.Character and pl.Character:FindFirstChild("Head") then
-                        local dist = (pl.Character.Head.Position - myHeadPos).Magnitude
-                        if dist < minDist then
-                            minDist = dist
-                            target = pl
+
+
+do
+    --== ⚙️ Setup ==--
+    local Players = game:GetService("Players")
+    local RunService = game:GetService("RunService")
+    local LocalPlayer = Players.LocalPlayer
+    local Survivors = workspace:WaitForChild("Players"):WaitForChild("Survivors")
+
+    --== 💡 Cấu hình các loại Anti-Slow ==--
+    local AntiSlowConfigs = {
+        Slowness = {Values = {"SlowedStatus"}, Connection = nil, Enabled = false},
+        Skills = {
+            Values = {
+                "StunningKiller", "EatFriedChicken", "GuestBlocking", "PunchAbility", "SubspaceTripmine",
+                "TaphTripwire", "PlasmaBeam", "SpawnProtection", "c00lgui", "ShootingGun", 
+                "TwoTimeStab", "TwoTimeCrouching", "DrinkingCola", "DrinkingSlateskin", 
+                "SlateskinStatus", "EatingGhostburger"
+            },
+            Connection = nil, Enabled = false
+        },
+        Items = {Values = {"BloxyColaItem", "Medkit"}, Connection = nil, Enabled = false},
+        Emotes = {Values = {"Emoting"}, Connection = nil, Enabled = false},
+        Builderman = {Values = {"DispenserConstruction", "SentryConstruction"}, Connection = nil, Enabled = false}
+    }
+
+    --== 🧩 Hàm ẩn UI báo slow ==--
+    local function hideSlownessUI()
+        local mainUI = LocalPlayer:FindFirstChild("PlayerGui") and LocalPlayer.PlayerGui:FindFirstChild("MainUI")
+        if not mainUI then return end
+        local statusContainer = mainUI:FindFirstChild("StatusContainer")
+        if not statusContainer then return end
+        local slownessUI = statusContainer:FindFirstChild("Slowness")
+        if slownessUI then
+            slownessUI.Visible = false
+        end
+    end
+
+    --== 🔧 Hàm xử lý Anti-Slow ==--
+    local function handleAntiSlow(survivor, config)
+        if survivor:GetAttribute("Username") ~= LocalPlayer.Name then return end
+
+        local function onRenderStep()
+            if not survivor.Parent or not config.Enabled then return end
+            local speedMultipliers = survivor:FindFirstChild("SpeedMultipliers")
+            if speedMultipliers then
+                for _, valName in ipairs(config.Values) do
+                    local val = speedMultipliers:FindFirstChild(valName)
+                    if val and val:IsA("NumberValue") and val.Value ~= 1 then
+                        val.Value = 1
+                    end
+                end
+            end
+            hideSlownessUI()
+        end
+
+        config.Connection = RunService.RenderStepped:Connect(onRenderStep)
+    end
+
+    --== ▶️ Bật tất cả Anti-Slow ==--
+    local function startAllAntiSlow()
+        for _, config in pairs(AntiSlowConfigs) do
+            config.Enabled = true
+            for _, survivor in pairs(Survivors:GetChildren()) do
+                handleAntiSlow(survivor, config)
+            end
+            Survivors.ChildAdded:Connect(function(child)
+                task.wait(0.1)
+                handleAntiSlow(child, config)
+            end)
+        end
+    end
+
+    --== ⏹️ Tắt tất cả Anti-Slow ==--
+    local function stopAllAntiSlow()
+        for _, config in pairs(AntiSlowConfigs) do
+            config.Enabled = false
+            if config.Connection then
+                config.Connection:Disconnect()
+                config.Connection = nil
+            end
+        end
+    end
+
+    --== 🧩 Tạo Toggle Fluent UI (chỉ 1 nút tổng) ==--
+    Tabs.Misc:AddToggle("AntiSlow_All", {
+        Title = "Anti-Slow",
+        Default = false
+    }):OnChanged(function(Value)
+        if Value then
+            startAllAntiSlow()
+        else
+            stopAllAntiSlow()
+        end
+    end)
+end
+
+
+
+
+do
+    --== ⚙️ Auto Close 1x1x1x1 Popups + Anti Slow/FOV ==--
+    local DoLoop = false
+    local Players = game:GetService("Players")
+    local LocalPlayer = Players.LocalPlayer
+    local Workspace = game:GetService("Workspace")
+
+    Tabs.Misc:AddToggle("AutoClosePopupV2", {
+        Title = "Detele 1x Popups",
+        Default = true
+    }):OnChanged(function(Value)
+        DoLoop = Value
+
+        task.spawn(function()
+            local Survivors = Workspace:WaitForChild("Players"):WaitForChild("Survivors")
+
+            while DoLoop and task.wait() do
+                -- 🔹 Auto Close 1x1x1x1 Popups
+                local temp = LocalPlayer:FindFirstChild("PlayerGui") and LocalPlayer.PlayerGui:FindFirstChild("TemporaryUI")
+                if temp and temp:FindFirstChild("1x1x1x1Popup") then
+                    temp["1x1x1x1Popup"]:Destroy()
+                end
+
+                -- 🔹 Anti Slow + Anti FOV Slow
+                for _, survivor in pairs(Survivors:GetChildren()) do
+                    if survivor:GetAttribute("Username") == LocalPlayer.Name then
+                        -- SpeedMultipliers
+                        local speedMultipliers = survivor:FindFirstChild("SpeedMultipliers")
+                        if speedMultipliers then
+                            local val = speedMultipliers:FindFirstChild("SlowedStatus")
+                            if val and val:IsA("NumberValue") then
+                                val.Value = 1
+                            end
+                        end
+
+                        -- FOVMultipliers
+                        local fovMultipliers = survivor:FindFirstChild("FOVMultipliers")
+                        if fovMultipliers then
+                            local val = fovMultipliers:FindFirstChild("SlowedStatus")
+                            if val and val:IsA("NumberValue") then
+                                val.Value = 1
+                            end
                         end
                     end
                 end
-                if target and target.Character then
-                    local headPos = target.Character.Head.Position
-                    local camPos = cam.CFrame.Position
-                    cam.CFrame = CFrame.new(camPos, headPos)
+            end
+        end)
+    end)
+end
+
+
+
+    Tabs.Misc:AddSection("↳ Fix Lag")
+
+-- SCRIPT GIẢM ĐỒ HỌA TỰ ĐỘNG MỖI 10 GIÂY (CÓ TOGGLE + RESTORE)
+-- Dán vào LocalScript (StarterPlayerScripts hoặc executor)
+-- Siêu Fix Lag cực mạnh giúp máy bạn mượt hơn 25% khi bật
+
+-- Lưu dữ liệu gốc
+local originalLighting = {}
+local originalParts = {}
+
+-- Hàm lưu Lighting gốc
+local function saveLighting()
+    originalLighting.QualityLevel = settings().Rendering.QualityLevel
+    originalLighting.GlobalShadows = game.Lighting.GlobalShadows
+    originalLighting.FogEnd = game.Lighting.FogEnd
+    originalLighting.Brightness = game.Lighting.Brightness
+    originalLighting.PostEffects = {}
+    for _, v in ipairs(game.Lighting:GetChildren()) do
+        if v:IsA("PostEffect") then
+            originalLighting.PostEffects[v] = v.Enabled
+        end
+    end
+end
+
+-- Hàm khôi phục Lighting
+local function restoreLighting()
+    if not originalLighting.QualityLevel then return end
+    settings().Rendering.QualityLevel = originalLighting.QualityLevel
+    game.Lighting.GlobalShadows = originalLighting.GlobalShadows
+    game.Lighting.FogEnd = originalLighting.FogEnd
+    game.Lighting.Brightness = originalLighting.Brightness
+    for effect, state in pairs(originalLighting.PostEffects) do
+        if effect and effect.Parent == game.Lighting then
+            effect.Enabled = state
+        end
+    end
+end
+
+-- Hàm giảm đồ họa triệt để
+local function simplifyModel(obj)
+    if obj:IsA("BasePart") then
+        if not originalParts[obj] then
+            originalParts[obj] = {
+                Material = obj.Material,
+                Color = obj.Color,
+                Reflectance = obj.Reflectance,
+                CastShadow = obj.CastShadow
+            }
+        end
+        obj.Material = Enum.Material.SmoothPlastic
+        obj.Color = Color3.fromRGB(163, 162, 165)
+        obj.Reflectance = 0
+        obj.CastShadow = false
+    elseif obj:IsA("Decal") or obj:IsA("Texture") or obj:IsA("SurfaceAppearance") then
+        obj:Destroy()
+    elseif obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Beam") or obj:IsA("Fire") or obj:IsA("Smoke") or obj:IsA("Sparkles") then
+        obj.Enabled = false
+    end
+end
+
+-- Hàm khôi phục BasePart
+local function restoreParts()
+    for part, data in pairs(originalParts) do
+        if part and part.Parent then
+            part.Material = data.Material
+            part.Color = data.Color
+            part.Reflectance = data.Reflectance
+            part.CastShadow = data.CastShadow
+        end
+    end
+    originalParts = {} -- reset
+end
+
+-- ==============================
+-- Toggle Auto Reduce (10s)
+-- ==============================
+local autoThread
+local connection
+
+local AutoReduceToggle = Tabs.Misc:AddToggle("AutoReduce", {
+    Title = "FPS Boost",
+    Default = false,
+    Callback = function(state)
+        if state then
+            print("🔄 Auto Reduce ON")
+
+            -- Lưu lighting gốc
+            saveLighting()
+
+            -- Giảm đồ họa lighting khi bật
+            settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+            game.Lighting.GlobalShadows = false
+            game.Lighting.FogEnd = 9e9
+            game.Lighting.Brightness = 1
+            for _, v in ipairs(game.Lighting:GetChildren()) do
+                if v:IsA("PostEffect") then
+                    v.Enabled = false
+                end
+            end
+
+            -- 🔥 Giảm ngay 1 lần đầu tiên
+            for _, obj in ipairs(workspace:GetDescendants()) do
+                simplifyModel(obj)
+            end
+
+            -- Nếu có object spawn thêm thì cũng xử lý
+            connection = workspace.DescendantAdded:Connect(simplifyModel)
+
+            -- Sau đó auto lặp mỗi 10s
+            autoThread = task.spawn(function()
+                while AutoReduceToggle.Value do
+                    task.wait(10)
+                    for _, obj in ipairs(workspace:GetDescendants()) do
+                        simplifyModel(obj)
+                    end
                 end
             end)
+
         else
-            if aimbotConnection then
-                aimbotConnection:Disconnect()
-                aimbotConnection = nil
+            print("⏹ Auto Reduce OFF")
+            if connection then
+                connection:Disconnect()
+                connection = nil
             end
+
+            -- Khôi phục đồ họa gốc
+            restoreLighting()
+            restoreParts()
+            print("✅ Đã khôi phục đồ họa gốc")
         end
     end
 })
 
-Tabs.Random:Button({
-    Title = "Load Orbit",
-    Callback = function()
-    
-local Players = game:GetService("Players")
+
+
+-- 🧠 Anti-FPS Spike (Cưỡng chế 60FPS + Tự chống tăng bất thường)
+-- Giữ FPS luôn ổn định ở 60, ngăn vọt FPS gây đơ / giật game
+
 local RunService = game:GetService("RunService")
-local LocalPlayer = Players.LocalPlayer
 
--- РџРµСЂРµРјРµРЅРЅС‹Рµ
-local orbitActive = false
-local orbitDistance = 10
-local orbitSpeed = 5
-local angle = 0
-local targetPlayer = nil
+Tabs.Misc:AddToggle("AntiFPSSpike", {
+    Title = "Unlock FPS V2",
+    Default = false
+}):OnChanged(function(Value)
+    _G.AntiFPSSpike = Value
 
--- Р¤СѓРЅРєС†РёСЏ РїРѕР»СѓС‡РµРЅРёСЏ РїРµСЂСЃРѕРЅР°Р¶Р°
-local function getCharacter(player)
-    return player.Character or player.CharacterAdded:Wait()
-end
+    if Value then
+        warn("[Anti-FPS Spike] ✅ Hệ thống cưỡng chế FPS = 60 đã bật.")
 
--- РћСЂР±РёС‚Р°
-RunService.RenderStepped:Connect(function(dt)
-    if not orbitActive or not targetPlayer then return end
+        task.spawn(function()
+            local FORCE_FPS = 60          -- Luôn giữ 60 FPS
+            local SPIKE_THRESHOLD = 120   -- Nếu FPS vượt ngưỡng này thì chống spike
+            local MONITOR_INTERVAL = 1    -- Kiểm tra mỗi 1 giây
 
-    local targetChar = getCharacter(targetPlayer)
-    local targetRoot = targetChar:FindFirstChild("HumanoidRootPart")
-    local myChar = getCharacter(LocalPlayer)
-    local myRoot = myChar:FindFirstChild("HumanoidRootPart")
-    if not myRoot or not targetRoot then return end
+            local frameCount = 0
+            local fps = 60
 
-    angle = angle + orbitSpeed * dt
-    local offset = Vector3.new(math.cos(angle) * orbitDistance, 0, math.sin(angle) * orbitDistance)
-    myRoot.CFrame = CFrame.new(targetRoot.Position + offset, targetRoot.Position)
+            -- Hàm cưỡng chế FPS
+            local function forceCap()
+                if typeof(setfpscap) == "function" then
+                    setfpscap(FORCE_FPS)
+                end
+            end
+
+            -- Khóa ban đầu
+            forceCap()
+
+            -- Đếm FPS thực tế
+            RunService.RenderStepped:Connect(function()
+                if not _G.AntiFPSSpike then return end
+                frameCount += 1
+            end)
+
+            while _G.AntiFPSSpike and task.wait(MONITOR_INTERVAL) do
+                fps = frameCount / MONITOR_INTERVAL
+                frameCount = 0
+
+                -- Phát hiện FPS tăng bất thường
+                if fps > SPIKE_THRESHOLD then
+                    warn(string.format("[⚠️ Anti-FPS Spike]: FPS tăng bất thường (%d) → ổn định lại!", math.floor(fps)))
+                    forceCap()
+                    task.wait(0.5)
+                end
+
+                -- Bảo vệ tránh script khác đổi cap
+                if typeof(getfpscap) == "function" then
+                    local currentCap = getfpscap()
+                    if currentCap ~= FORCE_FPS then
+                        warn("[Anti-FPS Spike]: Phát hiện thay đổi FPS cap ngoài ý muốn → ép lại 60FPS.")
+                        forceCap()
+                    end
+                end
+            end
+
+            warn("[Anti-FPS Spike] ⛔ Hệ thống cưỡng chế FPS đã tắt.")
+        end)
+    else
+        warn("[Anti-FPS Spike] ❌ Đã tắt.")
+    end
 end)
 
--- РџРѕР»СѓС‡Р°РµРј СЃРїРёСЃРѕРє РёРіСЂРѕРєРѕРІ (РєСЂРѕРјРµ СЃРµР±СЏ)
-local function getPlayerNames()
-    local names = {}
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer then
-            table.insert(names, player.Name)
-        end
-    end
-    return names
-end
 
-Tabs.Random:Toggle({
-    Title = "Orbit Players(u can use on killer so he can't Hit you) ",
-    Default = false,
-    Callback = function(state)
-        orbitActive = state
-    end
-})
 
--- Dropdown РґР»СЏ РІС‹Р±РѕСЂР° РёРіСЂРѕРєР°
-Tabs.Random:Dropdown({
-    Title = "Choose the player",
-    Values = getPlayerNames(),
-    Value = nil,
-    Multi = false,
-    AllowNone = true,
-    Callback = function(choice)
-        local chosen = Players:FindFirstChild(choice)
-        if chosen then
-            targetPlayer = chosen
-            print("[ORBIT] Р¦РµР»СЊ РІС‹Р±СЂР°РЅР°:", choice)
-        else
-            targetPlayer = nil
-        end
-    end
-})
-
-Tabs.Random:Slider({
-    Title = "rotation speed ",
-    Step = 0.5,
-    Value = {Min = 1, Max = 50, Default = orbitSpeed},
-    Suffix = " speed",
-    Callback = function(val)
-        orbitSpeed = val
-    end
-})
-
-Tabs.Random:Slider({
-    Title = " Orbit Distance",
-    Step = 1,
-    Value = {Min = 1, Max = 20, Default = orbitDistance},
-    Suffix = " studs",
-    Callback = function(val)
-        orbitDistance = val
-    end
-})
-
-end
-})
-
-Tabs.Random:Button({
-    Title = "Speed Boost(Like Eliot's Rush Hour)",
-    Callback = function()
-    
+-- ======= DỊCH VỤ =======
 local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
-local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
-local sprintModule = require(game.ReplicatedStorage.Systems.Character.Game.Sprinting)
 
-local defaultSprintSpeed = sprintModule.SprintSpeed
+-- ======= DANH SÁCH BLOCK ANIMATION =======
+local blockedAnimations = {
+    ["127802146383565"] = true,
+    ["82691533602949"] = true,
+    ["123764169071995"] = true,
+}
 
-local ScreenGui = Instance.new("ScreenGui")
-ScreenGui.Parent = PlayerGui
+-- ======= BIẾN TRẠNG THÁI =======
+local BlockAnimEnabled = false
+local blockConnections = {}
 
-local DragButton = Instance.new("TextButton")
-DragButton.Size = UDim2.new(0, 70, 0, 35) 
-DragButton.Position = UDim2.new(0.05, 0, 0.2, 0)
-DragButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-DragButton.BorderSizePixel = 2
-DragButton.Text = "Boost"
-DragButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-DragButton.TextSize = 16
-DragButton.Font = Enum.Font.SourceSansBold
-DragButton.Parent = ScreenGui
-
-local UIStroke = Instance.new("UIStroke")
-UIStroke.Color = Color3.fromRGB(0, 255, 0)
-UIStroke.Thickness = 2
-UIStroke.Parent = DragButton
-
-local dragging, dragInput, dragStart, startPos
-
-local function update(input)
-	local delta = input.Position - dragStart
-	DragButton.Position = UDim2.new(
-		startPos.X.Scale, startPos.X.Offset + delta.X,
-		startPos.Y.Scale, startPos.Y.Offset + delta.Y
-	)
+-- ======= HÀM =======
+local function hookHumanoid(humanoid)
+    if not humanoid then return end
+    local conn = humanoid.AnimationPlayed:Connect(function(track)
+        local id = track.Animation.AnimationId:match("%d+")
+        if BlockAnimEnabled and blockedAnimations[id] then
+            track:Stop()
+        end
+    end)
+    table.insert(blockConnections, conn)
 end
 
-DragButton.InputBegan:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-		dragging = true
-		dragStart = input.Position
-		startPos = DragButton.Position
+local function setBlockAnimations(enabled)
+    BlockAnimEnabled = enabled
 
-		input.Changed:Connect(function()
-			if input.UserInputState == Enum.UserInputState.End then
-				dragging = false
-			end
-		end)
-	end
-end)
-
-DragButton.InputChanged:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-		dragInput = input
-	end
-end)
-
-game:GetService("UserInputService").InputChanged:Connect(function(input)
-	if input == dragInput and dragging then
-		update(input)
-	end
-end)
-
-local debounce = false
-DragButton.MouseButton1Click:Connect(function()
-	if debounce then return end
-	debounce = true
-
-	sprintModule.SprintSpeed = 37
-
-	for i = 5, 1, -1 do
-		DragButton.Text = tostring(i)
-		task.wait(1)
-	end
-
-	sprintModule.SprintSpeed = defaultSprintSpeed
-	DragButton.Text = "Boos(nothing will change)"
-	debounce = false
-end)
-
-end
-})
-
-Tabs.Generator:Button({
-    Title = "Fix generator manual",
-    Callback = function()
-        loadstring(game:HttpGet("https://pastebin.com/raw/tPWnvGj6"))()
-        WindUI:Notify({ Title = "Fix generator manual", Content = "hi from bublik6241", Duration = 2 })
+    -- clear cũ
+    for _, conn in pairs(blockConnections) do
+        conn:Disconnect()
     end
-})
+    table.clear(blockConnections)
 
-local loopty = false
-local running = true
-local BypassCooldown = true
-local Dogens = true
-local SkibidiWait = 1
-local SkibidiRandomness = 0.5
-local LopticaWaitTime = 1
+    if enabled then
+        -- nhân vật hiện tại
+        if LocalPlayer.Character then
+            hookHumanoid(LocalPlayer.Character:FindFirstChildWhichIsA("Humanoid"))
+        end
+        -- respawn
+        local connChar = LocalPlayer.CharacterAdded:Connect(function(char)
+            char:WaitForChild("Humanoid")
+            hookHumanoid(char:FindFirstChildWhichIsA("Humanoid"))
+        end)
+        table.insert(blockConnections, connChar)
+    end
+end
 
-local function SkibidiGenerator(shouldLoop)
-    while shouldLoop and running do
-        loopty = true
-        local PuzzleUI = Players.LocalPlayer:WaitForChild("PlayerGui"):WaitForChild("PuzzleUI", 9999)
+-- ======= TOGGLE FLUENT =======
+Tabs.Misc:AddToggle("BlockBadAnims", {
+    Title = "Block Animations",
+    Default = false
+}):OnChanged(function(v)
+    setBlockAnimations(v)
+end)
 
-        local FartNapFolder = workspace:FindFirstChild("Map")
-            and workspace.Map:FindFirstChild("Ingame")
-            and workspace.Map.Ingame:FindFirstChild("Map")
-        if FartNapFolder then
-            local closestGenerator, closestDistance = nil, math.huge
-            local playerPosition = game.Players.LocalPlayer.Character.HumanoidRootPart.Position
-            for _, g in ipairs(FartNapFolder:GetChildren()) do
-                if g.Name == "Generator" and g.Progress.Value < 100 then
-                    local distance = (g:GetPivot().Position - playerPosition).Magnitude
-                    if distance < closestDistance then
-                        closestDistance = distance
-                        closestGenerator = g
-                    end
-                end
-            end
-            if closestGenerator then
-                while closestGenerator.Progress.Value < 100 and loopty do
-                    if BypassCooldown then
-                        while
-                            closestGenerator.Progress.Value < 100
-                            and loopty
-                            and shouldLoop
-                            and Dogens
-                            and BypassCooldown
-                        do
-                            task.wait(0.5)
-                            closestGenerator.Remotes.RE:FireServer()
-                            task.wait(0.5)
-                            closestGenerator.Remotes.RF:InvokeServer("leave")
-                            if closestGenerator.Main:WaitForChild("Prompt", 1) then
-                                fireproximityprompt(closestGenerator.Main:WaitForChild("Prompt", 1))
-                            end
-                        end
-                    else
-                        task.wait(SkibidiWait + math.random(0, SkibidiRandomness))
-                        closestGenerator.Remotes.RE:FireServer()
-                        break
-                    end
-                end
+
+
+    Tabs.Misc:AddSection("↳ Show")
+
+
+
+--// FPS + Ping Display (Safe BillboardGui Version)
+local RunService = game:GetService("RunService")
+local Stats = game:GetService("Stats")
+local Camera = workspace.CurrentCamera
+
+--// UI Container
+local ui = Instance.new("ScreenGui")
+ui.Name = "FPS_Ping_Display"
+ui.ResetOnSpawn = false
+ui.IgnoreGuiInset = true
+ui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ui.Parent = game:GetService("CoreGui")
+
+--// FPS Label
+local fpsLabel = Instance.new("TextLabel")
+fpsLabel.Size = UDim2.new(0, 120, 0, 20)
+fpsLabel.Position = UDim2.new(1, -130, 0, 5)
+fpsLabel.BackgroundTransparency = 1
+fpsLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
+fpsLabel.TextStrokeTransparency = 0
+fpsLabel.TextSize = 16
+fpsLabel.Font = Enum.Font.Code
+fpsLabel.TextXAlignment = Enum.TextXAlignment.Left
+fpsLabel.Text = "FPS: ..."
+fpsLabel.Parent = ui
+
+--// Ping Label
+local pingLabel = fpsLabel:Clone()
+pingLabel.Position = UDim2.new(1, -130, 0, 25)
+pingLabel.Text = "Ping: ..."
+pingLabel.Parent = ui
+
+--// Variables
+local showFPS = true
+local showPing = true
+local fpsCounter, lastUpdate = 0, tick()
+
+--// Update Loop
+RunService.RenderStepped:Connect(function()
+    fpsCounter += 1
+    if tick() - lastUpdate >= 1 then
+        if showFPS then
+            fpsLabel.Visible = true
+            fpsLabel.Text = "FPS: " .. tostring(fpsCounter)
+        else
+            fpsLabel.Visible = false
+        end
+
+        if showPing then
+            local pingStat = Stats.Network.ServerStatsItem["Data Ping"]
+            local ping = pingStat and math.floor(pingStat:GetValue()) or 0
+            pingLabel.Text = "Ping: " .. ping .. " ms"
+            if ping <= 60 then
+                pingLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
+            elseif ping <= 120 then
+                pingLabel.TextColor3 = Color3.fromRGB(255, 165, 0)
             else
-                return
+                pingLabel.TextColor3 = Color3.fromRGB(255, 0, 0)
+            end
+            pingLabel.Visible = true
+        else
+            pingLabel.Visible = false
+        end
+
+        fpsCounter = 0
+        lastUpdate = tick()
+    end
+end)
+
+--// Fluent UI Toggles
+local fpsToggle = Tabs.Misc:AddToggle("ShowFPSToggle", {
+    Title = "Show FPS",
+    Default = true
+})
+fpsToggle:OnChanged(function(val)
+    showFPS = val
+    fpsLabel.Visible = val
+end)
+
+local pingToggle = Tabs.Misc:AddToggle("ShowPingToggle", {
+    Title = "Show Ping",
+    Default = true
+})
+pingToggle:OnChanged(function(val)
+    showPing = val
+    pingLabel.Visible = val
+end)
+
+
+
+
+do
+    --== 💬 Chat Visibility Controller ==--
+    getgenv().chatWindow = game:GetService("TextChatService"):WaitForChild("ChatWindowConfiguration")
+    getgenv().chatEnabled = false
+    getgenv().chatConnection = nil
+
+    Tabs.Misc:AddToggle("ChatVisibilityToggle", {
+        Title = "Show Chat",
+        Default = false
+    }):OnChanged(function(Value)
+        getgenv().chatEnabled = Value
+
+        -- Nếu bật → bật chat và kết nối Heartbeat
+        if Value then
+            if not getgenv().chatConnection then
+                getgenv().chatConnection = game:GetService("RunService").Heartbeat:Connect(function()
+                    if getgenv().chatWindow then
+                        getgenv().chatWindow.Enabled = true
+                    end
+                end)
+            end
+        else
+            -- Nếu tắt → ngắt kết nối và ẩn chat
+            if getgenv().chatConnection then
+                getgenv().chatConnection:Disconnect()
+                getgenv().chatConnection = nil
+            end
+            if getgenv().chatWindow then
+                getgenv().chatWindow.Enabled = false
             end
         end
-    end
-    loopty = false
+    end)
 end
 
-local function TpDoGenerator()
-    local wasloopty = loopty
-    if loopty then
-        task.spawn(SkibidiGenerator(false))
-    end
-    local Geneators = workspace:WaitForChild("Map")
-        and workspace.Map:WaitForChild("Ingame")
-        and workspace.Map.Ingame:WaitForChild("Map")
-    local lastPosition = Players.LocalPlayer.Character.HumanoidRootPart.CFrame
-    local function findGenerators()
-        local folder = workspace:FindFirstChild("Map") and workspace.Map:FindFirstChild("Ingame")
-        local map = folder and folder:FindFirstChild("Map")
-        local generators = {}
-        if map then
-            for _, g in ipairs(map:GetChildren()) do
-                if g.Name == "Generator" and g.Progress.Value < 100 then
-                    local playersNearby = false
-                    for _, player in ipairs(game.Players:GetPlayers()) do
-                        if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                            local distance = (player.Character.HumanoidRootPart.Position - g.Main.Position).Magnitude
-                            if distance < 25 then
-                                playersNearby = true
-                                break
-                            end
-                        end
-                    end
-                    if not playersNearby then
-                        table.insert(generators, g)
-                    end
+
+
+
+-- Tabs.Settings
+
+
+local AexecToggle = Tabs.Settings:AddToggle("AexecToggle", {Title = "Auto Execute", Default = false })
+AexecToggle:OnChanged(function(Value)
+    if Value then
+        task.spawn(function()
+            pcall(function()
+                if queue_on_teleport then
+                    local HutaoHubScript1 = [[
+task.wait(3)
+loadstring(game:HttpGet("https://raw.githubusercontent.com/hdksakst-ship-it/Hutao-Hub-Omega-X/refs/heads/main/Forsaken-v3.txt"))()
+]]
+                    queue_on_teleport(HutaoHubScript1)
                 end
-            end
-        end
-        if wasloopty then
-            SkibidiGenerator(true)
-        end
-        return generators
+            end)
+        end)
+        Fluent:Notify({
+            Title = "Hutao HUB",
+            Content = "Auto execute is enabled!",
+            Duration = 5
+        })
+    else
+        Fluent:Notify({
+            Title = "Hutao HUB",
+            Content = "Auto execute is disabled!",
+            Duration = 5
+        })
     end
+end)
 
-    while true do
-        local generators = findGenerators()
-        if #generators == 0 then
-            break
-        end
-        for _, g in ipairs(generators) do
-            local player = game.Players.LocalPlayer
-            local generatorPosition = g.Instances.Generator.Progress.CFrame.Position
-            local generatorDirection = (g.Instances.Generator.Cube.CFrame.Position - generatorPosition).Unit
-            player.Character.HumanoidRootPart.CFrame = CFrame.new(
-                generatorPosition + Vector3.new(0, 0.5, 0),
-                generatorPosition + Vector3.new(generatorDirection.X, 0, generatorDirection.Z)
-            )
-            task.wait(LopticaWaitTime / 1.8)
-            fireproximityprompt(g.Main:WaitForChild("Prompt", 1))
-            for _ = 1, 6 do
-                task.wait(1.7)
-                g.Remotes.RE:FireServer()
-            end
-            task.wait(LopticaWaitTime / 1)
-            g.Remotes.RF:InvokeServer("leave")
-        end
-    end
+SaveManager:SetLibrary(Fluent)
+InterfaceManager:SetLibrary(Fluent)
 
-    if lastPosition then
-        game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = lastPosition
+-- Ignore keys that are used by ThemeManager.
+-- (we dont want configs to save themes, do we?)
+SaveManager:IgnoreThemeSettings()
+
+-- You can add indexes of elements the save manager should ignore
+SaveManager:SetIgnoreIndexes({})
+
+-- use case for doing it this way:
+-- a script hub could have themes in a global folder
+-- and game configs in a separate folder per game
+InterfaceManager:SetFolder("Hutao HUB")
+SaveManager:SetFolder("Hutao HUB/Forsaken")
+
+InterfaceManager:BuildInterfaceSection(Tabs.Settings)
+SaveManager:BuildConfigSection(Tabs.Settings)
+
+-- Select First Tab By Default
+Window:SelectTab(1)
+
+Fluent:Notify({ Title = "Hutao HUB", Content = "forsaken script loaded successfully!", Duration = 5 })
+SaveManager:LoadAutoloadConfig()
+
+
+-- 🟢 DRAGGABLE UI BUTTON WITH ENHANCED CLICK AND HOVER ANIMATIONS
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+local TweenService = game:GetService("TweenService")
+
+-- Xóa nếu có UI minimize cũ
+local ExistingUI = CoreGui:FindFirstChild("HutaoHubMinimizeUI")
+if ExistingUI then
+    ExistingUI:Destroy()
+end
+
+-- Create Floating UI
+local DragUI = Instance.new("ScreenGui")
+DragUI.Name = "HutaoHubMinimizeUI"
+DragUI.ResetOnSpawn = false
+DragUI.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+DragUI.Parent = CoreGui
+
+-- Create Circular Button
+local Button = Instance.new("ImageButton")
+Button.Parent = DragUI
+Button.Size = UDim2.new(0, 50, 0, 50)
+Button.Position = UDim2.new(0, 10, 1, -85)
+Button.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+Button.BackgroundTransparency = 0.3
+Button.BorderSizePixel = 0
+Button.ClipsDescendants = true
+Button.Image = "rbxassetid://109647470925993" -- Thay icon nếu muốn
+Button.ScaleType = Enum.ScaleType.Fit
+Button.Active = true
+Button.ZIndex = 1000
+
+-- Make UI Circular
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(1, 0)
+UICorner.Parent = Button
+
+-- Tween Info for Animations
+local tweenInfo = TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+
+-- 🟢 Toggle Fluent UI trực tiếp
+local function ToggleUI()
+    if Window.Minimized then
+        Window:Minimize(false) -- mở lại
+    else
+        Window:Minimize(true) -- thu nhỏ
     end
 end
 
-Tabs.Generator:Button({
-    Title = "Auto Fix Generators(Risk Kick Or Ban)",
-    Callback = function()
-        task.spawn(TpDoGenerator)
-        WindUI:Notify({ Title = "Auto Fix", Content = "Starting to fix all generators!", Duration = 3 })
-    end,
-})
+-- Click Animation & UI Toggle
+local isDragging = false
+local dragThreshold = 10
 
-Tabs.Credits:Divider()
+Button.MouseButton1Click:Connect(function()
+    if isDragging then return end
 
+    -- Click animation
+    TweenService:Create(Button, tweenInfo, {
+        BackgroundTransparency = 0.5,
+        Size = UDim2.new(0, 45, 0, 45),
+        Rotation = 5
+    }):Play()
+    task.wait(0.1)
+    TweenService:Create(Button, tweenInfo, {
+        BackgroundTransparency = 0.3,
+        Size = UDim2.new(0, 50, 0, 50),
+        Rotation = 0
+    }):Play()
 
-Tabs.Credits:Button({
-    Title = "Discord",
-    Description = "Click To Copy The Discord Link :)",
-    Callback = function()
-        setclipboard("https://discord.gg/3fbA4kNZtJ")
-        WindUI:Notify({
-            Title = "Copied!",
-            Content = "Discord invite copied to clipboard.",
-            Duration = 3,
-        })
-    end,
-})
+    ToggleUI()
+end)
 
-Tabs.Credits:Divider()
+-- Hover Animation
+Button.MouseEnter:Connect(function()
+    TweenService:Create(Button, tweenInfo, {Size = UDim2.new(0, 55, 0, 55)}):Play()
+end)
 
-Tabs.Credits:Paragraph({
-    Title = "join discord plz bitch",
-    Desc = "Join Plz",
-    Color = "Green",
-    Locked = false,
-})
+Button.MouseLeave:Connect(function()
+    TweenService:Create(Button, tweenInfo, {Size = UDim2.new(0, 50, 0, 50)}):Play()
+end)
+
+-- Dragging Logic for PC & Mobile
+local dragging, dragStart, startPos
+
+local function StartDrag(input)
+    isDragging = false
+    dragging = true
+    dragStart = input.Position
+    startPos = Button.Position
+
+    input.Changed:Connect(function()
+        if input.UserInputState == Enum.UserInputState.End then
+            dragging = false
+        end
+    end)
+end
+
+local function OnDrag(input)
+    if dragging then
+        local delta = (input.Position - dragStart).Magnitude
+        if delta > dragThreshold then
+            isDragging = true
+        end
+        Button.Position = UDim2.new(
+            startPos.X.Scale,
+            startPos.X.Offset + (input.Position.X - dragStart.X),
+            startPos.Y.Scale,
+            startPos.Y.Offset + (input.Position.Y - dragStart.Y)
+        )
+    end
+end
+
+-- Dragging Support
+Button.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        StartDrag(input)
+    end
+end)
+
+Button.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        OnDrag(input)
+    end
+end)  
