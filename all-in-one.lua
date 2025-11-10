@@ -51,14 +51,13 @@ Tabs.Main0:AddButton({
     Callback = function()
       setclipboard("https://discord.gg/3fbA4kNZtJ")
       warn("Link Discord copied to clipboard: " .. "https://discord.gg/3fbA4kNZtJ") 
-            game:GetService("StarterGui"):SetCore(
-        "SendNotification",
-        {
-          Title = "Link Discord Copied!",
-          Text = "Link Copied.",
-          Duration = 3
-        }
-      )
+local Notification = loadstring(game:HttpGet("https://raw.githubusercontent.com/TDDuym500/npmc_/refs/heads/main/Notification.lua"))()
+
+Notification:Notify({
+    Title = "Link discord copied",  --- Enter title here
+    Content = "Paste In Browser", --- Enter content here
+    Duration = 2 --- Enter Duration here
+})
     end
 })
 
