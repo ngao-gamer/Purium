@@ -1,6 +1,9 @@
 local Fluent = loadstring(game:HttpGet("https://raw.githubusercontent.com/dataidaphuc/S/refs/heads/main/Hu1a0Gui-V2.lua"))()
-local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
-local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
+
+local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/refs/heads/master/Addons/InterfaceManager.lua"))()
+
+local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/refs/heads/master/Addons/SaveManager.lua"))()
+
 local Window = Fluent:CreateWindow({
     Title = "Purium Hub [Premium] | Universal |",
     SubTitle = "Version 1.2.0",
