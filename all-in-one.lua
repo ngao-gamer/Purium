@@ -657,15 +657,6 @@ Tabs.Main8:AddButton({
   end
 })
 
-
-Tabs.Main8:AddButton({
-    Title="Free pv server",
-    Description="",
-    Callback=function()
-           loadstring(game:HttpGet("https://raw.githubusercontent.com/veil0x14/LocalScripts/refs/heads/main/pg.lua"))()
-  end
-})
-
 Tabs.Main8:AddParagraph({
     Title = "Nothing niiga",
 })
