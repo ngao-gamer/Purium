@@ -621,7 +621,7 @@ Tabs.Main8:AddParagraph({
 })
 
 Tabs.Main9:AddButton({
-    Title="Hutao Hub",
+    Title="Hutao Hub(Freemium)",
     Description="best script i found",
     Callback=function()
            loadstring(game:HttpGet("https://raw.githubusercontent.com/hdksakst-ship-it/Anti-Ban/refs/heads/main/Forsaken-V4-New.txt"))()
@@ -629,7 +629,7 @@ Tabs.Main9:AddButton({
 })
 
 Tabs.Main9:AddButton({
-    Title="Purium Hub",
+    Title="Hutao Hub(Premium)",
     Description="Test it bc it's good:)",
     Callback=function()
            loadstring(game:HttpGet("https://raw.githubusercontent.com/ngao-gamer/Purium/refs/heads/main/fosaken.lua"))()
