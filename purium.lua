@@ -1,52 +1,26 @@
-local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
-local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
-
-local ScreenGui = Instance.new("ScreenGui")
-local ImageButton = Instance.new("ImageButton")
-local UICorner = Instance.new("UICorner")
-
--- ===================================
--- == TOGGLE BUTTON SETUP ==
--- ===================================
-ScreenGui.Parent = PlayerGui
-ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-
-ImageButton.Parent = ScreenGui
-ImageButton.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-ImageButton.BorderSizePixel = 0
-ImageButton.Position = UDim2.new(0.10615778, 0, 0.16217947, 0)
-ImageButton.Size = UDim2.new(0, 40, 0, 40)
-ImageButton.Draggable = true
-ImageButton.Image = "rbxassetid://87658344298139" 
-
-UICorner.CornerRadius = UDim.new(1, 10) 
-UICorner.Parent = ImageButton
-
-ImageButton.MouseButton1Down:Connect(function()
-    game:GetService("VirtualInputManager"):SendKeyEvent(true, Enum.KeyCode.End, false, game)
-end)
--- ===================================
--- == FLUENT UI LOAD AND WINDOW SETUP ==
--- ===================================
-
-local Fluent = loadstring(game:HttpGet("https://github.com/dawid-scripts/Fluent/releases/latest/download/main.lua"))()
+local Fluent = loadstring(game:HttpGet("https://raw.githubusercontent.com/dataidaphuc/S/refs/heads/main/Hu1a0Gui-V2.lua"))()
 local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
 local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
-repeat task.wait() until game:IsLoaded()
-
 local Window = Fluent:CreateWindow({
-    Title = "Purium Hub (Version : 1.1.5)",
-    SubTitle = "All in one",
-    TabWidth = 157,
-    Size = UDim2.fromOffset(450, 300),
+    Title = "Purium Hub [Premium] | Universal |",
+    SubTitle = "Version 1.2.0",
+    Search = true,
+    Icon = "rbxassetid://121302760641013",
+    TabWidth = 160,
+    Size = UDim2.fromOffset(480, 360),
     Acrylic = true,
-    Theme = "Darker",
-    MinimizeKey = Enum.KeyCode.End
+    Theme = "Dark",
+    MinimizeKey = Enum.KeyCode.RightAlt,
+
+    UserInfo = true,
+    UserInfoTop = false,
+    UserInfoTitle = game:GetService("Players").LocalPlayer.DisplayName,
+    UserInfoSubtitle = "Purium Hub",
+    UserInfoSubtitleColor = Color3.fromRGB(71, 123, 255)
 })
 
 local Tabs = {
-    Main0=Window:AddTab({ Title="Infomation" }),
+    Main0=Window:AddTab({ Title="Infomation", Icon = "info" }),
     Main1=Window:AddTab({ Title="Blox Fruit" }),
     Main2=Window:AddTab({ Title="Grow a Garden" }),
     Main3=Window:AddTab({ Title="Fisch" }),
@@ -58,46 +32,155 @@ local Tabs = {
     Main9=Window:AddTab({ Title="Forsaken" }),  
     Main10=Window:AddTab({ Title="Doors" }), 
     Main11=Window:AddTab({ Title="Plants Vs Brainrot" }),     
-    Main12=Window:AddTab({ Title="Fish It" }), 
+    Main12=Window:AddTab({ Title="Fisch It" }),  
     Main13=Window:AddTab({ Title="Comming Soon" }),
+    Settings = Window:AddTab({ Title = "Settings", Icon = "settings" })
 }
 
-    Fluent:Notify({
-        Title = "Notification",
-        Content = "Welcome",
-        SubContent = "Thank you for using my script i will keyless untill i want :)", -- Optional
-        Duration = 3 -- Set to nil to make the notification not disappear
-    })
+SaveManager:SetLibrary(Fluent)
+InterfaceManager:SetLibrary(Fluent)
 
-Fluent:Notify({
-    Title = "Purium Hub",
-    Content = "The script has been loaded have fun.",
-    Duration = 3
-})
+SaveManager:IgnoreThemeSettings()
 
--- ===================================
--- == TABS CONTENT (ĐÃ SỬA LỖI ADDLABEL) ==
--- ===================================
 
--- Tabs.Main0 (Info)
--- Dùng AddParagraph thay cho AddLabel
--- Tabs.Main0 (Info)
--- ĐÃ SỬA: Chuyển nội dung Welcome xuống Content và thêm \n để xuống dòng
+SaveManager:SetIgnoreIndexes({})
+
+InterfaceManager:SetFolder("Purium HUB")
+SaveManager:SetFolder("Purium HUB/universal")
+
+InterfaceManager:BuildInterfaceSection(Tabs.Settings)
+SaveManager:BuildConfigSection(Tabs.Settings)
+
+-- Select First Tab By Default
+Window:SelectTab(1)
+
+Fluent:Notify({ Title = "Purium HUB", Content = "Universal script loaded successfully!", Duration = 5 })
+SaveManager:LoadAutoloadConfig()
+
+
+
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+local TweenService = game:GetService("TweenService")
+
+-- Xóa nếu có UI minimize cũ
+local ExistingUI = CoreGui:FindFirstChild("HutaoHubMinimizeUI")
+if ExistingUI then
+    ExistingUI:Destroy()
+end
+
+-- Create Floating UI
+local DragUI = Instance.new("ScreenGui")
+DragUI.Name = "HutaoHubMinimizeUI"
+DragUI.ResetOnSpawn = false
+DragUI.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+DragUI.Parent = CoreGui
+
+
+local Button = Instance.new("ImageButton")
+Button.Parent = DragUI
+Button.Size = UDim2.new(0, 50, 0, 50)
+Button.Position = UDim2.new(0, 10, 1, -85)
+Button.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+Button.BackgroundTransparency = 0.3
+Button.BorderSizePixel = 0
+Button.ClipsDescendants = true
+Button.Image = "rbxassetid://109647470925993" -- Thay icon nếu muốn
+Button.ScaleType = Enum.ScaleType.Fit
+Button.Active = true
+Button.ZIndex = 1000
+
+
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(1, 0)
+UICorner.Parent = Button
+
+
+local tweenInfo = TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+
+local function ToggleUI()
+    if Window.Minimized then
+        Window:Minimize(false) 
+    else
+        Window:Minimize(true) 
+    end
+end
+
+local isDragging = false
+local dragThreshold = 10
+
+Button.MouseButton1Click:Connect(function()
+    if isDragging then return end
+
+    TweenService:Create(Button, tweenInfo, {
+        BackgroundTransparency = 0.5,
+        Size = UDim2.new(0, 45, 0, 45),
+        Rotation = 5
+    }):Play()
+    task.wait(0.1)
+    TweenService:Create(Button, tweenInfo, {
+        BackgroundTransparency = 0.3,
+        Size = UDim2.new(0, 50, 0, 50),
+        Rotation = 0
+    }):Play()
+
+    ToggleUI()
+end)
+
+Button.MouseEnter:Connect(function()
+    TweenService:Create(Button, tweenInfo, {Size = UDim2.new(0, 55, 0, 55)}):Play()
+end)
+
+Button.MouseLeave:Connect(function()
+    TweenService:Create(Button, tweenInfo, {Size = UDim2.new(0, 50, 0, 50)}):Play()
+end)
+
+
+local dragging, dragStart, startPos
+
+local function StartDrag(input)
+    isDragging = false
+    dragging = true
+    dragStart = input.Position
+    startPos = Button.Position
+
+    input.Changed:Connect(function()
+        if input.UserInputState == Enum.UserInputState.End then
+            dragging = false
+        end
+    end)
+end
+
+local function OnDrag(input)
+    if dragging then
+        local delta = (input.Position - dragStart).Magnitude
+        if delta > dragThreshold then
+            isDragging = true
+        end
+        Button.Position = UDim2.new(
+            startPos.X.Scale,
+            startPos.X.Offset + (input.Position.X - dragStart.X),
+            startPos.Y.Scale,
+            startPos.Y.Offset + (input.Position.Y - dragStart.Y)
+        )
+    end
+end
+
+Button.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        StartDrag(input)
+    end
+end)
+
+Button.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        OnDrag(input)
+    end
+end)  
+
 Tabs.Main0:AddParagraph({
     Title = "Welcome To Purium Hub",
-    Content = "Thank You For Using My Script :D !!\n(Hãy cuộn xuống để xem Update Log)\n(Please Scroll down to check update)",
-})
-
--- Dùng AddParagraph và cấu trúc [[...]] cho Update Log
-Tabs.Main0:AddParagraph({
-    Title = "Update Log :", 
-    Content = [[
-+ Remove Down Script
-+ Fixed Redz Hub 
-+ Romve Butterfly hub ( freaky ads)  
-+ Added Seraphin Hub
-+ Add More Script
-]],
+    Content = "Note : Thank You For Using My Script :D !!",
 })
 
 Tabs.Main0:AddButton({
@@ -105,14 +188,13 @@ Tabs.Main0:AddButton({
     Description = "Join Ours discord for support",
     Callback = function()
       setclipboard("https://discord.gg/3fbA4kNZtJ")
-      -- ĐÃ SỬA LỖI CÚ PHÁP: Thêm ngoặc kép cho link trong lệnh warn
       warn("Link Discord copied to clipboard: " .. "https://discord.gg/3fbA4kNZtJ") 
             game:GetService("StarterGui"):SetCore(
-        "SendNotification", -- Dùng SendNotification thay vì SendSystemMessage
+        "SendNotification",
         {
           Title = "Link Discord Copied!",
           Text = "Link Copied.",
-          Duration = 5 -- Thời gian hiển thị (5 giây)
+          Duration = 3
         }
       )
     end
@@ -128,13 +210,189 @@ Tabs.Main0:AddButton({
         Content = "I recommend you to use ficsh script less because fisch anti cheat is very crazy you can be banned at any time"
     })
 
--- Tabs.Main1 (Blox Fruit)
+        Tabs.Main0:AddParagraph({
+        Title = "Lazy Announcement",
+        Content = "Hello Everyone, Some Script Doesn't Work In my scr bc im lazy to check them :D"
+    })
+
+Tabs.Main0:AddParagraph({
+    Title = "Do you Remmber hutao hub?",
+    Content = "yeah their script still here but i still sad for some how, their script got copied called skid",
+})
+
+--// FPS + Ping Display (Safe BillboardGui Version)
+local RunService = game:GetService("RunService")
+local Stats = game:GetService("Stats")
+local Camera = workspace.CurrentCamera
+
+--// UI Container
+local ui = Instance.new("ScreenGui")
+ui.Name = "FPS_Ping_Display"
+ui.ResetOnSpawn = false
+ui.IgnoreGuiInset = true
+ui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+ui.Parent = game:GetService("CoreGui")
+
+--// FPS Label
+local fpsLabel = Instance.new("TextLabel")
+fpsLabel.Size = UDim2.new(0, 120, 0, 20)
+fpsLabel.Position = UDim2.new(1, -130, 0, 5)
+fpsLabel.BackgroundTransparency = 1
+fpsLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
+fpsLabel.TextStrokeTransparency = 0
+fpsLabel.TextSize = 16
+fpsLabel.Font = Enum.Font.Code
+fpsLabel.TextXAlignment = Enum.TextXAlignment.Left
+fpsLabel.Text = "FPS: ..."
+fpsLabel.Parent = ui
+
+--// Ping Label
+local pingLabel = fpsLabel:Clone()
+pingLabel.Position = UDim2.new(1, -130, 0, 25)
+pingLabel.Text = "Ping: ..."
+pingLabel.Parent = ui
+
+--// Variables
+local showFPS = true
+local showPing = true
+local fpsCounter, lastUpdate = 0, tick()
+
+--// Update Loop
+RunService.RenderStepped:Connect(function()
+    fpsCounter += 1
+    if tick() - lastUpdate >= 1 then
+        if showFPS then
+            fpsLabel.Visible = true
+            fpsLabel.Text = "FPS: " .. tostring(fpsCounter)
+        else
+            fpsLabel.Visible = false
+        end
+
+        if showPing then
+            local pingStat = Stats.Network.ServerStatsItem["Data Ping"]
+            local ping = pingStat and math.floor(pingStat:GetValue()) or 0
+            pingLabel.Text = "Ping: " .. ping .. " ms"
+            if ping <= 60 then
+                pingLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
+            elseif ping <= 120 then
+                pingLabel.TextColor3 = Color3.fromRGB(255, 165, 0)
+            else
+                pingLabel.TextColor3 = Color3.fromRGB(255, 0, 0)
+            end
+            pingLabel.Visible = true
+        else
+            pingLabel.Visible = false
+        end
+
+        fpsCounter = 0
+        lastUpdate = tick()
+    end
+end)
+
+--// Fluent UI Toggles
+local fpsToggle = Tabs.Main0:AddToggle("ShowFPSToggle", {
+    Title = "Show FPS",
+    Default = true
+})
+fpsToggle:OnChanged(function(val)
+    showFPS = val
+    fpsLabel.Visible = val
+end)
+
+local pingToggle = Tabs.Main0:AddToggle("ShowPingToggle", {
+    Title = "Show Ping",
+    Default = true
+})
+pingToggle:OnChanged(function(val)
+    showPing = val
+    pingLabel.Visible = val
+end)
+
+Tabs.Main0:AddToggle("AntiFPSSpike", {
+    Title = "Unlock FPS V2",
+    Default = false
+}):OnChanged(function(Value)
+    _G.AntiFPSSpike = Value
+
+    if Value then
+        warn("[Anti-FPS Spike] ✅ Hệ thống cưỡng chế FPS = 60 đã bật.")
+
+        task.spawn(function()
+            local FORCE_FPS = 60          -- Luôn giữ 60 FPS
+            local SPIKE_THRESHOLD = 120   -- Nếu FPS vượt ngưỡng này thì chống spike
+            local MONITOR_INTERVAL = 1    -- Kiểm tra mỗi 1 giây
+
+            local frameCount = 0
+            local fps = 60
+
+            -- Hàm cưỡng chế FPS
+            local function forceCap()
+                if typeof(setfpscap) == "function" then
+                    setfpscap(FORCE_FPS)
+                end
+            end
+
+            -- Khóa ban đầu
+            forceCap()
+
+            -- Đếm FPS thực tế
+            RunService.RenderStepped:Connect(function()
+                if not _G.AntiFPSSpike then return end
+                frameCount += 1
+            end)
+
+            while _G.AntiFPSSpike and task.wait(MONITOR_INTERVAL) do
+                fps = frameCount / MONITOR_INTERVAL
+                frameCount = 0
+
+                -- Phát hiện FPS tăng bất thường
+                if fps > SPIKE_THRESHOLD then
+                    warn(string.format("[⚠️ Anti-FPS Spike]: FPS tăng bất thường (%d) → ổn định lại!", math.floor(fps)))
+                    forceCap()
+                    task.wait(0.5)
+                end
+
+                -- Bảo vệ tránh script khác đổi cap
+                if typeof(getfpscap) == "function" then
+                    local currentCap = getfpscap()
+                    if currentCap ~= FORCE_FPS then
+                        warn("[Anti-FPS Spike]: Phát hiện thay đổi FPS cap ngoài ý muốn → ép lại 60FPS.")
+                        forceCap()
+                    end
+                end
+            end
+
+            warn("[Anti-FPS Spike] ⛔ Hệ thống cưỡng chế FPS đã tắt.")
+        end)
+    else
+        warn("[Anti-FPS Spike] ❌ Đã tắt.")
+    end
+end)
+
 Tabs.Main1:AddButton({
-    Title="Teddy Hub",
+    Title="Teddy Hub(Main Farm)",
     Description="",
     Callback=function()
 repeat wait() until game:IsLoaded() and game.Players.LocalPlayer
-loadstring(game:HttpGet("https://raw.githubusercontent.com/Teddyseetink/Haidepzai/refs/heads/main/TeddyHub.lua"))()
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Teddyseetink/Haidepzai/refs/heads/main/TeddyHub.lua"))() 
+  end
+})
+
+Tabs.Main1:AddButton({
+    Title="Teddy Hub(Pull Lever)",
+    Description="",
+    Callback=function()
+repeat task.wait() until game:IsLoaded() and game:GetService("Players") and game.Players.LocalPlayer and game.Players.LocalPlayer:FindFirstChild("PlayerGui")
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Teddyseetink/Haidepzai/refs/heads/main/TEDDYHUB-AUTOPULLLever"))()
+  end
+})
+
+Tabs.Main1:AddButton({
+    Title="Teddy Hub(Hop Boss)",
+    Description="Maybe Called That Auto Join Server Has Boss",
+    Callback=function()
+repeat task.wait() until game:IsLoaded() and game:GetService("Players") and game.Players.LocalPlayer and game.Players.LocalPlayer:FindFirstChild("PlayerGui")
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Teddyseetink/Haidepzai/refs/heads/main/TEDDYHUB-FREEMIUM"))()
   end
 })
 
@@ -144,31 +402,6 @@ Tabs.Main1:AddButton({
     Callback=function()
 loadstring(game:HttpGet("https://raw.githubusercontent.com/Dev-BlueX/BlueX-Hub/refs/heads/main/Main.lua"))()
   end
-})
-
-Tabs.Main1:AddButton({
-    Title="Purium Hub( Beta )",
-    Description="",
-    Callback=function()
-loadstring(game:HttpGet("https://raw.githubusercontent.com/ngao-gamer/Purium/refs/heads/main/Blox%20Fruit.lua"))()
-  end
-})
-
-
-Tabs.Main1:AddButton({
-    Title="VisonX Hub(Auto Bounty)",
-    Description="",
-    Callback=function()
-loadstring(game:HttpGet("https://raw.githubusercontent.com/ngao-gamer/Purium/refs/heads/main/bounty_loadstring.lua"))()
-  end
-})
-
-Tabs.Main1:AddButton({
-    Title="Redz Hub (Maybe Working)",
-    Description="GUESS WHO'S IS BACK 🗣️🔥",
-    Callback=function()
-    loadstring(game:HttpGet("https://pastefy.app/XMcjaaIS/raw"))()
-    end
 })
 
 Tabs.Main1:AddButton({
@@ -221,13 +454,6 @@ Tabs.Main1:AddButton({
   end
 })
 
-Tabs.Main1:AddButton({
-    Title="Tuan Hub",
-    Description="",
-    Callback=function()
-	     loadstring(game:HttpGet("https://raw.githubusercontent.com/AnhTuanDzai-Hub/TuanAnhIOS/refs/heads/main/TuanAnhIOS-Main.Lua"))()
-  end
-})
 
 Tabs.Main1:AddButton({
     Title="Aurora Hub",
@@ -313,12 +539,11 @@ Tabs.Main1:AddButton({
     Description="",
     Callback=function()
 	  getgenv().Team = "Marines"
-    getgenv().AutoLoad = false --Will Load Script On Server Hop
+    getgenv().AutoLoad = false
     loadstring(game:HttpGet("https://api.luarmor.net/files/v3/loaders/3b2169cf53bc6104dabe8e19562e5cc2.lua"))()
   end
 })
 
--- Tabs.Main2
 Tabs.Main2:AddButton({
     Title="No-Lag Hub",
     Description="",
@@ -359,7 +584,6 @@ Tabs.Main2:AddButton({
   end
 })
 
--- Tabs.Main3
 Tabs.Main3:AddButton({
     Title="Speed-X Hub",
     Description="",
@@ -426,7 +650,6 @@ Tabs.Main3:AddButton({
   end
 })
 
--- Tabs.Main4
 Tabs.Main4:AddButton({
     Title="Speed-X Hub",
     Description="",
@@ -440,6 +663,22 @@ Tabs.Main4:AddButton({
     Description="",
     Callback=function()
            loadstring(game:HttpGet("https://raw.githubusercontent.com/thantzy/thanhub/refs/heads/main/thanv1"))()
+  end
+})
+
+Tabs.Main4:AddButton({
+    Title="Foxname Hub",
+    Description="",
+    Callback=function()
+           loadstring(game:HttpGet("https://raw.githubusercontent.com/caomod2077/Script/refs/heads/main/FoxnameHub.lua"))()
+  end
+})
+
+Tabs.Main4:AddButton({
+    Title="Ringta Hub",
+    Description="",
+    Callback=function()
+           loadstring(game:HttpGet("https://raw.githubusercontent.com/wefwef127382/99daysloader.github.io/refs/heads/main/ringta.lua"))()
   end
 })
 
@@ -475,7 +714,6 @@ Tabs.Main4:AddButton({
   end
 })
 
--- Tabs.Main5
 Tabs.Main5:AddButton({
     Title="Siff Hub(Pc)",
     Description=" key requird ",
@@ -524,7 +762,6 @@ Tabs.Main5:AddButton({
   end
 })
 
--- Tabs.Main6
 Tabs.Main6:AddButton({
     Title="Solix Hub",
     Description="",
@@ -565,7 +802,6 @@ Tabs.Main6:AddButton({
   end
 })
 
--- Tabs.Main7
 Tabs.Main7:AddButton({
     Title="Lumin Hub",
     Description="",
@@ -607,14 +843,6 @@ Tabs.Main7:AddButton({
 })
 
 Tabs.Main7:AddButton({
-    Title="Makal Hub",
-    Description="",
-    Callback=function()
-           loadstring(game:HttpGet("https://raw.githubusercontent.com/DoliScriptz/loader/refs/heads/main/main.lua",true))()
-  end
-})
-
-Tabs.Main7:AddButton({
     Title="Makal Hub (Finder)",
     Description="",
     Callback=function()
@@ -639,8 +867,6 @@ Tabs.Main7:AddButton({
   end
 })
 
-
--- Tabs.Main8 (Universal)
 Tabs.Main8:AddButton({
     Title="Test UNC",
     Description="press F9 To check console",
@@ -658,66 +884,75 @@ Tabs.Main8:AddButton({
   end
 })
 
-Tabs.Main8:AddButton({
-    Title="Zenikaze Hub",
-    Description="Free Pv Server",
-    Callback=function()
-           loadstring(game:HttpGet("https://raw.githubusercontent.com/ZenithExility/ZenikazeHub/refs/heads/main/ZenikazeV3.1"))()
-  end
-})
 
-
--- SỬA LỖI: Dùng AddParagraph thay cho AddLabel
 Tabs.Main8:AddParagraph({
-    -- Gộp Title và Description
-    Title = "Nothing niiga",
+    Title = "Nothing nigga",
 })
 
--- Tabs.Main9
 Tabs.Main9:AddButton({
-    Title="Hutao Hub",
+    Title="Hutao Hub(Freeium)",
     Description="best script i found",
     Callback=function()
            loadstring(game:HttpGet("https://raw.githubusercontent.com/hdksakst-ship-it/Anti-Ban/refs/heads/main/Forsaken-V4-New.txt"))()
   end
 })
 
--- Tabs.Main10
-Tabs.Main10:AddButton({
-    Title="Black Hub",
-    Description="best script i found",
+Tabs.Main9:AddButton({
+    Title="Hutao Hub(Premium)",
+    Description="Test it bc it's good:)",
     Callback=function()
-           -- Black Hub
-           loadstring(game:HttpGet("https://raw.githubusercontent.com/scriptpastebin/raw/main/Doors"))()
+           loadstring(game:HttpGet("https://raw.githubusercontent.com/ngao-gamer/Purium/refs/heads/main/fosaken.lua"))()
   end
 })
 
-Tabs.Main10:AddButton({
-    Title="MSDoors Hub",
-    Description="best script i found",
+Tabs.Main9:AddButton({
+    Title="Void-Ware Hub",
+    Description="Nothing better than nigga",
     Callback=function()
-          -- MSDoors Hub
-            loadstring(game:HttpGet(("https://raw.githubusercontent.com/mstudio45/MSDOORS/main/MSDOORS.lua"),true))() 
+           loadstring(game:HttpGet("https://raw.githubusercontent.com/VapeVoidware/VW-Add/main/forsaken.lua", true))()
   end
 })
 
-Tabs.Main10:AddButton({
-    Title="NullFire Hub",
-    Description="By seikoso",
+Tabs.Main9:AddButton({
+    Title="NOL Hub",
+    Description="",
     Callback=function()
-loadstring(game:HttpGet("https://raw.githubusercontent.com/TeamNullFire/NullFire/main/loader.lua"))()
+           getfenv().ADittoKey="NOL_FRERKEY"
+
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Syndromehsh/NOL/refs/heads/main/Nolsaken"))()
   end
 })
 
-Tabs.Main10:AddButton({
-    Title="NullFire Hub",
-    Description="By Cherry",
+Tabs.Main9:AddButton({
+    Title="Funny Hub",
+    Description="",
     Callback=function()
-loadstring(game:HttpGet("https://raw.githubusercontent.com/InfernusScripts/Null-Fire/main/Loader"))()
+           loadstring(game:HttpGet("https://raw.githubusercontent.com/PlutomasterAccount/Funny-Hub-V2-Forsaken/refs/heads/main/Funny%20Hub%20V2%20Forsaken.lua"))()
   end
 })
 
--- Tabs.Main11
+Tabs.Main9:AddButton({
+    Title="SNT Hub",
+    Description="",
+    Callback=function()
+           loadstring(game:HttpGet("https://raw.githubusercontent.com/Snowt69/SNT-HUB/refs/heads/main/Forsaken"))()
+  end
+})
+
+Tabs.Main9:AddButton({
+    Title="Voidsaken Hub",
+    Description="uhhh",
+    Callback=function()
+           loadstring(game:HttpGet("https://raw.githubusercontent.com/voidsaken-script/Voidsaken-Loader/refs/heads/main/main"))()
+  end
+})
+
+Tabs.Main10:AddParagraph({
+    Title="Sorry All Script i found are down",
+    Content="uhhh",
+})
+
+
 Tabs.Main11:AddButton({
     Title="Lumin Hub",
     Description="",
@@ -774,12 +1009,99 @@ Tabs.Main11:AddButton({
   end
 })
 
--- Tabs.Main12
+Tabs.Main11:AddButton({
+    Title="No-Lag Hub",
+    Description="",
+    Callback=function()
+           loadstring(game:HttpGet("https://raw.githubusercontent.com/NoLag-id/No-Lag-HUB/refs/heads/main/Loader/Main.lua"))()
+  end
+})
+
+Tabs.Main11:AddButton({
+    Title="Bonk Hub",
+    Description="",
+    Callback=function()
+           loadstring(game:HttpGet("https://bonkhub.online/loader.lua",true))()
+  end
+})
+
+Tabs.Main11:AddButton({
+    Title="Ajjans Hub",
+    Description="",
+    Callback=function()
+           loadstring(game:HttpGet("https://raw.githubusercontent.com/onliengamerop/Plants-vs-brainrot/refs/heads/main/Protected_7727598114299366.lua.txt"))()
+  end
+})
+
+Tabs.Main11:AddButton({
+    Title="Ajjans Hub",
+    Description="",
+    Callback=function()
+           loadstring(game:HttpGet("https://raw.githubusercontent.com/onliengamerop/Plants-vs-brainrot/refs/heads/main/Protected_7727598114299366.lua.txt"))()
+  end
+})
+
+Tabs.Main11:AddButton({
+    Title="Infinity X Hub",
+    Description="",
+    Callback=function()
+           loadstring(game:HttpGet('https://raw.githubusercontent.com/Muhammad6196/Project-Infinity-X/refs/heads/main/main.lua'))()
+  end
+})
+
+Tabs.Main11:AddButton({
+    Title="Rift Hub",
+    Description="",
+    Callback=function()
+           loadstring(game:HttpGet("https://rifton.top/loader.lua"))()
+  end
+})
+
+Tabs.Main11:AddButton({
+    Title="Nothing Hub",
+    Description="",
+    Callback=function()
+           loadstring(game:HttpGet("https://github.com/collectorhenfi-wq/Hendarscriptt/raw/refs/heads/main/Plantvsbrainrotupdate.txt"))()
+  end
+})
+
+Tabs.Main11:AddButton({
+    Title="UB Hub",
+    Description="",
+    Callback=function()
+           loadstring(game:HttpGet("https://gitlab.com/r_soft/main/-/raw/main/LoadUB.lua"))()
+  end
+})
+
 Tabs.Main12:AddButton({
     Title="Lime Hub",
     Description="",
     Callback=function()
            loadstring(game:HttpGet("https://api.luarmor.net/files/v3/loaders/6148a228aa218018a2d6ed358f16add3.lua"))()
+  end
+})
+
+Tabs.Main12:AddButton({
+    Title="Nexa Hub",
+    Description="",
+    Callback=function()
+           loadstring(game:HttpGet("https://cdn.authguard.org/virtual-file/ad78503fe95d455ba06d8a73a1d1f890"))()
+  end
+})
+
+Tabs.Main12:AddButton({
+    Title="Ryzen Hub",
+    Description="",
+    Callback=function()
+           loadstring(game:HttpGet("https://api.luarmor.net/files/v3/loaders/178c353fa8240cbf61835f4c6f76112e.lua"))()
+  end
+})
+
+Tabs.Main12:AddButton({
+    Title="Tsuo Hub",
+    Description="Trash but working bruh",
+    Callback=function()
+           loadstring(game:HttpGet("https://raw.githubusercontent.com/Tsuo7/TsuoHub/main/Tsuoscripts"))()
   end
 })
 
@@ -791,10 +1113,102 @@ Tabs.Main12:AddButton({
   end
 })
 
-
-Tabs.Main13:AddParagraph({
-    -- Gộp Title và Description
-    Title = "More Game Script Will Comming Soon!",
+Tabs.Main12:AddButton({
+    Title="Nat Hub",
+    Description="",
+    Callback=function()
+           loadstring(game:HttpGet("https://raw.githubusercontent.com/dy1zn4t/NatHub/refs/heads/main/loader"))();
+  end
 })
 
--- ĐÃ XÓA DẤU NGOẶC NHỌN THỪA Ở CUỐI FILE
+Tabs.Main12:AddButton({
+    Title="Bonk Hub",
+    Description="",
+    Callback=function()
+           loadstring(game:HttpGet("https://bonkhub.online/loader.lua",true))()
+  end
+})
+
+Tabs.Main12:AddButton({
+    Title="Than Hub",
+    Description="",
+    Callback=function()
+           loadstring(game:HttpGet("https://raw.githubusercontent.com/thantzy/thanhub/refs/heads/main/thanv1"))()
+  end
+})
+
+Tabs.Main12:AddButton({
+    Title="Vinz Hub",
+    Description="",
+    Callback=function()
+           loadstring(game:HttpGet("https://raw.githubusercontent.com/Vinzyy13/VinzHub/refs/heads/main/Fish-It"))()
+  end
+})
+
+Tabs.Main12:AddButton({
+    Title="Kenniel Hub",
+    Description="",
+    Callback=function()
+           loadstring(game:HttpGet("https://raw.githubusercontent.com/Kenniel123/Universal-Loader/refs/heads/main/MultiGame"))()
+  end
+})
+
+Tabs.Main12:AddButton({
+    Title="Lumin Hub",
+    Description="",
+    Callback=function()
+           loadstring(game:HttpGet("http://luminon.top/loader.lua"))()
+  end
+})
+
+Tabs.Main12:AddButton({
+    Title="Aeronic Hub",
+    Description="",
+    Callback=function()
+           loadstring(game:HttpGet("https://raw.githubusercontent.com/mazino45/main/refs/heads/main/MainScript.lua"))()
+  end
+})
+
+Tabs.Main12:AddButton({
+    Title="Speed-X Hub",
+    Description="",
+    Callback=function()
+           loadstring(game:HttpGet("https://raw.githubusercontent.com/AhmadV99/Speed-Hub-X/main/Speed%20Hub%20X.lua", true))()
+  end
+})
+
+Tabs.Main12:AddButton({
+    Title="Aslabs Hub",
+    Description="",
+    Callback=function()
+           loadstring(game:HttpGet("https://ashlabs.me/api/game?name=fish-it.lua",true))()
+  end
+})
+
+Tabs.Main12:AddButton({
+    Title="Nexus Hub",
+    Description="",
+    Callback=function()
+           loadstring(game:HttpGet('https://nexusofficial.xyz/loader'))()
+  end
+})
+
+Tabs.Main12:AddButton({
+    Title="Celestial Hub",
+    Description="",
+    Callback=function()
+           loadstring(game:HttpGet("https://raw.githubusercontent.com/MajestySkie/list/refs/heads/main/games"))()
+  end
+})
+
+Tabs.Main12:AddButton({
+    Title="Pollute Hub",
+    Description="",
+    Callback=function()
+           loadstring(game:HttpGet("https://api.luarmor.net/files/v3/loaders/b9162d4ef4823b2af2f93664cf9ec393.lua"))()
+  end
+})
+
+Tabs.Main13:AddParagraph({
+    Title = "More Support will comming soon !",
+})
