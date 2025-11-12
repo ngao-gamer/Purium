@@ -892,7 +892,7 @@ Tabs.Main9:AddButton({
     Title="Hutao Hub (freemium)",
     Description="best script i found",
     Callback=function()
-           loadstring(game:HttpGet("https://raw.githubusercontent.com/hdksakst-ship-it/Anti-Ban/refs/heads/main/Forsaken-V4-New.txt"))()
+           loadstring(game:HttpGet("https://raw.githubusercontent.com/Dev2-Forsaken/Banned/refs/heads/main/Forsaken.lua"))()
   end
 })
 
@@ -1205,3 +1205,4 @@ Tabs.Main12:AddButton({
 Tabs.Main13:AddParagraph({
     Title = "More script support will comming soon !",
 })
+
