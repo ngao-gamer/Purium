@@ -1,4 +1,4 @@
-local Fluent = loadstring(game:HttpGet("https://raw.githubusercontent.com/ngao-gamer/Purium/refs/heads/main/Purium%20Gui"))()
+local Fluent = loadstring(game:HttpGet("https://raw.githubusercontent.com/dataidaphuc/S/refs/heads/main/Hu1a0Gui-V2.lua"))()
 local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
 local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 local Window = Fluent:CreateWindow({
@@ -54,7 +54,7 @@ SaveManager:BuildConfigSection(Tabs.Settings)
 -- Select First Tab By Default
 Window:SelectTab(1)
 
-Fluent:Notify({ Title = "Purium HUB", Content = "Universal script loaded successfully!", Duration = 3.5 })
+Fluent:Notify({ Title = "Purium HUB", Content = "Universal script loaded successfully!", Duration = 5 })
 SaveManager:LoadAutoloadConfig()
 
 
@@ -64,14 +64,14 @@ local CoreGui = game:GetService("CoreGui")
 local TweenService = game:GetService("TweenService")
 
 -- Xóa nếu có UI minimize cũ
-local ExistingUI = CoreGui:FindFirstChild("HutaoHubMinimizeUI")
+local ExistingUI = CoreGui:FindFirstChild("PuriumHubMinimizeUI")
 if ExistingUI then
     ExistingUI:Destroy()
 end
 
 -- Create Floating UI
 local DragUI = Instance.new("ScreenGui")
-DragUI.Name = "HutaoHubMinimizeUI"
+DragUI.Name = "PuriumHubMinimizeUI"
 DragUI.ResetOnSpawn = false
 DragUI.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 DragUI.Parent = CoreGui
@@ -885,12 +885,20 @@ Tabs.Main8:AddButton({
 })
 
 
+Tabs.Main8:AddButton({
+    Title="Free pv server",
+    Description="",
+    Callback=function()
+           loadstring(game:HttpGet("https://raw.githubusercontent.com/veil0x14/LocalScripts/refs/heads/main/pg.lua"))()
+  end
+})
+
 Tabs.Main8:AddParagraph({
-    Title = "Nothing nigga",
+    Title = "Nothing niiga",
 })
 
 Tabs.Main9:AddButton({
-    Title="Hutao Hub(Freeium)",
+    Title="Hutao Hub",
     Description="best script i found",
     Callback=function()
            loadstring(game:HttpGet("https://raw.githubusercontent.com/hdksakst-ship-it/Anti-Ban/refs/heads/main/Forsaken-V4-New.txt"))()
@@ -898,7 +906,7 @@ Tabs.Main9:AddButton({
 })
 
 Tabs.Main9:AddButton({
-    Title="Hutao Hub(Premium)",
+    Title="Purium Hub",
     Description="Test it bc it's good:)",
     Callback=function()
            loadstring(game:HttpGet("https://raw.githubusercontent.com/ngao-gamer/Purium/refs/heads/main/fosaken.lua"))()
@@ -946,12 +954,6 @@ Tabs.Main9:AddButton({
            loadstring(game:HttpGet("https://raw.githubusercontent.com/voidsaken-script/Voidsaken-Loader/refs/heads/main/main"))()
   end
 })
-
-Tabs.Main10:AddParagraph({
-    Title="Sorry All Script i found are down",
-    Content="uhhh",
-})
-
 
 Tabs.Main11:AddButton({
     Title="Lumin Hub",
@@ -1210,8 +1212,147 @@ Tabs.Main12:AddButton({
 })
 
 Tabs.Main13:AddParagraph({
-    Title = "More Support will comming soon !",
+    Title = "More script support will comming soon !",
 })
 
 
+SaveManager:SetLibrary(Fluent)
+InterfaceManager:SetLibrary(Fluent)
 
+SaveManager:IgnoreThemeSettings()
+
+
+SaveManager:SetIgnoreIndexes({})
+
+InterfaceManager:SetFolder("Purium HUB")
+SaveManager:SetFolder("Purium HUB/universal")
+
+InterfaceManager:BuildInterfaceSection(Tabs.Settings)
+SaveManager:BuildConfigSection(Tabs.Settings)
+
+-- Select First Tab By Default
+Window:SelectTab(1)
+
+Fluent:Notify({ Title = "Purium HUB", Content = "Universal script loaded successfully!", Duration = 5 })
+SaveManager:LoadAutoloadConfig()
+
+
+
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+local TweenService = game:GetService("TweenService")
+
+-- Xóa nếu có UI minimize cũ
+local ExistingUI = CoreGui:FindFirstChild("PuriumHubMinimizeUI")
+if ExistingUI then
+    ExistingUI:Destroy()
+end
+
+-- Create Floating UI
+local DragUI = Instance.new("ScreenGui")
+DragUI.Name = "PuriumHubMinimizeUI"
+DragUI.ResetOnSpawn = false
+DragUI.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+DragUI.Parent = CoreGui
+
+
+local Button = Instance.new("ImageButton")
+Button.Parent = DragUI
+Button.Size = UDim2.new(0, 50, 0, 50)
+Button.Position = UDim2.new(0, 10, 1, -85)
+Button.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+Button.BackgroundTransparency = 0.3
+Button.BorderSizePixel = 0
+Button.ClipsDescendants = true
+Button.Image = "rbxassetid://109647470925993" -- Thay icon nếu muốn
+Button.ScaleType = Enum.ScaleType.Fit
+Button.Active = true
+Button.ZIndex = 1000
+
+
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(1, 0)
+UICorner.Parent = Button
+
+
+local tweenInfo = TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+
+local function ToggleUI()
+    if Window.Minimized then
+        Window:Minimize(false) 
+    else
+        Window:Minimize(true) 
+    end
+end
+
+local isDragging = false
+local dragThreshold = 10
+
+Button.MouseButton1Click:Connect(function()
+    if isDragging then return end
+
+    TweenService:Create(Button, tweenInfo, {
+        BackgroundTransparency = 0.5,
+        Size = UDim2.new(0, 45, 0, 45),
+        Rotation = 5
+    }):Play()
+    task.wait(0.1)
+    TweenService:Create(Button, tweenInfo, {
+        BackgroundTransparency = 0.3,
+        Size = UDim2.new(0, 50, 0, 50),
+        Rotation = 0
+    }):Play()
+
+    ToggleUI()
+end)
+
+Button.MouseEnter:Connect(function()
+    TweenService:Create(Button, tweenInfo, {Size = UDim2.new(0, 55, 0, 55)}):Play()
+end)
+
+Button.MouseLeave:Connect(function()
+    TweenService:Create(Button, tweenInfo, {Size = UDim2.new(0, 50, 0, 50)}):Play()
+end)
+
+
+local dragging, dragStart, startPos
+
+local function StartDrag(input)
+    isDragging = false
+    dragging = true
+    dragStart = input.Position
+    startPos = Button.Position
+
+    input.Changed:Connect(function()
+        if input.UserInputState == Enum.UserInputState.End then
+            dragging = false
+        end
+    end)
+end
+
+local function OnDrag(input)
+    if dragging then
+        local delta = (input.Position - dragStart).Magnitude
+        if delta > dragThreshold then
+            isDragging = true
+        end
+        Button.Position = UDim2.new(
+            startPos.X.Scale,
+            startPos.X.Offset + (input.Position.X - dragStart.X),
+            startPos.Y.Scale,
+            startPos.Y.Offset + (input.Position.Y - dragStart.Y)
+        )
+    end
+end
+
+Button.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        StartDrag(input)
+    end
+end)
+
+Button.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        OnDrag(input)
+    end
+end)  
