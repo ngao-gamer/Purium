@@ -15,7 +15,7 @@ local Window = Fluent:CreateWindow({
     UserInfo = true,
     UserInfoTop = false,
     UserInfoTitle = game:GetService("Players").LocalPlayer.DisplayName,
-    UserInfoSubtitle = "Purium Hub",
+    UserInfoSubtitle = "Premuim User",
     UserInfoSubtitleColor = Color3.fromRGB(71, 123, 255)
 })
 
@@ -1185,3 +1185,4 @@ Tabs.Main12:AddButton({
 Tabs.Main13:AddParagraph({
     Title = "More script support will comming soon !",
 })
+
