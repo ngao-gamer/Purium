@@ -21,10 +21,10 @@ local Window = Fluent:CreateWindow({
 
 local Tabs = {
     Main0=Window:AddTab({ Title="Infomation", Icon = "info" }),
-    Main1=Window:AddTab({ Title="Blox Fruit" }),
-    Main2=Window:AddTab({ Title="Grow a Garden" }),
-    Main3=Window:AddTab({ Title="Fisch" }),
-    Main4=Window:AddTab({ Title="99 in the forest" }),
+    Main1=Window:AddTab({ Title="Blox Fruit", Icon = "shield" }),
+    Main2=Window:AddTab({ Title="Grow a Garden", Icon = "slash" }),
+    Main3=Window:AddTab({ Title="Fisch", Icon = "star" }),
+    Main4=Window:AddTab({ Title="99 in the forest", Icon = "shield-off" }),
     Main5=Window:AddTab({ Title="Ink Game" }),
     Main6=Window:AddTab({ Title="Hunty Zombies" }),
     Main7=Window:AddTab({ Title="Steal A Brainrot" }), 
@@ -1205,4 +1205,5 @@ Tabs.Main12:AddButton({
 Tabs.Main13:AddParagraph({
     Title = "More script support will comming soon !",
 })
+
 
