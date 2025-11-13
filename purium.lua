@@ -7,7 +7,7 @@ local Window = Fluent:CreateWindow({
     Search = true,
     Icon = "rbxassetid://121302760641013",
     TabWidth = 160,
-    Size = UDim2.fromOffset(480, 360),
+    Size = UDim2.fromOffset(540, 382),
     Acrylic = true,
     Theme = "Dark",
     MinimizeKey = Enum.KeyCode.RightAlt,
@@ -21,39 +21,31 @@ local Window = Fluent:CreateWindow({
 
 local Tabs = {
     Main0=Window:AddTab({ Title="Infomation", Icon = "info" }),
-    Main1=Window:AddTab({ Title="Blox Fruit", Icon = "shield" }),
-    Main2=Window:AddTab({ Title="Grow a Garden", Icon = "slash" }),
-    Main3=Window:AddTab({ Title="Fisch", Icon = "star" }),
-    Main4=Window:AddTab({ Title="99 in the forest", Icon = "shield-off" }),
-    Main5=Window:AddTab({ Title="Ink Game" }),
-    Main6=Window:AddTab({ Title="Hunty Zombies" }),
-    Main7=Window:AddTab({ Title="Steal A Brainrot" }), 
-    Main8=Window:AddTab({ Title="Universal" }),
-    Main9=Window:AddTab({ Title="Forsaken" }),  
-    Main10=Window:AddTab({ Title="Doors" }), 
-    Main11=Window:AddTab({ Title="Plants Vs Brainrot" }),     
-    Main12=Window:AddTab({ Title="Fisch It" }),  
-    Main13=Window:AddTab({ Title="Comming Soon" }),
+    Main1=Window:AddTab({ Title="Blox Fruit", Icon = "swords" }),
+    Main2=Window:AddTab({ Title="Grow a Garden", Icon = "timer-reset" }),
+    Main3=Window:AddTab({ Title="Fisch", Icon = "shield-alert" }),
+    Main4=Window:AddTab({ Title="99 in the forest", Icon = "bluetooth" }),
+    Main5=Window:AddTab({ Title="Ink Game", Icon = "ticket" }),
+    Main6=Window:AddTab({ Title="Hunty Zombies", Icon ="skull" }),
+    Main7=Window:AddTab({ Title="Steal A Brainrot", Icon = "sword" }), 
+    Main8=Window:AddTab({ Title="Universal", Icon = "verified" }),
+    Main9=Window:AddTab({ Title="Forsaken" ,Icon = "shield" }),  
+    Main10=Window:AddTab({ Title="Doors" ,Icon = "cloud-snow" }), 
+    Main11=Window:AddTab({ Title="Plants Vs Brainrot" ,Icon = "bell-plus" }),     
+    Main12=Window:AddTab({ Title="Fisch It" ,Icon = "trash-2" }),  
+    Main13=Window:AddTab({ Title="Comming Soon" ,Icon = "user-x" }),
     Settings = Window:AddTab({ Title = "Settings", Icon = "settings" })
 }
 
 SaveManager:SetLibrary(Fluent)
 InterfaceManager:SetLibrary(Fluent)
-
 SaveManager:IgnoreThemeSettings()
-
-
 SaveManager:SetIgnoreIndexes({})
-
 InterfaceManager:SetFolder("Purium HUB")
 SaveManager:SetFolder("Purium HUB/universal")
-
 InterfaceManager:BuildInterfaceSection(Tabs.Settings)
 SaveManager:BuildConfigSection(Tabs.Settings)
-
--- Select First Tab By Default
 Window:SelectTab(1)
-
 Fluent:Notify({ Title = "Purium HUB", Content = "Universal script loaded successfully!", Duration = 5 })
 SaveManager:LoadAutoloadConfig()
 
@@ -63,13 +55,11 @@ local UserInputService = game:GetService("UserInputService")
 local CoreGui = game:GetService("CoreGui")
 local TweenService = game:GetService("TweenService")
 
--- Xóa nếu có UI minimize cũ
 local ExistingUI = CoreGui:FindFirstChild("PuriumHubMinimizeUI")
 if ExistingUI then
     ExistingUI:Destroy()
 end
 
--- Create Floating UI
 local DragUI = Instance.new("ScreenGui")
 DragUI.Name = "PuriumHubMinimizeUI"
 DragUI.ResetOnSpawn = false
@@ -183,23 +173,6 @@ Tabs.Main0:AddParagraph({
     Content = "Note : Thank You For Using My Script :D !!",
 })
 
-Tabs.Main0:AddButton({
-    Title = "Discord",
-    Description = "Join Ours discord for support",
-    Callback = function()
-      setclipboard("https://discord.gg/3fbA4kNZtJ")
-      warn("Link Discord copied to clipboard: " .. "https://discord.gg/3fbA4kNZtJ") 
-            game:GetService("StarterGui"):SetCore(
-        "SendNotification",
-        {
-          Title = "Link Discord Copied!",
-          Text = "Link Copied.",
-          Duration = 3
-        }
-      )
-    end
-})
-
     Tabs.Main0:AddParagraph({
         Title = "Suport Executor :",
         Content = "Suport All Exeucutor Mobile.\nSuport All Executor PC"
@@ -220,12 +193,10 @@ Tabs.Main0:AddParagraph({
     Content = "yeah their script still here but i still sad for some how, their script got copied called skid",
 })
 
---// FPS + Ping Display (Safe BillboardGui Version)
 local RunService = game:GetService("RunService")
 local Stats = game:GetService("Stats")
 local Camera = workspace.CurrentCamera
 
---// UI Container
 local ui = Instance.new("ScreenGui")
 ui.Name = "FPS_Ping_Display"
 ui.ResetOnSpawn = false
@@ -233,7 +204,6 @@ ui.IgnoreGuiInset = true
 ui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 ui.Parent = game:GetService("CoreGui")
 
---// FPS Label
 local fpsLabel = Instance.new("TextLabel")
 fpsLabel.Size = UDim2.new(0, 120, 0, 20)
 fpsLabel.Position = UDim2.new(1, -130, 0, 5)
@@ -246,18 +216,15 @@ fpsLabel.TextXAlignment = Enum.TextXAlignment.Left
 fpsLabel.Text = "FPS: ..."
 fpsLabel.Parent = ui
 
---// Ping Label
 local pingLabel = fpsLabel:Clone()
 pingLabel.Position = UDim2.new(1, -130, 0, 25)
 pingLabel.Text = "Ping: ..."
 pingLabel.Parent = ui
 
---// Variables
 local showFPS = true
 local showPing = true
 local fpsCounter, lastUpdate = 0, tick()
 
---// Update Loop
 RunService.RenderStepped:Connect(function()
     fpsCounter += 1
     if tick() - lastUpdate >= 1 then
@@ -289,7 +256,6 @@ RunService.RenderStepped:Connect(function()
     end
 end)
 
---// Fluent UI Toggles
 local fpsToggle = Tabs.Main0:AddToggle("ShowFPSToggle", {
     Title = "Show FPS",
     Default = true
@@ -318,9 +284,9 @@ Tabs.Main0:AddToggle("AntiFPSSpike", {
         warn("[Anti-FPS Spike] ✅ Hệ thống cưỡng chế FPS = 60 đã bật.")
 
         task.spawn(function()
-            local FORCE_FPS = 60          -- Luôn giữ 60 FPS
-            local SPIKE_THRESHOLD = 120   -- Nếu FPS vượt ngưỡng này thì chống spike
-            local MONITOR_INTERVAL = 1    -- Kiểm tra mỗi 1 giây
+            local FORCE_FPS = 60
+            local SPIKE_THRESHOLD = 120
+            local MONITOR_INTERVAL = 1
 
             local frameCount = 0
             local fps = 60
@@ -332,7 +298,6 @@ Tabs.Main0:AddToggle("AntiFPSSpike", {
                 end
             end
 
-            -- Khóa ban đầu
             forceCap()
 
             -- Đếm FPS thực tế
@@ -345,14 +310,12 @@ Tabs.Main0:AddToggle("AntiFPSSpike", {
                 fps = frameCount / MONITOR_INTERVAL
                 frameCount = 0
 
-                -- Phát hiện FPS tăng bất thường
                 if fps > SPIKE_THRESHOLD then
                     warn(string.format("[⚠️ Anti-FPS Spike]: FPS tăng bất thường (%d) → ổn định lại!", math.floor(fps)))
                     forceCap()
                     task.wait(0.5)
                 end
 
-                -- Bảo vệ tránh script khác đổi cap
                 if typeof(getfpscap) == "function" then
                     local currentCap = getfpscap()
                     if currentCap ~= FORCE_FPS then
@@ -368,6 +331,23 @@ Tabs.Main0:AddToggle("AntiFPSSpike", {
         warn("[Anti-FPS Spike] ❌ Đã tắt.")
     end
 end)
+
+Tabs.Main0:AddButton({
+    Title = "Discord",
+    Description = "Join Ours discord for support",
+    Callback = function()
+      setclipboard("https://discord.gg/3fbA4kNZtJ")
+      warn("Link Discord copied to clipboard: " .. "https://discord.gg/3fbA4kNZtJ") 
+            game:GetService("StarterGui"):SetCore(
+        "SendNotification",
+        {
+          Title = "Link Discord Copied!",
+          Text = "Link Copied.",
+          Duration = 3
+        }
+      )
+    end
+})
 
 Tabs.Main1:AddButton({
     Title="Teddy Hub(Main Farm)",
@@ -1205,5 +1185,3 @@ Tabs.Main12:AddButton({
 Tabs.Main13:AddParagraph({
     Title = "More script support will comming soon !",
 })
-
-
