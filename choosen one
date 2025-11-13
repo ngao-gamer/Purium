@@ -3,7 +3,7 @@ local Loader2 = loadstring(game:HttpGet("https://raw.githubusercontent.com/TDDuy
 Loader2:CreateLoading({
     Title = "Purium Hub",
     Color = "Black", -- Red, Orange, Yellow, Green, Blue, Purple, Pink, Black, White, Gray
-    ScriptName = "Loading Purium ...",
+    ScriptName = "Downloading Asset And Script",
     Image = "rbxassetid://109647470925993", -- Enter the decal ID
 })
 
