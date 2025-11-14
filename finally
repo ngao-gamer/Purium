@@ -6,5 +6,6 @@ Loader2:CreateLoading({
     ScriptName = "Downloading Asset And Script....",
     Image = "rbxassetid://109647470925993", -- Enter the decal ID
 })
-
+print("Purium Script Loadded")
+warn("Thanks you agains for using my script :D!!!")
 loadstring(game:HttpGet("https://raw.githubusercontent.com/ngao-gamer/Purium/refs/heads/main/purium.lua"))()
