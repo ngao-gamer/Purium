@@ -1185,3 +1185,5 @@ Tabs.Main12:AddButton({
 Tabs.Main13:AddParagraph({
     Title = "More script support will comming soon !",
 })
+print("Purium Script Loadded")
+warn("Thanks you agains for using my script :D!!!")
