@@ -6,7 +6,7 @@ local Window = Fluent:CreateWindow({
     SubTitle = "Version 1.2.0",
     Search = true,
     Icon = "rbxassetid://121302760641013",
-    TabWidth = 140,
+    TabWidth = 149,
     Size = UDim2.fromOffset(515, 350),
     Acrylic = true,
     Theme = "Dark",
@@ -1187,3 +1187,4 @@ Tabs.Main13:AddParagraph({
 })
 print("Purium Script Loadded")
 warn("Thanks you agains for using my script :D!!!")
+
