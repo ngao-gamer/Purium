@@ -6,8 +6,8 @@ local Window = Fluent:CreateWindow({
     SubTitle = "Version 1.2.0",
     Search = true,
     Icon = "rbxassetid://121302760641013",
-    TabWidth = 160,
-    Size = UDim2.fromOffset(540, 382),
+    TabWidth = 140,
+    Size = UDim2.fromOffset(515, 350),
     Acrylic = true,
     Theme = "Dark",
     MinimizeKey = Enum.KeyCode.RightAlt,
@@ -33,7 +33,7 @@ local Tabs = {
     Main10=Window:AddTab({ Title="Doors" ,Icon = "cloud-snow" }), 
     Main11=Window:AddTab({ Title="Plants Vs Brainrot" ,Icon = "bell-plus" }),     
     Main12=Window:AddTab({ Title="Fisch It" ,Icon = "trash-2" }),  
-    Main13=Window:AddTab({ Title="Comming Soon" ,Icon = "user-x" }),
+    Main13=Window:AddTab({ Title="Comming Soon" ,Icon = "user-plus" }),
     Settings = Window:AddTab({ Title = "Settings", Icon = "settings" })
 }
 
@@ -1185,4 +1185,3 @@ Tabs.Main12:AddButton({
 Tabs.Main13:AddParagraph({
     Title = "More script support will comming soon !",
 })
-
