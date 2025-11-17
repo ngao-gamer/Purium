@@ -3,10 +3,10 @@ local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/d
 local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 local Window = Fluent:CreateWindow({
     Title = "Purium Hub [Premium] | Universal |",
-    SubTitle = "Version 1.2.0",
+    SubTitle = "Version 1.2.1",
     Search = true,
     Icon = "rbxassetid://121302760641013",
-    TabWidth = 149,
+    TabWidth = 140,
     Size = UDim2.fromOffset(515, 350),
     Acrylic = true,
     Theme = "Dark",
@@ -185,13 +185,9 @@ Tabs.Main0:AddParagraph({
 
         Tabs.Main0:AddParagraph({
         Title = "Lazy Announcement",
-        Content = "Hello Everyone, Some Script Doesn't Work In my scr bc im lazy to check them :D"
+        Content = "Hello Everyone, Some Script Doesn't Work In my script because im lazy to check them :)"
     })
 
-Tabs.Main0:AddParagraph({
-    Title = "Do you Remmber hutao hub?",
-    Content = "yeah their script still here but i still sad for some how, their script got copied called skid",
-})
 
 local RunService = game:GetService("RunService")
 local Stats = game:GetService("Stats")
@@ -213,7 +209,7 @@ fpsLabel.TextStrokeTransparency = 0
 fpsLabel.TextSize = 16
 fpsLabel.Font = Enum.Font.Code
 fpsLabel.TextXAlignment = Enum.TextXAlignment.Left
-fpsLabel.Text = "FPS: ..."
+fpsLabel.Text = "Fps: ..."
 fpsLabel.Parent = ui
 
 local pingLabel = fpsLabel:Clone()
@@ -275,7 +271,7 @@ pingToggle:OnChanged(function(val)
 end)
 
 Tabs.Main0:AddToggle("AntiFPSSpike", {
-    Title = "Unlock FPS V2",
+    Title = "Unlock FPS",
     Default = false
 }):OnChanged(function(Value)
     _G.AntiFPSSpike = Value
@@ -291,7 +287,6 @@ Tabs.Main0:AddToggle("AntiFPSSpike", {
             local frameCount = 0
             local fps = 60
 
-            -- Hàm cưỡng chế FPS
             local function forceCap()
                 if typeof(setfpscap) == "function" then
                     setfpscap(FORCE_FPS)
@@ -300,7 +295,6 @@ Tabs.Main0:AddToggle("AntiFPSSpike", {
 
             forceCap()
 
-            -- Đếm FPS thực tế
             RunService.RenderStepped:Connect(function()
                 if not _G.AntiFPSSpike then return end
                 frameCount += 1
@@ -353,6 +347,7 @@ Tabs.Main1:AddButton({
     Title="Teddy Hub(Main Farm)",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
 repeat wait() until game:IsLoaded() and game.Players.LocalPlayer
 loadstring(game:HttpGet("https://raw.githubusercontent.com/Teddyseetink/Haidepzai/refs/heads/main/TeddyHub.lua"))() 
   end
@@ -362,6 +357,7 @@ Tabs.Main1:AddButton({
     Title="Teddy Hub(Pull Lever)",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
 repeat task.wait() until game:IsLoaded() and game:GetService("Players") and game.Players.LocalPlayer and game.Players.LocalPlayer:FindFirstChild("PlayerGui")
 loadstring(game:HttpGet("https://raw.githubusercontent.com/Teddyseetink/Haidepzai/refs/heads/main/TEDDYHUB-AUTOPULLLever"))()
   end
@@ -371,6 +367,7 @@ Tabs.Main1:AddButton({
     Title="Teddy Hub(Hop Boss)",
     Description="Maybe Called That Auto Join Server Has Boss",
     Callback=function()
+        print("Successfully Executed Script")
 repeat task.wait() until game:IsLoaded() and game:GetService("Players") and game.Players.LocalPlayer and game.Players.LocalPlayer:FindFirstChild("PlayerGui")
 loadstring(game:HttpGet("https://raw.githubusercontent.com/Teddyseetink/Haidepzai/refs/heads/main/TEDDYHUB-FREEMIUM"))()
   end
@@ -380,6 +377,7 @@ Tabs.Main1:AddButton({
     Title="Blue X Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
 loadstring(game:HttpGet("https://raw.githubusercontent.com/Dev-BlueX/BlueX-Hub/refs/heads/main/Main.lua"))()
   end
 })
@@ -388,6 +386,7 @@ Tabs.Main1:AddButton({
     Title="Zinner Hub (Freeium)",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
 	  getgenv().Team = "Pirates"
     loadstring(game:HttpGet("https://raw.githubusercontent.com/HoangNguyenk8/Roblox/refs/heads/main/BF-Main.luau"))()
   end
@@ -397,6 +396,7 @@ Tabs.Main1:AddButton({
     Title="Quantum Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
 	     loadstring(game:HttpGet("https://raw.githubusercontent.com/flazhy/QuantumOnyx/refs/heads/main/QuantumOnyx.lua"))()
   end
 })
@@ -405,6 +405,7 @@ Tabs.Main1:AddButton({
     Title="Xero Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
 	     loadstring(game:HttpGet("https://raw.githubusercontent.com/Xero2409/XeroHub/refs/heads/main/main.lua"))()
   end
 })
@@ -413,6 +414,7 @@ Tabs.Main1:AddButton({
     Title="Cokka Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
 	     loadstring(game:HttpGet"https://raw.githubusercontent.com/UserDevEthical/Loadstring/main/CokkaHub.lua")()
   end
 })
@@ -421,6 +423,7 @@ Tabs.Main1:AddButton({
     Title="Vector Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
 	     loadstring(game:HttpGet("https://raw.githubusercontent.com/AAwful/Vector_Hub/0/v2"))()
   end
 })
@@ -430,6 +433,7 @@ Tabs.Main1:AddButton({
     Title="Than Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
 	     loadstring(game:HttpGet("https://raw.githubusercontent.com/thantzy/thanhub/refs/heads/main/thanv1"))()
   end
 })
@@ -439,6 +443,7 @@ Tabs.Main1:AddButton({
     Title="Aurora Hub",
     Description="Key requird",
     Callback=function()
+        print("Successfully Executed Script")
 	     loadstring(game:HttpGet("https://raw.githubusercontent.com/Jadelly261/BloxFruits/main/Aurora", true))()
   end
 })
@@ -447,6 +452,7 @@ Tabs.Main1:AddButton({
     Title="Astral Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
 	     loadstring(game:HttpGet("https://raw.githubusercontent.com/Overgustx2/Main/refs/heads/main/BloxFruits_25.html"))()
   end
 })
@@ -455,6 +461,7 @@ Tabs.Main1:AddButton({
     Title="Xeter Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
 getgenv().Version = "V1" 
 getgenv().Team = "Marines" 
 loadstring(game:HttpGet("https://raw.githubusercontent.com/TlDinhKhoi/Xeter/refs/heads/main/Main.lua"))()
@@ -465,6 +472,7 @@ Tabs.Main1:AddButton({
     Title="Ego Hub",
     Description="OH GOD I FOUND AN STUPID EGOIST🗣️🔥",
     Callback=function()
+        print("Successfully Executed Script")
 	     loadstring(game:HttpGet("https://raw.githubusercontent.com/SuperIkka/Main/main/EgoLoaderMain", true))()
   end
 })
@@ -473,6 +481,7 @@ Tabs.Main1:AddButton({
     Title="HoHo Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
 	     loadstring(game:HttpGet("https://raw.githubusercontent.com/acsu123/HOHO_H/main/Loading_UI"))()
   end
 })
@@ -481,6 +490,7 @@ Tabs.Main1:AddButton({
     Title="Thunder Z Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
 	     loadstring(game:HttpGet('https://raw.githubusercontent.com/ThundarZ/Welcome/refs/heads/main/Main/Loader/AllGame.lua'))()
   end
 })
@@ -490,6 +500,7 @@ Tabs.Main1:AddButton({
     Title="Hiru Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
 getgenv().Settings = {
     JoinTeam = true,
     Team = "Marines"
@@ -502,6 +513,7 @@ Tabs.Main1:AddButton({
     Title="Zen Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
 	     loadstring(game:HttpGet("https://raw.githubusercontent.com/Zenhubtop/zen_hub_pr/main/zennewwwwui.lua", true))()
   end
 })
@@ -510,6 +522,7 @@ Tabs.Main1:AddButton({
     Title="Zee Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
 	     loadstring(game:HttpGet("https://link.trwxz.com/LS-Zee-Hub-VIP"))()
   end
 })
@@ -518,9 +531,56 @@ Tabs.Main1:AddButton({
     Title="W-Azure Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
 	  getgenv().Team = "Marines"
     getgenv().AutoLoad = false
     loadstring(game:HttpGet("https://api.luarmor.net/files/v3/loaders/3b2169cf53bc6104dabe8e19562e5cc2.lua"))()
+  end
+})
+
+Tabs.Main1:AddButton({
+    Title="Gravity Hub(pending fixing...)",
+    Description="This script is have a problem waiting thw owner fix",
+    Callback=function()
+   print("Successfully Executed Script")
+loadstring(game:HttpGet("https://raw.githubusercontent.com/Dev-GravityHub/BloxFruit/refs/heads/main/Main.lua"))()
+  end
+})
+
+Tabs.Main1:AddButton({
+    Title="TDT Hub(Auto Race Ghoul - Cyborg)",
+    Description="",
+    Callback=function()
+print("Successfully Executed Script")
+repeat wait() until game:IsLoaded() and game.Players.LocalPlayer
+getgenv().Team = "Marines"
+getgenv().Hide_UI = false
+_G.Config = {
+    Main = {
+        ["Auto Start"] = true,
+        ["Choose Mode"] = "Auto Ghoul", --// Auto Cyborg
+        ["Buy Sword Legendary"] = true,
+        ["Buy Haki Color"] = true
+    },
+    Misc = {
+        ["Select Weapon"] = "Melee",
+        ["Tweem Speed"] = 350,
+        ["FPS Boost"] = false,
+        ["Auto Rejoin"] = true,
+        ["White Screen"] = false
+    }
+}
+
+loadstring(game:HttpGet("https://raw.githubusercontent.com/TRANDUYTHINH/scriptdt/refs/heads/main/autoracequy-robot.txt"))()
+  end
+})
+
+Tabs.Main1:AddButton({
+    Title="TDT Hub(Main)",
+    Description="",
+    Callback=function()
+print("Successfully Executed Script")
+loadstring(game:HttpGet("https://raw.githubusercontent.com/ThinhNek343/tdthub/refs/heads/main/maintdt.lua"))()
   end
 })
 
@@ -528,6 +588,7 @@ Tabs.Main2:AddButton({
     Title="No-Lag Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
        loadstring(game:HttpGet("https://rawscripts.net/raw/Grow-a-Garden-NoLag-Hub-no-key-38699"))()
   end
 })
@@ -536,6 +597,7 @@ Tabs.Main2:AddButton({
     Title="Nat Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
 	     loadstring(game:HttpGet("https://raw.githubusercontent.com/ArdyBotzz/NatHub/refs/heads/master/NatHub.lua"))();
  end
 })
@@ -544,6 +606,7 @@ Tabs.Main2:AddButton({
     Title="Thunder Z Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
         loadstring(game:HttpGet('https://raw.githubusercontent.com/ThundarZ/Welcome/refs/heads/main/Main/GaG/Main.lua'))()
   end
 })
@@ -552,6 +615,7 @@ Tabs.Main2:AddButton({
     Title="Speed-X Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
         loadstring(game:HttpGet("https://raw.githubusercontent.com/AhmadV99/Speed-Hub-X/main/Speed%20Hub%20X.lua", true))()
   end
 })
@@ -560,6 +624,7 @@ Tabs.Main2:AddButton({
     Title="Seraphin Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
         loadstring(game:HttpGet("https://api.luarmor.net/files/v3/loaders/9a8c02843d91c958d90699cd0e9ee5b8.lua"))()
   end
 })
@@ -568,6 +633,7 @@ Tabs.Main3:AddButton({
     Title="Speed-X Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
        loadstring(game:HttpGet("https://raw.githubusercontent.com/AhmadV99/Speed-Hub-X/main/Speed%20Hub%20X.lua", true))()
   end
 })
@@ -576,6 +642,7 @@ Tabs.Main3:AddButton({
     Title="Nat Hub",
     Description="Even Speed, than,nat is the most support game lil",
     Callback=function()
+        print("Successfully Executed Script")
         loadstring(game:HttpGet("https://raw.githubusercontent.com/ArdyBotzz/NatHub/refs/heads/master/NatHub.lua"))()
   end
 })
@@ -584,6 +651,7 @@ Tabs.Main3:AddButton({
     Title="Than Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
       loadstring(game:HttpGet("https://raw.githubusercontent.com/thantzy/thanhub/refs/heads/main/thanv1"))()
   end
 })
@@ -592,6 +660,7 @@ Tabs.Main3:AddButton({
     Title="Zenith Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
       loadstring(game:HttpGet("https://raw.githubusercontent.com/rxito/ZenithHub/refs/heads/main/Loader"))()
   end
 })
@@ -600,6 +669,7 @@ Tabs.Main3:AddButton({
     Title="Native Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
       script_key="PASTEKEYHERE";
       (loadstring or load)(game:HttpGet("https://getnative.cc/script/loader"))()
   end
@@ -609,6 +679,7 @@ Tabs.Main3:AddButton({
     Title="Bonk Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
        loadstring(game:HttpGet("https://bonkhub.online/loader.lua",true))()
   end
 })
@@ -617,6 +688,7 @@ Tabs.Main3:AddButton({
     Title="Noble Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
        if not game:IsLoaded() then repeat game.Loaded:Wait() until game:IsLoaded() end
        loadstring(game:HttpGet("https://raw.githubusercontent.com/djaXlua/Noble/refs/heads/main/Noble%20Hub%20Fish.txt"))()
   end
@@ -626,6 +698,7 @@ Tabs.Main3:AddButton({
     Title="Ronix Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
        loadstring(game:HttpGet("https://api.luarmor.net/files/v3/loaders/578c696a8d914279642068745713a73e.lua"))()
   end
 })
@@ -634,6 +707,7 @@ Tabs.Main4:AddButton({
     Title="Speed-X Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
            loadstring(game:HttpGet("https://raw.githubusercontent.com/AhmadV99/Speed-Hub-X/main/Speed%20Hub%20X.lua", true))()
   end
 })
@@ -642,6 +716,7 @@ Tabs.Main4:AddButton({
     Title="Than Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
            loadstring(game:HttpGet("https://raw.githubusercontent.com/thantzy/thanhub/refs/heads/main/thanv1"))()
   end
 })
@@ -650,6 +725,7 @@ Tabs.Main4:AddButton({
     Title="Foxname Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
            loadstring(game:HttpGet("https://raw.githubusercontent.com/caomod2077/Script/refs/heads/main/FoxnameHub.lua"))()
   end
 })
@@ -658,6 +734,7 @@ Tabs.Main4:AddButton({
     Title="Ringta Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
            loadstring(game:HttpGet("https://raw.githubusercontent.com/wefwef127382/99daysloader.github.io/refs/heads/main/ringta.lua"))()
   end
 })
@@ -666,6 +743,7 @@ Tabs.Main4:AddButton({
     Title="H4X Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
            loadstring(game:HttpGet("https://raw.githubusercontent.com/H4xScripts/Loader/refs/heads/main/loader.lua", true))()
   end
 })
@@ -674,6 +752,7 @@ Tabs.Main4:AddButton({
     Title="Nat Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
            loadstring(game:HttpGet("https://get.nathub.xyz/loader"))()
   end
 })
@@ -682,6 +761,7 @@ Tabs.Main4:AddButton({
     Title="Void-Ware Hub",
     Description=" AHHH I HATE NIGGER",
     Callback=function()
+        print("Successfully Executed Script")
            loadstring(game:HttpGet("https://raw.githubusercontent.com/VapeVoidware/VW-Add/main/nightsintheforest.lua", true))()
   end
 })
@@ -690,6 +770,7 @@ Tabs.Main4:AddButton({
     Title="Ronix Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
            loadstring(game:HttpGet("https://api.luarmor.net/files/v3/loaders/7d8a2a1a9a562a403b52532e58a14065.lua"))()
   end
 })
@@ -698,6 +779,7 @@ Tabs.Main5:AddButton({
     Title="Siff Hub(Pc)",
     Description=" key requird ",
     Callback=function()
+        print("Successfully Executed Script")
            loadstring(game:HttpGet("https://raw.githubusercontent.com/NysaDanielle/loader/refs/heads/main/auth"))()
   end
 })
@@ -706,6 +788,7 @@ Tabs.Main5:AddButton({
     Title="Siff Hub(Mobile)",
     Description=" key requird ",
     Callback=function()
+        print("Successfully Executed Script")
            loadstring(game:HttpGet("https://raw.githubusercontent.com/NysaDanielle/loader/refs/heads/main/auth"))()
   end
 })
@@ -714,6 +797,7 @@ Tabs.Main5:AddButton({
     Title="AX Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
            loadstring(game:HttpGet("https://raw.githubusercontent.com/AlexScriptX/Ink-Game-Script/refs/heads/main/Ink%20Game%20by%20AlexScriptX.lua"))()
   end
 })
@@ -722,6 +806,7 @@ Tabs.Main5:AddButton({
     Title="Ringta Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
            loadstring(game:HttpGet("https://raw.githubusercontent.com/wefwef127382/inkgames.github.io/refs/heads/main/ringta.lua"))()
   end
 })
@@ -730,6 +815,7 @@ Tabs.Main5:AddButton({
     Title="Void-Ware Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
            loadstring(game:HttpGet("https://raw.githubusercontent.com/VapeVoidware/VW-Add/main/nightsintheforest.lua", true))()
   end
 })
@@ -738,6 +824,7 @@ Tabs.Main5:AddButton({
     Title="Revive Hub",
     Description="What The Fuck That name bro",
     Callback=function()
+        print("Successfully Executed Script")
            loadstring(game:HttpGet('https://raw.githubusercontent.com/Have3165/Reviv3-Hub/refs/heads/main/InkGame'))()
   end
 })
@@ -746,6 +833,7 @@ Tabs.Main6:AddButton({
     Title="Solix Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
            loadstring(game:HttpGet("https://raw.githubusercontent.com/debunked69/solixloader/refs/heads/main/solix%20v2%20new%20loader.lua"))()
   end
 })
@@ -754,6 +842,7 @@ Tabs.Main6:AddButton({
     Title="Bonk Hub",
     Description=" AYO CHILL IT'S A BONK NOT PORN BLUD",
     Callback=function()
+        print("Successfully Executed Script")
            loadstring(game:HttpGet("https://toonza555.github.io/BONKHUB-Loader/", true))()
   end
 })
@@ -762,6 +851,7 @@ Tabs.Main6:AddButton({
     Title="Vxeze Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
            loadstring(game:HttpGet("https://raw.githubusercontent.com/Dex-Bear/Vxezehub/refs/heads/main/VxezeHubMain"))()
   end
 })
@@ -770,6 +860,7 @@ Tabs.Main6:AddButton({
     Title="John Wick Hub",
     Description="LOL jk IT's wick",
     Callback=function()
+        print("Successfully Executed Script")
            loadstring(game:HttpGet("https://v0-supabase-secure-storage.vercel.app/api/script/2ca1518801a95abf0dceb898774fa182"))()
   end
 })
@@ -778,6 +869,7 @@ Tabs.Main6:AddButton({
     Title="Lumin Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
            loadstring(game:HttpGet("https://lumin-hub.lol/loader.lua",true))()
   end
 })
@@ -786,6 +878,7 @@ Tabs.Main7:AddButton({
     Title="Lumin Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
            loadstring(game:HttpGet("https://lumin-hub.lol/loader.lua",true))()
   end
 })
@@ -794,6 +887,7 @@ Tabs.Main7:AddButton({
     Title="Lunor Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
            loadstring(game:HttpGet('https://lunor.dev/loader'))()
   end
 })
@@ -802,6 +896,7 @@ Tabs.Main7:AddButton({
     Title="Chilli Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
            loadstring(game:HttpGet("https://raw.githubusercontent.com/tienkhanh1/spicy/main/Chilli.lua"))()
   end
 })
@@ -810,6 +905,7 @@ Tabs.Main7:AddButton({
     Title="Pulsar X Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
            loadstring(game:HttpGet("https://raw.githubusercontent.com/Estevansit0/KJJK/refs/heads/main/PusarX-loader.lua"))()
   end
 })
@@ -818,6 +914,7 @@ Tabs.Main7:AddButton({
     Title="Av Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
            loadstring(game:HttpGet("https://get-avth-ontop.netlify.app/my-paste/script.lua"))()
   end
 })
@@ -826,6 +923,7 @@ Tabs.Main7:AddButton({
     Title="Makal Hub (Finder)",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
            getgenv().Rarity = {
     ["Brainrot God"] = {enabled = true},
     ["Secret"] = {enabled = true},
@@ -843,6 +941,7 @@ Tabs.Main7:AddButton({
     Title="Ajjan Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
            loadstring(game:HttpGet("https://raw.githubusercontent.com/onliengamerop/Steal-a-brainrot/refs/heads/main/Protected_3771863424757750.lua.txt"))()
   end
 })
@@ -851,6 +950,7 @@ Tabs.Main8:AddButton({
     Title="Test UNC",
     Description="press F9 To check console",
     Callback=function()
+        print("Successfully Executed Script")
            loadstring(game:HttpGet("https://raw.githubusercontent.com/unified-naming-convention/NamingStandard/main/UNCCheckEnv.lua", true))()
   end
 })
@@ -860,6 +960,7 @@ Tabs.Main8:AddButton({
     Title="Infinite Yield",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
            loadstring(game:HttpGet('https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source'))()
   end
 })
@@ -872,6 +973,7 @@ Tabs.Main9:AddButton({
     Title="Hutao Hub (freemium)",
     Description="best script i found",
     Callback=function()
+        print("Successfully Executed Script")
            loadstring(game:HttpGet("https://raw.githubusercontent.com/Dev2-Forsaken/Banned/refs/heads/main/Forsaken.lua"))()
   end
 })
@@ -880,6 +982,7 @@ Tabs.Main9:AddButton({
     Title="Hutao Hub (premium)",
     Description="Test it bc it's good:)",
     Callback=function()
+        print("Successfully Executed Script")
            loadstring(game:HttpGet("https://raw.githubusercontent.com/ngao-gamer/Purium/refs/heads/main/fosaken.lua"))()
   end
 })
@@ -888,6 +991,7 @@ Tabs.Main9:AddButton({
     Title="Void-Ware Hub",
     Description="Nothing better than nigga",
     Callback=function()
+        print("Successfully Executed Script")
            loadstring(game:HttpGet("https://raw.githubusercontent.com/VapeVoidware/VW-Add/main/forsaken.lua", true))()
   end
 })
@@ -896,6 +1000,7 @@ Tabs.Main9:AddButton({
     Title="NOL Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
            getfenv().ADittoKey="NOL_FRERKEY"
 
 loadstring(game:HttpGet("https://raw.githubusercontent.com/Syndromehsh/NOL/refs/heads/main/Nolsaken"))()
@@ -906,6 +1011,7 @@ Tabs.Main9:AddButton({
     Title="Funny Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
            loadstring(game:HttpGet("https://raw.githubusercontent.com/PlutomasterAccount/Funny-Hub-V2-Forsaken/refs/heads/main/Funny%20Hub%20V2%20Forsaken.lua"))()
   end
 })
@@ -914,6 +1020,7 @@ Tabs.Main9:AddButton({
     Title="SNT Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
            loadstring(game:HttpGet("https://raw.githubusercontent.com/Snowt69/SNT-HUB/refs/heads/main/Forsaken"))()
   end
 })
@@ -922,6 +1029,7 @@ Tabs.Main9:AddButton({
     Title="Voidsaken Hub",
     Description="uhhh",
     Callback=function()
+        print("Successfully Executed Script")
            loadstring(game:HttpGet("https://raw.githubusercontent.com/voidsaken-script/Voidsaken-Loader/refs/heads/main/main"))()
   end
 })
@@ -930,6 +1038,7 @@ Tabs.Main11:AddButton({
     Title="Lumin Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
            loadstring(game:HttpGet("http://luminon.top/loader.lua"))()
   end
 })
@@ -938,6 +1047,7 @@ Tabs.Main11:AddButton({
     Title="Lunor Hub",
     Description="maybe working",
     Callback=function()
+        print("Successfully Executed Script")
            loadstring(game:HttpGet("https://lunor.dev/loader"))()
   end
 })
@@ -946,6 +1056,7 @@ Tabs.Main11:AddButton({
     Title="Than Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
            loadstring(game:HttpGet("https://raw.githubusercontent.com/thantzy/thanhub/refs/heads/main/thanv1"))()
   end
 })
@@ -954,6 +1065,7 @@ Tabs.Main11:AddButton({
     Title="OMG Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
            loadstring(game:HttpGet("https://raw.githubusercontent.com/Omgshit/Scripts/main/MainLoader.lua"))()
   end
 })
@@ -962,6 +1074,7 @@ Tabs.Main11:AddButton({
     Title="Chiyo Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
            loadstring(game:HttpGet("https://raw.githubusercontent.com/kaisenlmao/loader/refs/heads/main/chiyo.lua"))()
   end
 })
@@ -970,6 +1083,7 @@ Tabs.Main11:AddButton({
     Title="Nat Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
        loadstring(game:HttpGet("https://raw.githubusercontent.com/dy1zn4t/NatHub/refs/heads/main/loader"))();
   end
 })
@@ -978,6 +1092,7 @@ Tabs.Main11:AddButton({
     Title="Slient Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
            loadstring(game:HttpGet("https://pastefy.app/2DsuRU5s/raw"))()
   end
 })
@@ -986,6 +1101,7 @@ Tabs.Main11:AddButton({
     Title="No-Lag Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
            loadstring(game:HttpGet("https://raw.githubusercontent.com/NoLag-id/No-Lag-HUB/refs/heads/main/Loader/Main.lua"))()
   end
 })
@@ -994,6 +1110,7 @@ Tabs.Main11:AddButton({
     Title="Bonk Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
            loadstring(game:HttpGet("https://bonkhub.online/loader.lua",true))()
   end
 })
@@ -1002,6 +1119,7 @@ Tabs.Main11:AddButton({
     Title="Ajjans Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
            loadstring(game:HttpGet("https://raw.githubusercontent.com/onliengamerop/Plants-vs-brainrot/refs/heads/main/Protected_7727598114299366.lua.txt"))()
   end
 })
@@ -1010,6 +1128,7 @@ Tabs.Main11:AddButton({
     Title="Ajjans Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
            loadstring(game:HttpGet("https://raw.githubusercontent.com/onliengamerop/Plants-vs-brainrot/refs/heads/main/Protected_7727598114299366.lua.txt"))()
   end
 })
@@ -1018,6 +1137,7 @@ Tabs.Main11:AddButton({
     Title="Infinity X Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
            loadstring(game:HttpGet('https://raw.githubusercontent.com/Muhammad6196/Project-Infinity-X/refs/heads/main/main.lua'))()
   end
 })
@@ -1026,6 +1146,7 @@ Tabs.Main11:AddButton({
     Title="Rift Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
            loadstring(game:HttpGet("https://rifton.top/loader.lua"))()
   end
 })
@@ -1034,6 +1155,7 @@ Tabs.Main11:AddButton({
     Title="Nothing Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
            loadstring(game:HttpGet("https://github.com/collectorhenfi-wq/Hendarscriptt/raw/refs/heads/main/Plantvsbrainrotupdate.txt"))()
   end
 })
@@ -1042,6 +1164,7 @@ Tabs.Main11:AddButton({
     Title="UB Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
            loadstring(game:HttpGet("https://gitlab.com/r_soft/main/-/raw/main/LoadUB.lua"))()
   end
 })
@@ -1050,6 +1173,7 @@ Tabs.Main12:AddButton({
     Title="Lime Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
            loadstring(game:HttpGet("https://api.luarmor.net/files/v3/loaders/6148a228aa218018a2d6ed358f16add3.lua"))()
   end
 })
@@ -1058,6 +1182,7 @@ Tabs.Main12:AddButton({
     Title="Nexa Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
            loadstring(game:HttpGet("https://cdn.authguard.org/virtual-file/ad78503fe95d455ba06d8a73a1d1f890"))()
   end
 })
@@ -1066,6 +1191,7 @@ Tabs.Main12:AddButton({
     Title="Ryzen Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
            loadstring(game:HttpGet("https://api.luarmor.net/files/v3/loaders/178c353fa8240cbf61835f4c6f76112e.lua"))()
   end
 })
@@ -1074,6 +1200,7 @@ Tabs.Main12:AddButton({
     Title="Tsuo Hub",
     Description="Trash but working bruh",
     Callback=function()
+        print("Successfully Executed Script")
            loadstring(game:HttpGet("https://raw.githubusercontent.com/Tsuo7/TsuoHub/main/Tsuoscripts"))()
   end
 })
@@ -1082,6 +1209,7 @@ Tabs.Main12:AddButton({
     Title="Seraphin Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
            loadstring(game:HttpGet("https://api.luarmor.net/files/v3/loaders/65cde64670656efe745182fc3db01be6.lua"))()
   end
 })
@@ -1090,6 +1218,7 @@ Tabs.Main12:AddButton({
     Title="Nat Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
            loadstring(game:HttpGet("https://raw.githubusercontent.com/dy1zn4t/NatHub/refs/heads/main/loader"))();
   end
 })
@@ -1098,6 +1227,7 @@ Tabs.Main12:AddButton({
     Title="Bonk Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
            loadstring(game:HttpGet("https://bonkhub.online/loader.lua",true))()
   end
 })
@@ -1106,6 +1236,7 @@ Tabs.Main12:AddButton({
     Title="Than Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
            loadstring(game:HttpGet("https://raw.githubusercontent.com/thantzy/thanhub/refs/heads/main/thanv1"))()
   end
 })
@@ -1114,6 +1245,7 @@ Tabs.Main12:AddButton({
     Title="Vinz Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
            loadstring(game:HttpGet("https://raw.githubusercontent.com/Vinzyy13/VinzHub/refs/heads/main/Fish-It"))()
   end
 })
@@ -1122,6 +1254,7 @@ Tabs.Main12:AddButton({
     Title="Kenniel Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
            loadstring(game:HttpGet("https://raw.githubusercontent.com/Kenniel123/Universal-Loader/refs/heads/main/MultiGame"))()
   end
 })
@@ -1130,6 +1263,7 @@ Tabs.Main12:AddButton({
     Title="Lumin Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
            loadstring(game:HttpGet("http://luminon.top/loader.lua"))()
   end
 })
@@ -1138,6 +1272,7 @@ Tabs.Main12:AddButton({
     Title="Aeronic Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
            loadstring(game:HttpGet("https://raw.githubusercontent.com/mazino45/main/refs/heads/main/MainScript.lua"))()
   end
 })
@@ -1146,6 +1281,7 @@ Tabs.Main12:AddButton({
     Title="Speed-X Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
            loadstring(game:HttpGet("https://raw.githubusercontent.com/AhmadV99/Speed-Hub-X/main/Speed%20Hub%20X.lua", true))()
   end
 })
@@ -1154,6 +1290,7 @@ Tabs.Main12:AddButton({
     Title="Aslabs Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
            loadstring(game:HttpGet("https://ashlabs.me/api/game?name=fish-it.lua",true))()
   end
 })
@@ -1162,6 +1299,7 @@ Tabs.Main12:AddButton({
     Title="Nexus Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
            loadstring(game:HttpGet('https://nexusofficial.xyz/loader'))()
   end
 })
@@ -1170,6 +1308,7 @@ Tabs.Main12:AddButton({
     Title="Celestial Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
            loadstring(game:HttpGet("https://raw.githubusercontent.com/MajestySkie/list/refs/heads/main/games"))()
   end
 })
@@ -1178,6 +1317,7 @@ Tabs.Main12:AddButton({
     Title="Pollute Hub",
     Description="",
     Callback=function()
+        print("Successfully Executed Script")
            loadstring(game:HttpGet("https://api.luarmor.net/files/v3/loaders/b9162d4ef4823b2af2f93664cf9ec393.lua"))()
   end
 })
@@ -1185,6 +1325,3 @@ Tabs.Main12:AddButton({
 Tabs.Main13:AddParagraph({
     Title = "More script support will comming soon !",
 })
-print("Purium Script Loadded")
-warn("Thanks you agains for using my script :D!!!")
-
