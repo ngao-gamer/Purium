@@ -1,16 +1,3 @@
---[[
-
- _   _    _   _   _____     _       ___     _   _   _   _   ____   
-| | | |  | | | | |_   _|   / \     / _ \   | | | | | | | | | __ )  
-| |_| |  | | | |   | |    / _ \   | | | |  | |_| | | | | | |  _ \  
-|  _  |  | | | |   | |   / ___ \  | |_| |  |  _  | | |_| | | |_) | 
-\_| |_/   \___/    \_/  /_/   \_\  \___/   \_| |_/  \___/  |____/
-
-                        Hutao Hub
-]]
-
----------------------------------------------------------------------------------
-
 local Fluent = loadstring(game:HttpGet("https://raw.githubusercontent.com/ngao-gamer/Purium/refs/heads/main/Purium%20Gui"))()
 local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
 local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
@@ -18,7 +5,7 @@ local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.
 -- Tạo cửa sổ Fluent chính
 local Window = Fluent:CreateWindow({
     Title = "Hutao Hub [Premium] | Forsaken |",
-    SubTitle = "Version 5.3.1",
+    SubTitle = "Version 5.3.0",
     Search = true,
     Icon = "rbxassetid://121302760641013",
     TabWidth = 160,
