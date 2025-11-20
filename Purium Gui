@@ -1,11 +1,3 @@
-print("Loading Ui....:)
-print("download asset...")
-print("succes download asset!")
-print("loaded ui !")
-warn(if you have any bug go to my server discord in executor !")
-print("hi im hl")
-warn("now im yellow")
-error("what happens?")
 local Lighting = game:GetService("Lighting")
 local RunService = game:GetService("RunService")
 local LocalPlayer = game:GetService("Players").LocalPlayer
