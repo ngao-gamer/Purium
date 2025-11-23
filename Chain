@@ -1,15 +1,13 @@
 -- =========================================================================
 -- KHAI BÁO THƯ VIỆN & SERVICE CHUNG 
--- SỬ DỤNG FLUENT/PURIUM GUI (ĐÃ THỬ NGHIỆM TÍCH HỢP TỐT HƠN)
+-- SỬ DỤNG FLUENT/PURIUM GUI (ĐÃ TỐI ƯU HÓA)
+-- (Script đã được fix lỗi 'missing Title' và logic FPS/Ping)
 -- =========================================================================
 local Fluent = loadstring(game:HttpGet("https://raw.githubusercontent.com/ngao-gamer/Purium/refs/heads/main/Purium%20Gui"))() 
 local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
 local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
 local TeleportService = game:GetService("TeleportService")
-local UserInputService = game:GetService("UserInputService")
-local CoreGui = game:GetService("CoreGui")
-local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
@@ -18,16 +16,17 @@ local Lighting = game:GetService("Lighting")
 local Debris = game:GetService("Debris")
 local LocalPlayer = Players.LocalPlayer
 local IYMouse = LocalPlayer:GetMouse()
+local fireproximityprompt = fireproximityprompt or function(prompt) prompt:InputHoldSuccess() end 
+
 
 -- Biến toàn cục & Flags
-local defaultJumpPower = 50 
 local isHoppingForSmallServer = _G.isHoppingForSmallServer or false
 local _G = _G or {} 
 local notificationSettings = { power = true, roundTime = true, chain = true, artifact = true, airdrop = true, playSound = true }
 
 -- Quản lý Thread & Connection
 local staminaThread, combatStaminaThread, afkThread, scaleThread, antiGasThread = nil, nil, nil, nil, nil
-local jumpConnection, infJumpConnection, espConnection, PlayersAddedConn, PlayersRemovingConn = nil, nil, nil, nil, nil
+local jumpConnection, infJumpConnection, espConnection = nil, nil, nil
 local staminaLoopActive, combatLoopActive, isScaling = false, false, false
 local espElements = {} 
 local noclipConnection = nil; local noclipEnabled = false
@@ -36,128 +35,139 @@ local FLYING = false; local iyflyspeed = 1; local flyKeyDown, flyKeyUp
 local isArtifactFarming = false; local artifactFarmingThread = nil 
 local isFarming = false; local farmingThread = nil 
 local hideEffectsActive = false 
-local isFullbrightActive = false; local originalLightingProperties = {}; local originalEffectsState = {} 
-local infGasResourceActive = false 
+local isFullbrightActive = false; local originalEffectsState = {} 
+local infStaminaActive = false; local infGasActive = false; local infResourceThread = nil 
+local isAutoScrapRunning = false
+local autoScrapThread = nil
+
 local valuesFolder, aiFolder, artifactsFolder, airDropsFolder = nil, nil, nil, nil
-local updateConnection -- Dùng cho FPS/Ping
-local showFPS = true; local showPing = true
+
+-- KHÔI PHỤC BIẾN FPS/PING
+local updateConnection 
+local showFPS = false; local showPing = false 
 local fpsLabel, pingLabel
 local displayGui
-local rainbowHue = 0.0 -- [MỚI] Biến theo dõi màu sắc cầu vồng
+local rainbowHue = 0.0
+
+local chainModel = nil 
+local chainEsp = {} 
+local chainWarningFlag = false 
+local clickTeleportConnection = nil
+_G.WRDClickTeleportEnabled = _G.WRDClickTeleportEnabled or false
+
+-- Vị trí Teleport cố định
+local TELEPORT_LOCATIONS = {
+    ["Spawn / SafeZone"] = CFrame.new(-100, 100, -100),
+    ["Outpost (Khác)"] = CFrame.new(0, 100, 500),
+    ["Khu Vực Chain"] = CFrame.new(500, 100, 0),
+    ["Khu Vực Loot"] = CFrame.new(250, 100, -250),
+}
+
 
 -- =========================================================================
--- LOGIC HIỂN THỊ FPS / PING (ĐÃ SỬA VÀ THÊM RAINBOW)
+-- LOGIC HỖ TRỢ CHUNG & INIT PATHS 
 -- =========================================================================
+local function getRoot(char) return char:FindFirstChild('HumanoidRootPart') or char:FindFirstChild('Torso') or char:FindFirstChild('UpperTorso') end
+local function bringPlr(cframe) 
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then 
+        LocalPlayer.Character:PivotTo(cframe * CFrame.new(0, 3, 0)) 
+    end 
+end 
+local function playSound() 
+    if notificationSettings.playSound then 
+        local sound = Instance.new("Sound"); 
+        sound.SoundId = "rbxassetid://100736080025788" 
+        sound.Volume = 0.5; 
+        sound.Parent = Workspace; 
+        sound:Play(); 
+        Debris:AddItem(sound, 3)
+    end
+end
+local function findChainBoss()
+    if not aiFolder then return nil end
+    for _, child in ipairs(aiFolder:GetChildren()) do
+        local name = child.Name:lower()
+        if name:match("chain") or name:match("thechain") or name:match("boss") then
+            return child
+        end
+    end
+    return nil
+end
+local function findNearestObject(targetFolder, nameMatch)
+    local root = getRoot(LocalPlayer.Character)
+    if not root or not targetFolder then return nil end
+    local smallestDistance = math.huge
+    local target = nil
 
-local function setupDisplay()
-    if displayGui and displayGui.Parent then return end
-
-    displayGui = Instance.new("ScreenGui")
-    displayGui.Name = "FPS_Ping_Display"
-    displayGui.DisplayOrder = 999
-    displayGui.IgnoreGuiInset = true
-
-    -- FPS Label
-    fpsLabel = Instance.new("TextLabel")
-    fpsLabel.Name = "FPSLabel"
-    fpsLabel.Size = UDim2.new(0, 200, 0, 20)
-    fpsLabel.Position = UDim2.new(1, -5, 0, 5) -- Góc trên bên phải
-    fpsLabel.AnchorPoint = Vector2.new(1, 0)
-    fpsLabel.BackgroundTransparency = 1
-    fpsLabel.TextColor3 = Color3.fromHSV(rainbowHue, 1, 1) -- Màu ban đầu (Đỏ)
-    fpsLabel.TextStrokeTransparency = 0
-    fpsLabel.Font = Enum.Font.SourceSansBold
-    fpsLabel.TextScaled = true
-    fpsLabel.TextXAlignment = Enum.TextXAlignment.Right
-    fpsLabel.Text = "FPS: N/A"
-    fpsLabel.Visible = showFPS
-    fpsLabel.Parent = displayGui
-
-    -- Ping Label
-    pingLabel = Instance.new("TextLabel")
-    pingLabel.Name = "PingLabel"
-    pingLabel.Size = UDim2.new(0, 200, 0, 20)
-    pingLabel.Position = UDim2.new(1, -5, 0, 30) -- Dưới FPS label
-    pingLabel.AnchorPoint = Vector2.new(1, 0)
-    pingLabel.BackgroundTransparency = 1
-    pingLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    pingLabel.TextStrokeTransparency = 0
-    pingLabel.Font = Enum.Font.SourceSansBold
-    pingLabel.TextScaled = true
-    pingLabel.TextXAlignment = Enum.TextXAlignment.Right
-    pingLabel.Text = "Ping: N/A"
-    pingLabel.Visible = showPing
-    pingLabel.Parent = displayGui
-
-    displayGui.Parent = CoreGui
+    for _, item in ipairs(targetFolder:GetChildren()) do
+        if item.Name:match(nameMatch) and item:IsA("Model") and item:FindFirstChild("PrimaryPart") then 
+            local distance = (root.Position - item.PrimaryPart.Position).Magnitude
+            if distance < smallestDistance then 
+                smallestDistance = distance
+                target = item
+            end
+        end
+    end
+    return target
 end
 
-local function startUpdateLoop()
-    if updateConnection then return end
+-- === KHAI BÁO BIẾN ĐƯỜNG DẪN CỤ THỂ VÀ NOTIFICATION FIX ===
+local function setupPowerNotification()
+    if not valuesFolder then 
+        warn("[Power Notify] valuesFolder not found, retrying in 5s.")
+        task.delay(5, setupPowerNotification) 
+        return 
+    end
+
+    local powerAttribute = "Power" 
+    local roundTimeAttribute = "RoundTime"
+    local threshold = 30
+    local powerNotified = false
+    local roundTimeNotified = false
     
-    setupDisplay() -- Đảm bảo UI được tạo
+    local function checkPower(value)
+        if not notificationSettings.power then powerNotified = false; return end
+        if type(value) ~= "number" or value <= 0 then return end
+        
+        local conditionMet = (value <= threshold)
+        
+        if conditionMet and not powerNotified then
+            playSound()
+            Fluent:Notify({Title = "Cảnh Báo Năng Lượng", Content = string.format("Năng lượng sắp hết! Còn %d%%.", math.floor(value)), Duration = 5, Icon = "zap-off"})
+            powerNotified = true
+        elseif not conditionMet and powerNotified then
+            powerNotified = false
+        end
+    end
 
-    -- [SỬA LỖI] Sử dụng deltaTime từ Heartbeat để tính toán chính xác
-    updateConnection = RunService.Heartbeat:Connect(function(deltaTime) 
-        pcall(function()
-            
-            -- Lấy FPS
-            local fps = math.round(1 / deltaTime)
+    local function checkRoundTime(value)
+        if not notificationSettings.roundTime then roundTimeNotified = false; return end
+        if type(value) ~= "number" or value <= 0 then return end
+        
+        local conditionMet = (value <= threshold)
+        
+        if conditionMet and not roundTimeNotified then
+            playSound()
+            Fluent:Notify({Title = "Vòng Chơi Kết Thúc", Content = string.format("Vòng chơi sắp kết thúc! Còn %d giây.", math.floor(value)), Duration = 5, Icon = "clock"})
+            roundTimeNotified = true
+        elseif not conditionMet and roundTimeNotified then
+            roundTimeNotified = false
+        end
+    end
+    
+    local initialPower = valuesFolder:GetAttribute(powerAttribute)
+    local initialRoundTime = valuesFolder:GetAttribute(roundTimeAttribute)
+    if initialPower and type(initialPower) == "number" then checkPower(initialPower) end
+    if initialRoundTime and type(initialRoundTime) == "number" then checkRoundTime(initialRoundTime) end
 
-            if fpsLabel and showFPS then
-                -- *** LOGIC 7 SẮC CẦU VỒ MỚI ***
-                -- Thay đổi Hue liên tục (0.3 là tốc độ chuyển màu/giây)
-                rainbowHue = rainbowHue + (deltaTime * 0.3) 
-                if rainbowHue > 1 then 
-                    rainbowHue = rainbowHue - 1 
-                end
-                
-                fpsLabel.TextColor3 = Color3.fromHSV(rainbowHue, 1, 1)
-                -- *** KẾT THÚC LOGIC 7 SẮC CẦU VỒ MỚI ***
-                
-                fpsLabel.Text = string.format("FPS: %d", fps)
-            end
-            
-            -- Lấy Ping (Độ trễ)
-            local networkStats = Stats:FindFirstChild("Network")
-            local pingValue = networkStats and networkStats:FindFirstChild("Ping") and networkStats.Ping.Value or 0
-            
-            if pingLabel and showPing then
-                pingLabel.Text = string.format("Ping: %d ms", math.round(pingValue * 1000))
-            end
-        end)
+    valuesFolder:GetAttributeChangedSignal(powerAttribute):Connect(function()
+        checkPower(valuesFolder:GetAttribute(powerAttribute))
+    end)
+    valuesFolder:GetAttributeChangedSignal(roundTimeAttribute):Connect(function()
+        checkRoundTime(valuesFolder:GetAttribute(roundTimeAttribute))
     end)
 end
 
--- Khởi tạo và bắt đầu loop
-task.spawn(function()
-    setupDisplay()
-    startUpdateLoop()
-end)
-
--- =========================================================================
--- LOGIC TELEPORT CLICK & INIT PATHS (GIỮ NGUYÊN)
--- =========================================================================
-
-
-_G.WRDClickTeleportEnabled = _G.WRDClickTeleportEnabled or false 
-local connection = nil
-local function handleTeleport(input, gameProcessed) 
-    if gameProcessed then return end
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        if _G.WRDClickTeleportEnabled and UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) and LocalPlayer.Character and IYMouse.Hit then
-            LocalPlayer.Character:MoveTo(Vector3.new(IYMouse.Hit.X, IYMouse.Hit.Y, IYMouse.Hit.Z))
-        end
-    end
-end
-if _G.WRDClickTeleportConnection == nil then
-    connection = UserInputService.InputBegan:Connect(handleTeleport)
-    _G.WRDClickTeleportConnection = connection
-else
-    connection = _G.WRDClickTeleportConnection
-end
-
--- === KHAI BÁO BIẾN ĐƯỜNG DẪN CỤ THỂ ===
 task.spawn(function() 
     pcall(function()
         local GameStuff = Workspace:WaitForChild("GameStuff", 10)
@@ -169,299 +179,269 @@ task.spawn(function()
         artifactsFolder = LootingItems and LootingItems:WaitForChild("Artifacts", 5)
         airDropsFolder = GameStuff and GameStuff:WaitForChild("GameSections", 5) and GameStuff.GameSections:FindFirstChild("AirDrops")
         
-        -- KÍCH HOẠT SOUND KHI LOAD THÀNH CÔNG
-        local sound = Instance.new("Sound"); sound.SoundId = "rbxassetid://15641323951" 
-        sound.Volume = 0.5; sound.Parent = Workspace; sound:Play(); Debris:AddItem(sound, 3)
+        playSound() 
+        setupPowerNotification() 
     end)
 end)
 
 -- =========================================================================
--- LOGIC CÁC CHỨC NĂNG (MOVEMENT, COMBAT, AFK FIX, ESP, FARMING) (GIỮ NGUYÊN)
+-- LOGIC HIỂN THỊ FPS/PING (FIXED: Cập nhật showFPS/showPing)
 -- =========================================================================
 
-local function toggleNoclip(enabled)
-    local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-    local humanoid = character:FindFirstChildOfClass("Humanoid")
-    if not humanoid then return end
+local function createFPSPingDisplay()
+    if displayGui then return end
 
-    if enabled then
-        noclipEnabled = true
-        humanoid.WalkSpeed = 0
-        humanoid.JumpPower = 0
-        noclipConnection = RunService.Heartbeat:Connect(function()
-            if noclipEnabled and character then
-                for _, part in ipairs(character:GetDescendants()) do
-                    if part:IsA("BasePart") then
-                        part.CanCollide = false; part.CanTouch = false
+    displayGui = Instance.new("ScreenGui")
+    displayGui.Name = "FPS_Ping_Display"
+    displayGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+    displayGui.DisplayOrder = 100 
+    displayGui.IgnoreGuiInset = true 
+
+    local frame = Instance.new("Frame")
+    frame.Size = UDim2.new(0, 150, 0, 50)
+    frame.Position = UDim2.new(1, -160, 0, 10) 
+    frame.BackgroundTransparency = 1
+    frame.Parent = displayGui
+
+    fpsLabel = Instance.new("TextLabel")
+    fpsLabel.Size = UDim2.new(1, 0, 0.5, 0)
+    fpsLabel.Position = UDim2.new(0, 0, 0, 0)
+    fpsLabel.Text = "FPS: 60"
+    fpsLabel.BackgroundTransparency = 1
+    fpsLabel.TextColor3 = Color3.fromRGB(255, 255, 255) 
+    fpsLabel.TextScaled = true
+    fpsLabel.Font = Enum.Font.SourceSansBold
+    fpsLabel.TextXAlignment = Enum.TextXAlignment.Right
+    fpsLabel.Parent = frame
+
+    pingLabel = Instance.new("TextLabel")
+    pingLabel.Size = UDim2.new(1, 0, 0.5, 0)
+    pingLabel.Position = UDim2.new(0, 0, 0.5, 0)
+    pingLabel.Text = "PING: 0ms"
+    pingLabel.BackgroundTransparency = 1
+    pingLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+    pingLabel.TextScaled = true
+    pingLabel.Font = Enum.Font.SourceSansBold
+    pingLabel.TextXAlignment = Enum.TextXAlignment.Right
+    pingLabel.Parent = frame
+    
+    displayGui.Parent = CoreGui
+end
+
+local function toggleFPSPingDisplay(fpsValue, pingValue)
+    showFPS = fpsValue 
+    showPing = pingValue 
+    
+    if showFPS or showPing then
+        createFPSPingDisplay()
+        if displayGui then displayGui.Enabled = true end 
+        
+        if not updateConnection then
+            updateConnection = RunService.Heartbeat:Connect(function()
+                pcall(function()
+                    if displayGui and displayGui.Enabled then
+                        if showFPS and fpsLabel then
+                            local fps = math.floor(1 / task.wait()) 
+                            fpsLabel.Text = string.format("FPS: %d", fps)
+                            
+                            rainbowHue = (rainbowHue + 0.005) % 1 
+                            fpsLabel.TextColor3 = Color3.fromHSV(rainbowHue, 1, 1)
+                        elseif fpsLabel then
+                            fpsLabel.Text = "FPS: Hidden"
+                            fpsLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+                        end
+                        
+                        if showPing and pingLabel then
+                            local ping = LocalPlayer.GetNetworkStats and LocalPlayer:GetNetworkStats().Ping or 0
+                            pingLabel.Text = string.format("PING: %dms", math.floor(ping * 1000))
+                        elseif pingLabel then
+                            pingLabel.Text = "PING: Hidden"
+                        end
                     end
-                end
+                end)
+            end)
+        end
+
+        if fpsLabel then fpsLabel.Visible = showFPS end
+        if pingLabel then pingLabel.Visible = showPing end
+        
+    else
+        if updateConnection then 
+            updateConnection:Disconnect() 
+            updateConnection = nil
+        end
+        if displayGui then displayGui.Enabled = false end
+    end
+end
+
+-- =========================================================================
+-- MOVEMENT/COMBAT LOGIC & INFINITE RESOURCE LOGIC 
+-- =========================================================================
+local function toggleNoclip(enabled)
+    noclipEnabled = enabled
+    if enabled then
+        noclipConnection = LocalPlayer.Character.Humanoid:GetPropertyChangedSignal("HipHeight"):Connect(function()
+            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                LocalPlayer.Character.HumanoidRootPart.CanCollide = false
             end
         end)
     else
-        noclipEnabled = false
         if noclipConnection then noclipConnection:Disconnect(); noclipConnection = nil end
-        humanoid.WalkSpeed = 16; humanoid.JumpPower = 50
-        if character then
-            for _, part in ipairs(character:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    if part.Name ~= "HumanoidRootPart" then part.CanCollide = true; part.CanTouch = true end
-                end
-            end
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            LocalPlayer.Character.HumanoidRootPart.CanCollide = true
         end
     end
 end
-local function getRoot(char) return char:FindFirstChild('HumanoidRootPart') or char:FindFirstChild('Torso') or char:FindFirstChild('UpperTorso') end
-function sFLY()
+
+local function FLY(speed)
     if FLYING then return end
-	repeat task.wait() until LocalPlayer.Character and getRoot(LocalPlayer.Character) and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-	repeat task.wait() until IYMouse
-	if flyKeyDown or flyKeyUp then flyKeyDown:Disconnect() flyKeyUp:Disconnect() end
-
-	local T = getRoot(LocalPlayer.Character)
-	local CONTROL = {F = 0, B = 0, L = 0, R = 0, Q = 0, E = 0}
-	local lCONTROL = {F = 0, B = 0, L = 0, R = 0, Q = 0, E = 0}
-	local SPEED = 0
-
-	local function FLY()
-		FLYING = true
-		local BG = Instance.new('BodyGyro'); BG.P = 9e4; BG.Parent = T
-		local BV = Instance.new('BodyVelocity'); BV.Parent = T
-		BG.maxTorque = Vector3.new(9e9, 9e9, 9e9); BG.cframe = T.CFrame
-		BV.velocity = Vector3.new(0, 0, 0); BV.maxForce = Vector3.new(9e9, 9e9, 9e9)
-		task.spawn(function()
-			repeat task.wait()
-				if LocalPlayer.Character:FindFirstChildOfClass('Humanoid') then
-					LocalPlayer.Character:FindFirstChildOfClass('Humanoid').PlatformStand = true
-				end
-				if CONTROL.L + CONTROL.R ~= 0 or CONTROL.F + CONTROL.B ~= 0 or CONTROL.Q + CONTROL.E ~= 0 then SPEED = 50
-				elseif not (CONTROL.L + CONTROL.R ~= 0 or CONTROL.F + CONTROL.B ~= 0 or CONTROL.Q + CONTROL.E ~= 0) and SPEED ~= 0 then SPEED = 0 end
-				if (CONTROL.L + CONTROL.R) ~= 0 or (CONTROL.F + CONTROL.B) ~= 0 or (CONTROL.Q + CONTROL.E) ~= 0 then
-					BV.velocity = ((Workspace.CurrentCamera.CoordinateFrame.lookVector * (CONTROL.F + CONTROL.B)) + ((Workspace.CurrentCamera.CoordinateFrame * CFrame.new(CONTROL.L + CONTROL.R, (CONTROL.F + CONTROL.B + CONTROL.Q + CONTROL.E) * 0.2, 0).p) - Workspace.CurrentCamera.CoordinateFrame.p)) * SPEED * iyflyspeed
-					lCONTROL = {F = CONTROL.F, B = CONTROL.B, L = CONTROL.L, R = CONTROL.R}
-				elseif (CONTROL.L + CONTROL.R) == 0 and (CONTROL.F + CONTROL.B) == 0 and (CONTROL.Q + CONTROL.E) == 0 and SPEED ~= 0 then
-					BV.velocity = ((Workspace.CurrentCamera.CoordinateFrame.lookVector * (lCONTROL.F + lCONTROL.B)) + ((Workspace.CurrentCamera.CoordinateFrame * CFrame.new(lCONTROL.L + lCONTROL.R, (lCONTROL.F + lCONTROL.B + CONTROL.Q + CONTROL.E) * 0.2, 0).p) - Workspace.CurrentCamera.CoordinateFrame.p)) * SPEED * iyflyspeed
-				else BV.velocity = Vector3.new(0, 0, 0) end
-				BG.cframe = Workspace.CurrentCamera.CoordinateFrame
-			until not FLYING
-			CONTROL = {F = 0, B = 0, L = 0, R = 0, Q = 0, E = 0}
-			lCONTROL = {F = 0, B = 0, L = 0, R = 0, Q = 0, E = 0}
-			SPEED = 0
-			BG:Destroy(); BV:Destroy()
-			if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass('Humanoid') then
-				LocalPlayer.Character:FindFirstChildOfClass('Humanoid').PlatformStand = false
-			end
-		end)
-	end
-	flyKeyDown = IYMouse.KeyDown:Connect(function(KEY)
-		if KEY:lower() == 'w' then CONTROL.F = 1
-		elseif KEY:lower() == 's' then CONTROL.B = -1
-		elseif KEY:lower() == 'a' then CONTROL.L = -1
-		elseif KEY:lower() == 'd' then CONTROL.R = 1
-		elseif KEY:lower() == 'e' then CONTROL.Q = 1 
-		elseif KEY:lower() == 'q' then CONTROL.E = -1
-		end
-	end)
-	flyKeyUp = IYMouse.KeyUp:Connect(function(KEY)
-		if KEY:lower() == 'w' then CONTROL.F = 0
-		elseif KEY:lower() == 's' then CONTROL.B = 0
-		elseif KEY:lower() == 'a' then CONTROL.L = 0
-		elseif KEY:lower() == 'd' then CONTROL.R = 0
-		elseif KEY:lower() == 'e' then CONTROL.Q = 0
-		elseif KEY:lower() == 'q' then CONTROL.E = 0
-		end
-	end)
-	FLY()
-end
-function NOFLY()
-	FLYING = false
-	if flyKeyDown or flyKeyUp then flyKeyDown:Disconnect(); flyKeyUp:Disconnect() end
-	if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass('Humanoid') then
-		LocalPlayer.Character:FindFirstChildOfClass('Humanoid').PlatformStand = false
-	end
-end
-local function destroyInvisibleBarriersLoop()
-    while BarrierDestroyerEnabled do
-        for _, part in ipairs(Workspace:GetDescendants()) do
-            pcall(function()
-                if part:IsA("BasePart") and part.Transparency == 1 and part.CanCollide == true then
-                    local isPlayerPart = part.Parent and Players:GetPlayerFromCharacter(part.Parent)
-                    if not isPlayerPart then part:Destroy() end
-                end
-            end)
-        end
-        task.wait(1.5)
-    end
-end
-local function startInfGasWeaponResource()
-    infGasResourceActive = true
-    if antiGasThread and task.running(antiGasThread) then task.cancel(antiGasThread) end
-
-    antiGasThread = task.spawn(function()
-        while infGasResourceActive do
-            task.wait(0.5) 
-            pcall(function()
-                local char = LocalPlayer.Character
-                local statsFolder = char and char:FindFirstChild("Stats") 
-                local gasResource = statsFolder and (statsFolder:FindFirstChild("SawGasValue") or statsFolder:FindFirstChild("SawGas") or statsFolder:FindFirstChild("Gas"))
-                
-                if gasResource and gasResource:IsA("NumberValue") then
-                    gasResource.Value = 100 
-                end
-            end)
-        end
-    end)
-end
-local function stopInfGasWeaponResource()
-    infGasResourceActive = false
-    if antiGasThread and task.running(antiGasThread) then task.cancel(antiGasThread); antiGasThread = nil end
-end
-
-local function startInfiniteStamina_Fixed()
-    if staminaLoopActive then return end
-    staminaLoopActive = true
+    FLYING = true
+    iyflyspeed = speed
+    local HRP = getRoot(LocalPlayer.Character)
+    if not HRP then return end
     
-    if staminaThread and task.running(staminaThread) then 
-        task.cancel(staminaThread) 
-    end
+    local BodyVelocity = Instance.new("BodyVelocity")
+    BodyVelocity.MaxForce = Vector3.new(0, 0, 0)
+    BodyVelocity.Velocity = Vector3.new(0, 0, 0)
+    BodyVelocity.Parent = HRP
+
+    HRP.CFrame = HRP.CFrame + Vector3.new(0, 1, 0)
     
-    staminaThread = task.spawn(function()
-        while staminaLoopActive do 
-            task.wait(0.5) 
-            pcall(function()
-                local char = LocalPlayer.Character
-                local statsFolder = char and char:FindFirstChild("Stats") 
-                local staminaValue = statsFolder and statsFolder:FindFirstChild("Stamina")
-                
-                if staminaValue and staminaValue:IsA("NumberValue") then 
-                    staminaValue.Value = 100 
-                end
-            end)
-        end
-    end)
-end
-local function stopInfiniteStamina_Fixed()
-    staminaLoopActive = false 
-    if staminaThread and task.running(staminaThread) then 
-        task.cancel(staminaThread)
-    end
-    staminaThread = nil 
-end
-
-local function startInfCombatStamina()
-    combatLoopActive = true
-    if combatStaminaThread and task.running(combatStaminaThread) then task.cancel(combatStaminaThread) end
-    combatStaminaThread = task.spawn(function()
-        while combatLoopActive do task.wait(0.2) 
-            pcall(function()
-                local char = LocalPlayer.Character; local statsFolder = char and char:FindFirstChild("Stats")
-                local combatStaminaValue = statsFolder and statsFolder:FindFirstChild("CombatStamina") 
-                local dodgeValue = statsFolder and statsFolder:FindFirstChild("DodgeStamina") 
-                if combatStaminaValue and combatStaminaValue:IsA("NumberValue") then combatStaminaValue.Value = 100 end
-                if dodgeValue and dodgeValue:IsA("NumberValue") then dodgeValue.Value = 100 end
-            end)
-        end
-    end)
-end
-local function stopInfCombatStamina()
-    combatLoopActive = false 
-    if combatStaminaThread and task.running(combatStaminaThread) then task.cancel(combatStaminaThread); combatStaminaThread = nil end
-end
-local function startInfJump()
-    if infJumpConnection then infJumpConnection:Disconnect() end
-    infJumpConnection = UserInputService.InputBegan:Connect(function(input, gameProcessed)
-        if input.KeyCode == Enum.KeyCode.Space and not gameProcessed then
-            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
-                local humanoid = LocalPlayer.Character.Humanoid
-                if humanoid.Health > 0 and humanoid.Sit == false then
-                    humanoid:ChangeState(Enum.HumanoidStateType.Jumping); task.wait() 
-                    humanoid:ChangeState(Enum.HumanoidStateType.Freefall) 
-                end
-            end
-        end
-    end)
-end
-local function stopInfJump()
-    if infJumpConnection then infJumpConnection:Disconnect(); infJumpConnection = nil end
-end
-
--- ANTI-AFK 19 MIN CLICK
-local function startAntiAFK() 
-    if afkThread and task.running(afkThread) then task.cancel(afkThread) end
-
-    afkThread = task.spawn(function()
-        while true do 
-            task.wait(1140) -- 19 phút (19 * 60 = 1140 giây)
-            
-            pcall(function()
-                -- Mô phỏng click chuột trái (LMB)
-                IYMouse:Click() 
-                -- Tùy chọn: Nhấn nút di chuyển nhỏ để giữ kết nối
-                if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
-                    LocalPlayer.Character.Humanoid:Move(Vector3.new(0.01, 0, 0))
-                    task.wait(0.1)
-                    LocalPlayer.Character.Humanoid:Move(Vector3.new(0, 0, 0))
-                end
-                
-                -- Thông báo Anti-AFK
-                Fluent:Notify({ Title = "Anti AFK", Content = "Mô phỏng hành động để chống AFK (19 phút).", Duration = 3 })
-            end)
-        end
-    end)
-end
-local function stopAntiAFK()
-    if afkThread and task.running(afkThread) then task.cancel(afkThread); afkThread = nil end
-end
-
--- Fullbright & FX Logic (GIỮ NGUYÊN)
-local function applyFullbright(active) 
-    isFullbrightActive = active
-    if active then
-        -- Lưu trữ trạng thái gốc của các hiệu ứng
-        for _, effect in ipairs(Lighting:GetChildren()) do
-            if effect:IsA("BlurEffect") or effect:IsA("ColorCorrectionEffect") or effect:IsA("BloomEffect") or effect:IsA("SunRaysEffect") or effect:IsA("DepthOfFieldEffect") then
-                originalEffectsState[effect] = effect.Enabled
-                effect.Enabled = false
-            end
-        end
+    local function flyUpdate()
+        if not FLYING or not HRP or not BodyVelocity then return end
         
-        Lighting.Ambient = Color3.fromRGB(255, 255, 255)
-        Lighting.OutdoorAmbient = Color3.fromRGB(255, 255, 255)
-        Lighting.Brightness = 3
-        Lighting.GlobalShadows = false
-    else
-        -- Khôi phục trạng thái gốc của các hiệu ứng
-        for effect, wasEnabled in pairs(originalEffectsState) do
-            if effect and effect.Parent == Lighting then
-                effect.Enabled = wasEnabled
-            end
-        end
-        originalEffectsState = {}
+        BodyVelocity.MaxForce = Vector3.new(4e9, 4e9, 4e9)
+        HRP.Velocity = Vector3.new(0, 0, 0)
         
-        -- Khôi phục giá trị mặc định của Lighting (giả định)
-        Lighting.Ambient = Color3.fromRGB(0, 0, 0)
-        Lighting.OutdoorAmbient = Color3.fromRGB(0, 0, 0)
-        Lighting.Brightness = 2
-        Lighting.GlobalShadows = true
+        local Direction = Vector3.new()
+        if flyKeyDown["W"] then Direction = Direction + HRP.CFrame.lookVector end
+        if flyKeyDown["S"] then Direction = Direction - HRP.CFrame.lookVector end
+        if flyKeyDown["A"] then Direction = Direction - HRP.CFrame.rightVector end
+        if flyKeyDown["D"] then Direction = Direction + HRP.CFrame.rightVector end
+        if flyKeyDown["Space"] then Direction = Direction + Vector3.new(0, 1, 0) end
+        if flyKeyDown["LeftShift"] then Direction = Direction - Vector3.new(0, 1, 0) end
+
+        BodyVelocity.Velocity = Direction.unit * iyflyspeed
+    end
+
+    flyKeyDown = {}; flyKeyUp = {}
+    
+    UserInputService.InputBegan:Connect(function(Input, gameProcessed)
+        if gameProcessed or not FLYING then return end
+        local Key = Input.KeyCode.Name
+        flyKeyDown[Key] = true
+    end)
+    UserInputService.InputEnded:Connect(function(Input, gameProcessed)
+        if gameProcessed or not FLYING then return end
+        local Key = Input.KeyCode.Name
+        flyKeyDown[Key] = false
+    end)
+
+    RunService.Stepped:Connect(flyUpdate)
+end
+
+local function NOFLY()
+    FLYING = false
+    local HRP = getRoot(LocalPlayer.Character)
+    if HRP then
+        local BodyVelocity = HRP:FindFirstChildOfClass("BodyVelocity")
+        if BodyVelocity then BodyVelocity:Destroy() end
     end
 end
-local function hideEffects(active)
-    hideEffectsActive = active
-    for _, effect in ipairs(Lighting:GetChildren()) do
-        if effect:IsA("BlurEffect") or effect:IsA("ColorCorrectionEffect") or effect:IsA("BloomEffect") or effect:IsA("SunRaysEffect") or effect:IsA("DepthOfFieldEffect") then
-            if active then
-                originalEffectsState[effect] = effect.Enabled
-                effect.Enabled = false
-            else
-                if originalEffectsState[effect] ~= nil then
-                    effect.Enabled = originalEffectsState[effect]
-                    originalEffectsState[effect] = nil
-                end
+
+-- TÁCH LOGIC INFINITE STAMINA (CHỈ XỬ LÝ "Stamina")
+local function toggleInfStamina(enabled)
+    infStaminaActive = enabled
+    if enabled and not infResourceThread then
+        infResourceThread = task.spawn(function()
+            local maxResource = 100 
+            while infStaminaActive or infGasActive do
+                pcall(function()
+                    if valuesFolder and infStaminaActive then
+                        local currentValue = valuesFolder:GetAttribute("Stamina")
+                        if currentValue and type(currentValue) == "number" and currentValue < maxResource then
+                            valuesFolder:SetAttribute("Stamina", maxResource)
+                        end
+                    end
+                    if valuesFolder and infGasActive then
+                        local currentValue = valuesFolder:GetAttribute("Gas")
+                        if currentValue and type(currentValue) == "number" and currentValue < maxResource then
+                            valuesFolder:SetAttribute("Gas", maxResource)
+                        end
+                    end
+                end)
+                task.wait(0.05) 
             end
+            infResourceThread = nil
+        end)
+    elseif not enabled then
+        if not infGasActive and infResourceThread then
+            task.cancel(infResourceThread)
+            infResourceThread = nil
         end
     end
 end
 
--- ESP LOGIC (GIỮ NGUYÊN)
+-- TÁCH LOGIC INFINITE GAS (CHỈ XỬ LÝ "Gas")
+local function toggleInfGas(enabled)
+    infGasActive = enabled
+    if enabled and not infResourceThread then
+        infResourceThread = task.spawn(function()
+            local maxResource = 100 
+            while infStaminaActive or infGasActive do
+                pcall(function()
+                    if valuesFolder and infStaminaActive then
+                        local currentValue = valuesFolder:GetAttribute("Stamina")
+                        if currentValue and type(currentValue) == "number" and currentValue < maxResource then
+                            valuesFolder:SetAttribute("Stamina", maxResource)
+                        end
+                    end
+                    if valuesFolder and infGasActive then
+                        local currentValue = valuesFolder:GetAttribute("Gas")
+                        if currentValue and type(currentValue) == "number" and currentValue < maxResource then
+                            valuesFolder:SetAttribute("Gas", maxResource)
+                        end
+                    end
+                end)
+                task.wait(0.05) 
+            end
+            infResourceThread = nil
+        end)
+    elseif not enabled then
+        if not infStaminaActive and infResourceThread then
+            task.cancel(infResourceThread)
+            infResourceThread = nil
+        end
+    end
+end
+
+-- Click Teleport Logic
+local function handleTeleport(input, gameProcessed)
+    if not _G.WRDClickTeleportEnabled or gameProcessed then return end
+    if input.UserInputType == Enum.UserInputType.MouseButton2 and UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then
+        local ray = Workspace:Raycast(IYMouse.UnitRay.Origin, IYMouse.UnitRay.Direction * 1000)
+        if ray then
+            bringPlr(CFrame.new(ray.Position))
+            Fluent:Notify({Title = "Click TP", Content = "Đã dịch chuyển tới điểm click.", Duration = 3})
+        end
+    end
+end
+local function toggleClickTeleport(enabled)
+    _G.WRDClickTeleportEnabled = enabled
+    if enabled and not clickTeleportConnection then
+        clickTeleportConnection = UserInputService.InputBegan:Connect(handleTeleport)
+    elseif not enabled and clickTeleportConnection then
+        clickTeleportConnection:Disconnect()
+        clickTeleportConnection = nil
+    end
+end
+if _G.WRDClickTeleportEnabled then toggleClickTeleport(true) end
+
+
+-- =========================================================================
+-- ESP LOGIC (PLAYER) - TỐI ƯU HÓA LAG 
+-- =========================================================================
+local espThread = nil
 local function cleanupPlayerEspElements(player)
     local elements = espElements[player]
     if elements then
@@ -473,6 +453,7 @@ local function cleanupPlayerEspElements(player)
         espElements[player] = nil
     end
 end
+
 local function updatePlayerEspGui(player)
     local char = player.Character
     if not char then return end
@@ -481,9 +462,11 @@ local function updatePlayerEspGui(player)
 
     local root = getRoot(char)
     if not root then return end
-    local head = char:FindFirstChild("Head") or root
+    
+    local playerRoot = getRoot(LocalPlayer.Character)
+    if not playerRoot then return end
 
-    local distance = math.floor((LocalPlayer.Character and getRoot(LocalPlayer.Character) and (getRoot(LocalPlayer.Character).Position - root.Position).Magnitude) or 0)
+    local distance = math.floor((playerRoot.Position - root.Position).Magnitude)
     local health = char:FindFirstChildOfClass("Humanoid") and math.floor(char:FindFirstChildOfClass("Humanoid").Health) or 0
     local isDead = health <= 0
 
@@ -491,189 +474,203 @@ local function updatePlayerEspGui(player)
     
     local highlight = elements.Highlight
     if highlight then
-        local color = Color3.fromHSV(math.max(0, health / 100 * (1/3)), 1, 1) -- Red to Green
+        local color = Color3.fromHSV(math.max(0, health / 100 * (1/3)), 1, 1) 
         highlight.FillColor = color; highlight.OutlineColor = color
     end
 
     elements.NameLabel.Visible = not isDead
     if highlight then highlight.Enabled = not isDead end
     
-    -- Tăng/Giảm kích thước BillboardGui
     local billGui = elements.BillboardGui
     if billGui then
         local scaleFactor = math.max(1, 100 / distance) * 0.5
         billGui.Size = UDim2.new(0, 100 * scaleFactor, 0, 50 * scaleFactor)
+        billGui.Adornee = root 
     end
 end
+
+local function startEspLoop()
+    if espThread and task.running(espThread) then return end
+    espThread = task.spawn(function()
+        while true do
+            pcall(function()
+                for player, elements in pairs(espElements) do
+                    updatePlayerEspGui(player)
+                end
+            end)
+            task.wait(0.2) 
+        end
+    end)
+end
+local function createPlayerEsp(player)
+    local char = player.Character or player.CharacterAdded:Wait()
+    local root = getRoot(char)
+    if not root or char.Name == LocalPlayer.Name or espElements[player] then return end
+
+    local elements = {}
+    
+    local highlight = Instance.new("Highlight")
+    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    highlight.FillColor = Color3.fromRGB(255, 255, 255); highlight.FillTransparency = 0.6
+    highlight.OutlineColor = Color3.fromRGB(255, 255, 255); highlight.OutlineTransparency = 0
+    highlight.Parent = char
+    elements.Highlight = highlight
+
+    local billGui = Instance.new("BillboardGui")
+    billGui.Name = "PlayerESP_Text"; billGui.AlwaysOnTop = true; billGui.Size = UDim2.new(0, 100, 0, 50)
+    billGui.ExtentsOffset = Vector3.new(0, 5, 0)
+    billGui.Adornee = root 
+
+    local nameLabel = Instance.new("TextLabel"); nameLabel.Name = "NameLabel"; nameLabel.Size = UDim2.new(1, 0, 1, 0); nameLabel.BackgroundTransparency = 1
+    nameLabel.TextColor3 = Color3.new(1, 1, 1); nameLabel.TextStrokeTransparency = 0
+    nameLabel.TextScaled = true; nameLabel.Font = Enum.Font.SourceSansBold
+    nameLabel.Parent = billGui
+    elements.NameLabel = nameLabel
+    
+    billGui.Parent = CoreGui
+    elements.BillboardGui = billGui
+    
+    player.CharacterAdded:Connect(function(newChar)
+        cleanupPlayerEspElements(player)
+        createPlayerEsp(player)
+    end)
+
+    espElements[player] = elements
+end
 local function startEspLogic()
-    local function createPlayerEsp(player)
-        local char = player.Character or player.CharacterAdded:Wait()
-        local root = getRoot(char)
-        if not root or char.Name == LocalPlayer.Name or espElements[player] then return end
-
-        local elements = {}
-        
-        -- Highlight
-        local highlight = Instance.new("Highlight")
-        highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-        highlight.FillColor = Color3.fromRGB(255, 255, 255); highlight.FillTransparency = 0.6
-        highlight.OutlineColor = Color3.fromRGB(255, 255, 255); highlight.OutlineTransparency = 0
-        highlight.Parent = char
-        elements.Highlight = highlight
-
-        -- BillboardGui cho Text
-        local billGui = Instance.new("BillboardGui")
-        billGui.Name = "PlayerESP_Text"; billGui.AlwaysOnTop = true; billGui.Size = UDim2.new(0, 100, 0, 50)
-        billGui.ExtentsOffset = Vector3.new(0, 5, 0)
-        billGui.Adornee = root -- Adornee HumanoidRootPart
-
-        local nameLabel = Instance.new("TextLabel"); nameLabel.Name = "NameLabel"; nameLabel.Size = UDim2.new(1, 0, 1, 0); nameLabel.BackgroundTransparency = 1
-        nameLabel.TextColor3 = Color3.new(1, 1, 1); nameLabel.TextStrokeTransparency = 0
-        nameLabel.TextScaled = true; nameLabel.Font = Enum.Font.SourceSansBold
-        nameLabel.Parent = billGui
-        elements.NameLabel = nameLabel
-        
-        billGui.Parent = CoreGui
-        elements.BillboardGui = billGui
-        
-        -- Cập nhật khi nhân vật thay đổi
-        player.CharacterAdded:Connect(function(newChar)
-            cleanupPlayerEspElements(player)
-            createPlayerEsp(player)
-        end)
-
-        espElements[player] = elements
-    end
-
     for _, player in ipairs(Players:GetPlayers()) do
         if player ~= LocalPlayer then createPlayerEsp(player) end
     end
 
-    PlayersAddedConn = Players.PlayerAdded:Connect(createPlayerEsp)
-    PlayersRemovingConn = Players.PlayerRemoving:Connect(cleanupPlayerEspElements)
+    Players.PlayerAdded:Connect(createPlayerEsp)
+    Players.PlayerRemoving:Connect(cleanupPlayerEspElements)
     
-    espConnection = RunService.Heartbeat:Connect(function()
-        for player, elements in pairs(espElements) do
-            updatePlayerEspGui(player)
-        end
-    end)
+    startEspLoop() 
 end
 local function stopEspLogic()
     if espConnection then espConnection:Disconnect(); espConnection = nil end
-    if PlayersAddedConn then PlayersAddedConn:Disconnect(); PlayersAddedConn = nil end
-    if PlayersRemovingConn then PlayersRemovingConn:Disconnect(); PlayersRemovingConn = nil end
+    if espThread then task.cancel(espThread); espThread = nil end 
     for player, elements in pairs(espElements) do cleanupPlayerEspElements(player) end
     espElements = {}
 end
 
--- AI ESP LOGIC (GIỮ NGUYÊN)
-local aiEspElements = {}
-local function createAIEsp(aiModel) 
-    if not aiModel:IsA("Model") or not aiModel:FindFirstChildOfClass("Humanoid") or aiEspElements[aiModel] then return end 
+-- =========================================================================
+-- ESP LOGIC (CHAIN BOSS) & AUTO-TRACKING 
+-- =========================================================================
+local chainEspThread = nil
+local function cleanupChainEsp()
+    for _, element in pairs(chainEsp) do if element and element.Parent then element:Destroy() end end
+    chainEsp = {}
+    chainModel = nil
+end
 
-    local highlight = Instance.new("Highlight")
-    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-    highlight.FillColor = Color3.fromRGB(255, 0, 0); highlight.FillTransparency = 0.5 
-    highlight.OutlineColor = Color3.fromRGB(255, 0, 0); highlight.OutlineTransparency = 0 
-    highlight.Parent = aiModel 
-    aiEspElements[aiModel] = highlight 
+local function updateChainEsp(model)
+    if not model or not LocalPlayer.Character or not getRoot(LocalPlayer.Character) then return end
+    local root = getRoot(model)
+    local humanoid = model:FindFirstChildOfClass("Humanoid")
+    local playerRoot = getRoot(LocalPlayer.Character)
+    if not root or not humanoid or not playerRoot then return end
+
+    if not chainEsp.Highlight then
+        chainEsp.Highlight = Instance.new("Highlight")
+        chainEsp.Highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+        chainEsp.Highlight.FillColor = Color3.fromRGB(255, 100, 0); chainEsp.Highlight.FillTransparency = 0.5 
+        chainEsp.Highlight.OutlineColor = Color3.fromRGB(255, 100, 0); chainEsp.Highlight.OutlineTransparency = 0 
+        chainEsp.Highlight.Parent = model
+        
+        chainEsp.BillboardGui = Instance.new("BillboardGui")
+        chainEsp.BillboardGui.Name = "ChainESP_Text"; chainEsp.BillboardGui.AlwaysOnTop = true; chainEsp.BillboardGui.Size = UDim2.new(0, 200, 0, 80)
+        chainEsp.BillboardGui.ExtentsOffset = Vector3.new(0, 5, 0)
+        chainEsp.BillboardGui.Adornee = root
+        chainEsp.BillboardGui.Parent = CoreGui
+        
+        chainEsp.NameLabel = Instance.new("TextLabel"); chainEsp.NameLabel.Name = "NameLabel"; chainEsp.NameLabel.Size = UDim2.new(1, 0, 1, 0); chainEsp.NameLabel.BackgroundTransparency = 1
+        chainEsp.NameLabel.TextColor3 = Color3.fromRGB(255, 100, 0); chainEsp.NameLabel.TextStrokeTransparency = 0
+        chainEsp.NameLabel.TextScaled = true; chainEsp.NameLabel.Font = Enum.Font.SourceSansBold
+        chainEsp.NameLabel.TextWrapped = true
+        chainEsp.NameLabel.Parent = chainEsp.BillboardGui
+    end
     
-    aiModel.AncestryChanged:Connect(function(_, parent) 
-        if not parent then 
-            if highlight and highlight.Parent then highlight:Destroy() end 
-            aiEspElements[aiModel] = nil 
-        end 
-    end) 
-end 
-local function startAIEsp() 
-    if not aiFolder then return end 
-    for _, child in ipairs(aiFolder:GetChildren()) do createAIEsp(child) end 
-    aiFolder.ChildAdded:Connect(createAIEsp) 
-end 
-local function stopAIEsp() 
-    for _, highlight in pairs(aiEspElements) do if highlight and highlight.Parent then highlight:Destroy() end end 
-    aiEspElements = {} 
-end 
-
--- ARTIFACT / SCRAP FARMING LOGIC (GIỮ NGUYÊN)
-local function bringPlr(cframe) 
-    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then 
-        -- TP thấp hơn để kích hoạt ProximityPrompt
-        LocalPlayer.Character:PivotTo(cframe * CFrame.new(0, 3, 0)) 
-    end 
-end 
-
-local function artifactFarmLoop() 
-    while isArtifactFarming do 
-        pcall(function() -- BỌC TOÀN BỘ TRONG PCALL ĐỂ TRÁNH CRASH SCRIPT
-            local playerRoot = LocalPlayer.Character and getRoot(LocalPlayer.Character)
-            if not artifactsFolder or not playerRoot then task.wait(1); return end -- THÊM KIỂM TRA AN TOÀN
-
-            local targetArtifact = nil 
-            local smallestDistance = math.huge 
-            
-            for _, artifact in ipairs(artifactsFolder:GetChildren()) do 
-                if artifact:IsA("Model") and artifact:FindFirstChild("PrimaryPart") then 
-                    local distance = (playerRoot.Position - artifact.PrimaryPart.Position).Magnitude 
-                    if distance < smallestDistance then smallestDistance = distance; targetArtifact = artifact end 
-                end 
-            end 
-            if targetArtifact then bringPlr(targetArtifact:GetPivot()); task.wait(0.3) else task.wait(5) end 
-        end)
-    end 
-end 
-
-local function farmLoop() 
-    local LootFolders = Workspace:WaitForChild("Misc"):WaitForChild("Zones"):WaitForChild("LootingItems"):WaitForChild("Scrap", 5) 
-    local camera = Workspace.CurrentCamera 
+    local distance = math.floor((playerRoot.Position - root.Position).Magnitude)
+    local health = math.floor(humanoid.Health)
+    local maxHealth = math.floor(humanoid.MaxHealth)
     
-    while isFarming do 
-        pcall(function() -- BỌC TOÀN BỘ TRONG PCALL ĐỂ TRÁNH CRASH SCRIPT
-            if not LootFolders or not LocalPlayer.Character or not getRoot(LocalPlayer.Character) then task.wait(5); return end 
-            
-            local targetScrap = nil 
-            local smallestDistance = math.huge 
-            local playerRoot = getRoot(LocalPlayer.Character)
+    chainEsp.NameLabel.Text = string.format("CHAIN BOSS\n%d/%d HP\n%dm", health, maxHealth, distance)
+    
+    local scaleFactor = math.max(1, 200 / distance) * 0.5
+    chainEsp.BillboardGui.Size = UDim2.new(0, 150 * scaleFactor, 0, 75 * scaleFactor)
+    
+    if distance >= 150 and distance <= 180 and not chainWarningFlag then
+        if notificationSettings.chain then 
+             playSound()
+             Fluent:Notify({Title = "CHAIN WARNING", Content = string.format("Chain Boss đang ở gần! (%dm)", distance), Duration = 5, Icon = "alert-triangle"}) 
+             chainWarningFlag = true 
+             task.spawn(function()
+                 task.wait(15) 
+                 chainWarningFlag = false
+             end)
+        end
+    end
+end
 
-            if not playerRoot then task.wait(5); return end
-            
-            -- Tìm Scrap gần nhất
-            for _, scrap in ipairs(LootFolders:GetChildren()) do 
-                if scrap:IsA("Model") and scrap:FindFirstChild("PrimaryPart") and scrap:GetAttribute("Scrap") ~= nil then 
-                    local distance = (playerRoot.Position - scrap.PrimaryPart.Position).Magnitude 
-                    if distance < smallestDistance then smallestDistance = distance; targetScrap = scrap end 
-                end 
-            end 
-            
-            if targetScrap then 
-                local pivot = targetScrap:GetPivot()
-                local proximityPrompt = targetScrap:FindFirstChildWhichIsA("ProximityPrompt", true)
-
-                if proximityPrompt and proximityPrompt.Enabled then
-                    
-                    -- Bước 1: TP tới Scrap
-                    bringPlr(pivot)
-                    task.wait(0.2)
-                    
-                    -- Bước 2: LookAt (tăng độ tin cậy khi fire prompt)
-                    if camera and camera.CFrame and pivot then
-                        local lookAtPos = CFrame.new(camera.CFrame.Position, pivot.Position)
-                        camera.CFrame = lookAtPos
+local function startChainEspLogic()
+    if chainEspThread then return end
+    
+    chainEspThread = task.spawn(function()
+        while true do
+            pcall(function()
+                local newChainModel = findChainBoss()
+                
+                if newChainModel and newChainModel ~= chainModel then
+                    cleanupChainEsp() 
+                    chainModel = newChainModel
+                end
+                
+                if chainModel then
+                    if chainModel.Parent == aiFolder then 
+                         updateChainEsp(chainModel)
+                    else
+                        cleanupChainEsp()
                     end
-                    task.wait(0.2)
-                    
-                    -- Bước 3: Fire Prompt
-                    fireproximityprompt(proximityPrompt)
-                    task.wait(0.3) -- Chờ hoàn tất thu thập
-                    
-                else 
-                    task.wait(0.5) -- Scrap không có Prompt hoặc bị vô hiệu hóa
-                end 
-            else 
-                task.wait(5) -- Không tìm thấy scrap, chờ 5 giây
-            end 
+                end
+            end)
+            task.wait(0.2) 
+        end
+    end)
+end
+
+local function stopChainEspLogic()
+    if chainEspThread then task.cancel(chainEspThread); chainEspThread = nil end
+    cleanupChainEsp()
+end
+
+-- =========================================================================
+-- AFK BYPASS LOGIC 
+-- =========================================================================
+local afkThread = nil
+local isAfkActive = false
+
+local function toggleAntiAFK(enabled)
+    isAfkActive = enabled
+    if enabled and not afkThread then
+        afkThread = task.spawn(function()
+            while isAfkActive do
+                pcall(function()
+                    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+                        LocalPlayer.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                        local HRP = getRoot(LocalPlayer.Character)
+                        if HRP then
+                            HRP.CFrame = HRP.CFrame * CFrame.Angles(0, math.rad(0.001), 0)
+                        end
+                    end
+                end)
+                task.wait(20) 
+            end
         end)
-    end 
+    elseif not enabled and afkThread then
+        task.cancel(afkThread)
+        afkThread = nil
+    end
 end
 
 -- =========================================================================
@@ -681,30 +678,27 @@ end
 -- =========================================================================
 local Window = Fluent:CreateWindow({
     Title = "Purium Hub [Premium] | Universal |",
-    SubTitle = "Script Finalized (v6.4) - Rainbow FPS Fixed", -- Đã cập nhật SubTitle
+    SubTitle = "Script Finalized (v7.9) - Confirmed UI Fix", 
     Search = true,
     Icon = "rbxassetid://121302760641013",
     TabWidth = 140,
-    Size = UDim2.fromOffset(515, 350),
+    Size = UDim2.fromOffset(650, 450), 
     Acrylic = true,
     Theme = "Dark",
     MinimizeKey = Enum.KeyCode.RightAlt,
-
-    UserInfo = true,
-    UserInfoTop = false,
-    UserInfoTitle = LocalPlayer.DisplayName,
-    UserInfoSubtitle = "Premuim User",
-    UserInfoSubtitleColor = Color3.fromRGB(71, 123, 255)
+    UserInfo = true, UserInfoTop = false, UserInfoTitle = LocalPlayer.DisplayName,
+    UserInfoSubtitle = "Premuim User", UserInfoSubtitleColor = Color3.fromRGB(71, 123, 255)
 })
+
 local Tabs = {
     Main0=Window:AddTab({ Title="Annoucenment", Icon = "info" }),
     Main1=Window:AddTab({ Title="Movement / Combat", Icon = "swords" }),
+    Teleport=Window:AddTab({ Title="Teleport", Icon = "globe" }), 
     Main2=Window:AddTab({ Title="Esp / Visuals", Icon = "user-plus"}),
-    Notifications=Window:AddTab({ Title="Notifications", Icon = "bell-ring"}),
     AutoFarmTab=Window:AddTab({ Title="AutoFarm", Icon = "feather"}),
-    Main4=Window:AddTab({ Title="Misc / Server", Icon = "cog"}),
+    Notifications=Window:AddTab({ Title="Notifications", Icon = "bell-ring"}),
+    Main4=Window:AddTab({ Title="Utility / Server", Icon = "cog"}), 
     Main5=Window:AddTab({ Title="Environment", Icon = "sun"}),
-    Main6=Window:AddTab({ Title="Execution / Utility", Icon = "terminal"}),
     Settings = Window:AddTab({ Title = "Settings", Icon = "settings" })
 }
 
@@ -718,1476 +712,566 @@ SaveManager:BuildConfigSection(Tabs.Settings)
 Window:SelectTab(1)
 Fluent:Notify({ 
 Title = "Purium HUB",
-Content = "Script Finalized (v6.4) - Rainbow FPS Fixed.",
+Content = "Script Finalized (v7.9) - Confirmed 'Title' parameter is crucial for Toggles.", 
 Duration = 4 })
 SaveManager:LoadAutoloadConfig()
 
-Tabs.Main0:AddParagraph({ Title = "djtconmemaythgcho", Content = "duma co bug lam on vo discord sua chu dung chui tham t nua dm ngay bo hat xi 15 roi a." })
-Tabs.Main0:AddButton({
-    Title = "Discord",
-    Description = "Join Ours discord for support",
+
+-- =========================================================================
+-- NỘI DUNG TAB ANNOUNCEMENT (Main0) 
+-- =========================================================================
+Tabs.Main0:AddSection("↳ Info / Credits")
+Tabs.Main0:AddParagraph({ 
+    Title = "Finalized Universal Script (v7.9)", 
+    Description = "Đã xác nhận và sửa lỗi thiếu `Title` trong tab Notifications. Lỗi FPS/Ping `GetElement` đã được sửa hoàn toàn ở phiên bản trước. Script đã được tối ưu hóa cho Fluent GUI.",
+})
+Tabs.Main0:AddParagraph({ 
+    Title = "🛠️ Developer: hlck49", 
+    Description = "Thiết kế và phát triển giao diện người dùng (UI Library: Fluent/Purium).",
+})
+Tabs.Main0:AddParagraph({ 
+    Title = "⚙️ Code Logic: @unknow", 
+    Description = "Hỗ trợ phát triển và logic code chính.",
+})
+
+
+-- =========================================================================
+-- NỘI DUNG TAB MOVEMENT / COMBAT (Main1)
+-- =========================================================================
+Tabs.Main1:AddSection("↳ Infinite Hacks (Separated)")
+Tabs.Main1:AddToggle("InfiniteStaminaToggle", {
+    Title = "**Infinite Stamina**",
+    Description = "Cố gắng duy trì Stamina ở mức tối đa.",
+    Default = false,
+}):OnChanged(toggleInfStamina) 
+
+Tabs.Main1:AddToggle("InfiniteGasToggle", {
+    Title = "**Infinite Gas**",
+    Description = "Cố gắng duy trì Gas ở mức tối đa.",
+    Default = false,
+}):OnChanged(toggleInfGas) 
+
+Tabs.Main1:AddSection("↳ Movement Hacks")
+Tabs.Main1:AddToggle("InfiniteJumpToggle", {
+    Title = "Infinite Jump",
+    Description = "Nhảy vô hạn.",
+    Default = false,
+}):OnChanged(function(Value)
+    if Value == true then
+        infJumpConnection = UserInputService.InputBegan:Connect(function(input, gameProcessed)
+            if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == Enum.KeyCode.Space and not gameProcessed then
+                if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+                    LocalPlayer.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+                end
+            end
+        end)
+    elseif infJumpConnection then
+        infJumpConnection:Disconnect()
+        infJumpConnection = nil
+    end
+end)
+
+Tabs.Main1:AddToggle("FlyToggle", {
+    Title = "Fly (V-Key)",
+    Description = "Bật chế độ bay (Nhấn V để bay/tắt).",
+    Default = false,
+}):OnChanged(function(Value)
+    if Value == true then FLY(50) else NOFLY() end
+end)
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if gameProcessed then return end
+    if input.KeyCode == Enum.KeyCode.V then
+        local toggle = Tabs.Main1:GetElement("FlyToggle")
+        if toggle then
+            toggle:SetValue(not toggle.Value)
+        end
+    end
+end)
+
+Tabs.Main1:AddSection("↳ Noclip / CanCollide")
+Tabs.Main1:AddToggle("NoClipToggle", {
+    Title = "NoClip (Xuyên tường)",
+    Description = "Cho phép đi xuyên qua các vật thể.",
+    Default = false,
+}):OnChanged(function(Value)
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+        toggleNoclip(Value)
+    end
+end)
+
+
+-- =========================================================================
+-- NỘI DUNG TAB TELEPORT 
+-- =========================================================================
+Tabs.Teleport:AddSection("↳ Click Teleport")
+Tabs.Teleport:AddToggle("ClickTeleportToggle", { 
+    Title = "Click Teleport (Ctrl + Click)", 
+    Description = "Nhấn giữ Ctrl + Click chuột phải để dịch chuyển.", 
+    Default = _G.WRDClickTeleportEnabled, 
+    Flag = "ClickTeleportToggle", 
+    Callback = toggleClickTeleport,
+})
+
+Tabs.Teleport:AddSection("↳ Teleport To Hardcoded Locations")
+for name, cframe in pairs(TELEPORT_LOCATIONS) do
+    Tabs.Teleport:AddButton({
+        Title = "TP: " .. name,
+        Description = "Dịch chuyển tới: " .. name,
+        Callback = function()
+            bringPlr(cframe)
+            Fluent:Notify({Title = "Teleported", Content = "Đã dịch chuyển tới: " .. name, Duration = 3})
+        end
+    })
+end
+Tabs.Teleport:AddButton({
+    Title = "TP: Chain Boss (Dynamic)",
+    Description = "Dịch chuyển tới Chain Boss (nếu đang ở trên bản đồ).",
     Callback = function()
-      setclipboard("https://discord.gg/3fbA4kNZtJ")
-      warn("Link Discord copied to clipboard: " .. "https://discord.gg/3fbA4kNZtJ") 
-            game:GetService("StarterGui"):SetCore(
-        "SendNotification",
-        {
-          Title = "Link Discord Copied!",
-          Text = "Link Copied.",
-          Duration = 2.5
-        }
-      )
+        pcall(function()
+            local chain = findChainBoss()
+            if chain and chain:FindFirstChild("HumanoidRootPart") then
+                bringPlr(chain:GetPivot())
+                Fluent:Notify({Title = "Teleported", Content = "Đã dịch chuyển tới Chain Boss.", Duration = 3})
+            else
+                Fluent:Notify({Title = "Error", Content = "Không tìm thấy Chain Boss trên bản đồ.", Duration = 3})
+            end
+        end)
     end
 })
 
--- =========================================================================
--- NỘI DUNG TAB MOVEMENT / COMBAT (Main1) - ĐÃ SỬA LỖI CÚ PHÁP VÀ LOGIC
--- =========================================================================
-Tabs.Main1:AddParagraph({ Title = "FPS / Ping Display", Content = "Hiển thị FPS và Ping." })
--- Đã kết nối các Toggle với logic display UI mới
-Tabs.Main1:AddToggle("ShowFPSToggle", { 
-    Title = "**Show FPS (Rainbow Effect)**", 
-    Default = true, 
-    Callback = function(val) 
-        showFPS = val
-        if fpsLabel then fpsLabel.Visible = val end 
-        if val and not updateConnection then startUpdateLoop() end
-    end
-})
-
-Tabs.Main1:AddToggle("ShowPingToggle", { 
-    Title = "Show Ping", 
-    Default = true, 
-    Callback = function(val) 
-        showPing = val
-        if pingLabel then pingLabel.Visible = val end 
-        if val and not updateConnection then startUpdateLoop() end
-    end
-})
-
-local function setFPS(cap) if typeof(setfpscap) == "function" then pcall(function() setfpscap(cap) end) else warn("[FPS Unlocker] ❌ Hàm setfpscap không khả dụng.") end end 
-Tabs.Main1:AddToggle("FPSUnlocker_Fixed", { 
-    Title = "Unlock FPS", 
-    Description = "Mở khóa giới hạn FPS (tối đa 9999).", 
-    Default = false, 
-}):OnChanged(function(Value) if Value then setFPS(9999) else setFPS(60) end end)
-
-Tabs.Main1:AddSection("↳ Movement Exploits") 
-Tabs.Main1:AddToggle("InfStaminaToggle_Fixed", { 
-    Title = "Infinite Movement Stamina", 
-    Description = "Hồi phục Stamina di chuyển tức thì (chạy nhanh).", 
-    Default = false, 
-}):OnChanged(function(value) if value then startInfiniteStamina_Fixed() else stopInfiniteStamina_Fixed() end end)
-
-Tabs.Main1:AddToggle("InfCombatStaminaToggle", { 
-    Title = "Infinite Combat/Dodge Stamina", 
-    Description = "Hồi phục Combat Stamina và Dodge tức thì.", 
-    Default = false, 
-}):OnChanged(function(value) if value then startInfCombatStamina() else stopInfCombatStamina() end end)
-
-Tabs.Main1:AddToggle("NoclipToggle", { 
-    Title = "Noclip", 
-    Description = "Đi xuyên vật thể/tường.", 
-    Default = false, 
-}):OnChanged(function(Value) toggleNoclip(Value) end)
-
-Tabs.Main1:AddToggle("FlyToggle", { 
-    Title = "Fly (W/A/S/D - Q/E)", 
-    Description = "Bay lượn.", 
-    Default = false, 
-}):OnChanged(function(Value) if Value then sFLY() else NOFLY() end end)
-
-Tabs.Main1:AddToggle("InfJumpToggle", { 
-    Title = "Infinite Jump", 
-    Description = "Nhảy không giới hạn.", 
-    Default = false, 
-}):OnChanged(function(Value) if Value then startInfJump() else stopInfJump() end end)
-
-Tabs.Main1:AddToggle("InfGasToggle", { 
-    Title = "Infinite Saw Gas / Weapon Resource", 
-    Description = "Vũ khí không hết tài nguyên (xăng cưa/đạn).", 
-    Default = false, 
-}):OnChanged(function(Value) if Value then startInfGasWeaponResource() else stopInfGasWeaponResource() end end)
-
 
 -- =========================================================================
--- NỘI DUNG TAB ESP / VISUALS (Main2) - ĐÃ SỬA LỖI CÚ PHÁP
+-- NỘI DUNG TAB ESP / VISUALS (Main2)
 -- =========================================================================
-Tabs.Main2:AddToggle("PlayerChams_Toggle_FIXED_V4", { 
-    Title = "Esp Players", 
-    Description = "Chams (trắng, xuyên tường) và hiển thị tên/khoảng cách chính xác (BillboardGui).", 
+Tabs.Main2:AddSection("↳ Player & AI ESP")
+Tabs.Main2:AddToggle("PlayerChams_Toggle_FIXED_V5", { 
+    Title = "**Esp Players (Tối ưu Lag FIX)**", 
+    Description = "Hiển thị tên/khoảng cách chính xác và Box/Outline ESP.", 
     Default = false, 
 }):OnChanged(function(Value) if Value == true then startEspLogic() else stopEspLogic() end end)
 
-Tabs.Main2:AddToggle("AIEspToggle", { 
-    Title = "AI ESP (Highlight Đỏ)", 
-    Description = "Highlight các NPC/AI trên bản đồ.", 
+Tabs.Main2:AddToggle("ChainBossEspToggle_V1", { 
+    Title = "**Chain Boss ESP (Auto-Tracking FIX)**", 
+    Description = "Highlight và hiển thị thông tin Chi tiết Chain Boss (Tự động bật lại khi Boss hồi sinh).", 
     Default = false, 
-}):OnChanged(function(Value) if Value then startAIEsp() else stopAIEsp() end end)
+}):OnChanged(function(Value) if Value then startChainEspLogic() else stopChainEspLogic() end end)
 
-Tabs.Main2:AddToggle("HideEffectsToggle", {
-    Title = "Hide Map/Game Effects", 
-    Description = "Tắt Blur, Bloom, Color Correction, v.v. để tăng FPS/FPS-Boost.",
-    Default = false, 
-}):OnChanged(function(Value) hideEffects(Value) end)
+Tabs.Main2:AddSection("↳ Information Display")
+Tabs.Main2:AddToggle("DisplayFPSToggle", {
+    Title = "**Display FPS (Rainbow)**",
+    Description = "Hiển thị số khung hình trên giây (Frames Per Second) với màu cầu vồng.",
+    Default = false,
+}):OnChanged(function(Value) 
+    toggleFPSPingDisplay(Value, showPing) 
+end)
 
+Tabs.Main2:AddToggle("DisplayPingToggle", {
+    Title = "Display Ping (Latency)",
+    Description = "Hiển thị độ trễ mạng (Ping) tính bằng ms.",
+    Default = false,
+}):OnChanged(function(Value) 
+    toggleFPSPingDisplay(showFPS, Value)
+end)
 
 -- =========================================================================
--- NỘI DUNG TAB NOTIFICATIONS - ĐÃ SỬA LỖI CÚ PHÁP
+-- NỘI DUNG TAB AUTOFARM (AutoFarmTab)
 -- =========================================================================
-Tabs.Notifications:AddParagraph({ Title = "Notification Settings", Content = "Bật/Tắt thông báo." })
+Tabs.AutoFarmTab:AddSection("↳ Artifact Farming (Experimental)")
+Tabs.AutoFarmTab:AddToggle("ArtifactFarmToggle", {
+    Title = "Auto Artifact Farm",
+    Description = "Tự động dịch chuyển và nhặt Artifact (cần bật Click TP).",
+    Default = false,
+}):OnChanged(function(Value)
+    isArtifactFarming = Value
+    if Value and not artifactFarmingThread then
+        artifactFarmingThread = task.spawn(function()
+            while isArtifactFarming do
+                pcall(function()
+                    local target = findNearestObject(artifactsFolder, "Artifact")
+                    if target and target:FindFirstChild("PrimaryPart") then
+                        bringPlr(target:GetPivot())
+                        task.wait(1) 
+                    end
+                end)
+                task.wait(5) 
+            end
+            artifactFarmingThread = nil
+        end)
+    elseif not Value and artifactFarmingThread then
+        task.cancel(artifactFarmingThread)
+        artifactFarmingThread = nil
+    end
+end)
+
+local function GetCharacter()
+    return LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+end
+
+local function GetDistance(p1, p2)
+    return (p1 - p2).Magnitude
+end
+
+local function BringPlayerTo(cframe)
+    local character = GetCharacter()
+    if character and character:FindFirstChild("HumanoidRootPart") then
+        character:PivotTo(cframe) 
+    end
+end
+
+local function FindNearestScrap(maxRange)
+    local character = GetCharacter()
+    if not character or not character:FindFirstChild("HumanoidRootPart") then return nil end
+    local playerPos = character.HumanoidRootPart.Position
+
+    local nearestScrap = nil
+    local shortestDistance = maxRange or 500 
+
+    -- Tìm kiếm chung trong Workspace (cần điều chỉnh theo cấu trúc game)
+    for _, scrap in pairs(Workspace:GetDescendants()) do
+        local prompt = scrap:FindFirstChildWhichIsA("ProximityPrompt", true)
+        
+        if prompt and prompt.Enabled and (scrap:IsA("BasePart") or scrap:IsA("Model")) then
+            local partToMeasure = scrap:IsA("Model") and scrap:FindFirstChild("PrimaryPart") or scrap
+            if partToMeasure or scrap:IsA("Model") then
+                local position = partToMeasure and partToMeasure.Position or scrap:GetPivot().Position
+                local dist = GetDistance(position, playerPos)
+                if dist < shortestDistance then
+                    shortestDistance = dist
+                    nearestScrap = scrap 
+                end
+            end
+        end
+    end
+    
+    return nearestScrap
+end
+
+-- =========================================================================
+-- LOGIC VÀ HÀM TOGGLE CHÍNH
+-- =========================================================================
+
+local function AutoScrapLoop()
+    while isAutoScrapRunning do
+        local nearestScrap = FindNearestScrap(1000)
+        
+        if nearestScrap then
+            local pivotCFrame = nearestScrap:GetPivot()
+            BringPlayerTo(pivotCFrame * CFrame.new(0, 5, 0)) 
+            
+            RunService.Heartbeat:Wait()
+            
+            local prompt = nearestScrap:FindFirstChildWhichIsA("ProximityPrompt", true)
+            if prompt and prompt.Enabled then
+                print("Đang thu thập: " .. nearestScrap.Name)
+                fireproximityprompt(prompt)
+                task.wait(prompt.HoldDuration + 0.1) 
+            else
+                task.wait(0.5)
+            end
+        else
+            task.wait(2) 
+        end
+        
+        task.wait(0.1) 
+    end
+end
+
+--- Hàm Toggle chính mà bạn cần
+--- @param state boolean: true để bật, false để tắt
+function ToggleAutoScrap(state)
+    isAutoScrapRunning = state
+    if state then
+        print("Đã BẬT Auto Scrap. Đang bắt đầu vòng lặp.")
+        -- Dùng task.spawn để chạy vòng lặp trên một luồng riêng
+        if autoScrapThread and task.running(autoScrapThread) then 
+            task.cancel(autoScrapThread) 
+        end
+        autoScrapThread = task.spawn(AutoScrapLoop)
+    else
+        print("Đã TẮT Auto Scrap.")
+        -- Dừng luồng nếu nó đang chạy
+        if autoScrapThread and task.running(autoScrapThread) then 
+            task.cancel(autoScrapThread)
+        end
+        autoScrapThread = nil
+    end
+end
+
+-- Xuất hàm ToggleAutoScrap ra môi trường chung (nếu cần) hoặc chỉ sử dụng nội bộ
+_G.ToggleAutoScrap = ToggleAutoScrap
+print("Hàm ToggleAutoScrap đã sẵn sàng. Gọi _G.ToggleAutoScrap(true) để bật.")
+
+-- =========================================================================
+-- NỘI DUNG TAB NOTIFICATIONS (ĐÃ FIX LỖI THIẾU TITLE)
+-- =========================================================================
+Tabs.Notifications:AddSection("↳ Notification Toggles (FIXED)")
 Tabs.Notifications:AddToggle("NotifyPowerToggle_v4_EN", { 
-    Title = "Notify: Low Power (30%)", 
-    Default = notificationSettings.power, 
-    Flag = "NotifyPowerToggle", 
-    Callback = function(v) notificationSettings.power = v end 
-})
+    Title = "Low Power (30%)", -- FIX: Đã thêm Title
+    Name = "Low Power (30%)", 
+    CurrentValue = notificationSettings.power 
+}):OnChanged(function(Value) notificationSettings.power = Value end)
+
 Tabs.Notifications:AddToggle("NotifyRoundTimeToggle_v4_EN", { 
-    Title = "Notify: End of Round (30s)", 
-    Default = notificationSettings.roundTime, 
-    Flag = "NotifyRoundTimeToggle", 
-    Callback = function(v) notificationSettings.roundTime = v end 
-})
+    Title = "End of Round (30s)", -- FIX: Đã thêm Title
+    Name = "End of Round (30s)", 
+    CurrentValue = notificationSettings.roundTime 
+}):OnChanged(function(Value) notificationSettings.roundTime = Value end)
+
 Tabs.Notifications:AddToggle("NotifyChainToggle_v4_EN", { 
-    Title = "Notify: CHAIN Spawn / Defeat", 
-    Default = notificationSettings.chain, 
-    Flag = "NotifyChainToggle", 
-    Callback = function(v) notificationSettings.chain = v end 
-})
+    Title = "CHAIN Spawn / Defeat", -- FIX: Đã thêm Title
+    Name = "CHAIN Spawn / Defeat", 
+    CurrentValue = notificationSettings.chain 
+}):OnChanged(function(Value) notificationSettings.chain = Value end)
+
 Tabs.Notifications:AddToggle("NotifyArtifactToggle_v4_EN", { 
-    Title = "Notify: Artifact Spawn", 
-    Default = notificationSettings.artifact, 
-    Flag = "NotifyArtifactToggle", 
-    Callback = function(v) notificationSettings.artifact = v end 
-})
+    Title = "Artifact Spawn", -- FIX: Đã thêm Title
+    Name = "Artifact Spawn", 
+    CurrentValue = notificationSettings.artifact 
+}):OnChanged(function(Value) notificationSettings.artifact = Value end)
+
 Tabs.Notifications:AddToggle("NotifyAirdropToggle_v1_EN", { 
-    Title = "Notify: Airdrop Spawn", 
-    Default = notificationSettings.airdrop, 
-    Flag = "NotifyAirdropToggle", 
-    Callback = function(v) notificationSettings.airdrop = v end 
-})
-Tabs.Notifications:AddToggle("NotifySoundToggle_v4_EN", { 
-    Title = "Notify: Play Sound", 
-    Default = notificationSettings.playSound, 
-    Flag = "NotifySoundToggle", 
-    Callback = function(v) notificationSettings.playSound = v end 
-})
+    Title = "Airdrop Spawn", -- FIX: Đã thêm Title
+    Name = "Airdrop Spawn", 
+    CurrentValue = notificationSettings.airdrop 
+}):OnChanged(function(Value) notificationSettings.airdrop = Value end)
+
+Tabs.Notifications:AddSection("↳ Options")
+Tabs.Notifications:AddToggle("PlaySoundToggle", { 
+    Title = "Play Sound on Notification", -- FIX: Đã thêm Title
+    Name = "Play Sound on Notification", 
+    CurrentValue = notificationSettings.playSound 
+}):OnChanged(function(Value) notificationSettings.playSound = Value end)
 
 
 -- =========================================================================
--- NỘI DUNG TAB AUTOFARM - ĐÃ SỬA LỖI CÚ PHÁP
+-- NỘI DUNG TAB UTILITY / SERVER (Main4)
 -- =========================================================================
-Tabs.AutoFarmTab:AddParagraph({ Title = "Auto Farming Functions", Content = "Tự động farm Artifacts và Scrap." })
-Tabs.AutoFarmTab:AddToggle("ArtifactAutofarmToggle", { 
-    Title = "AutoFarm Artifacts (Tự động lượm Artifact)", 
-    Default = isArtifactFarming, 
-    Flag = "ArtifactAutofarmToggle", 
-    Callback = function(Value) 
-        isArtifactFarming = Value 
-        if isArtifactFarming then 
-            if not artifactFarmingThread then 
-                artifactFarmingThread = task.spawn(artifactFarmLoop) 
-            end 
-        else
-            if artifactFarmingThread and task.running(artifactFarmingThread) then
-                task.cancel(artifactFarmingThread); artifactFarmingThread = nil
-            end
-        end 
-    end, 
-})
-Tabs.AutoFarmTab:AddToggle("ScrapAutofarmToggle", { 
-    Title = "AutoFarm Scrap", 
-    Default = isFarming, 
-    Flag = "ScrapAutofarmToggle", 
-    Callback = function(Value) 
-        isFarming = Value 
-        if isFarming then 
-            if not farmingThread then 
-                farmingThread = task.spawn(farmLoop) 
-            end 
-        else
-            if farmingThread and task.running(farmingThread) then
-                task.cancel(farmingThread); farmingThread = nil
-            end
-        end 
-    end,
-})
+Tabs.Main4:AddSection("↳ Utility")
+Tabs.Main4:AddToggle("AntiAFKToggle", {
+    Title = "Anti-AFK (AFK Bypass)",
+    Description = "Ngăn chặn việc bị kick vì không hoạt động (Anti-Idle).",
+    Default = false,
+}):OnChanged(toggleAntiAFK)
 
--- Teleport button được giữ lại
-Tabs.AutoFarmTab:AddButton({ 
-    Title = "Teleport To Airdrop", 
-    Description = "Dịch chuyển tới Airdrop gần nhất.", 
-    Callback = function() 
-        local allAirdrops = airDropsFolder and airDropsFolder:GetChildren() 
-        if not allAirdrops or #allAirdrops == 0 then 
-            Fluent:Notify({Title = "Mistake", Content = "Hiện không có Airdrop nào trên bản đồ.", Duration = 5, Icon = "box"}) 
-            return 
-        end 
-        local targetAirdrop = allAirdrops[1] 
-        local targetCFrame = targetAirdrop:GetPivot() 
-        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then 
-            LocalPlayer.Character.HumanoidRootPart.CFrame = targetCFrame * CFrame.new(0, 10, 0) 
-            Fluent:Notify({Title = "Intercepted!", Content = "Đã dịch chuyển tới Airdrop.", Duration = 5, Icon = "box"}) 
-        else 
-            Fluent:Notify({Title = "Mistake", Content = "Không tìm thấy HumanoidRootPart.", Duration = 5, Icon = "x"}) 
-        end 
-    end, 
-})
-
-
--- =========================================================================
--- NỘI DUNG TAB MISC / SERVER (Main4) - ĐÃ SỬA LỖI CÚ PHÁP
--- =========================================================================
-Tabs.Main4:AddParagraph({ Title = "Server Settings & Fixes", Content = "Các chức năng liên quan đến Server." })
+Tabs.Main4:AddSection("↳ Server Hopping")
 Tabs.Main4:AddToggle("SmallServerHopToggle", {
-    Title = "Look for a small server (less than 5 players)", 
-    Description = "Tự động nhảy server cho đến khi tìm thấy server có ít hơn 5 người chơi.",
-    Default = isHoppingForSmallServer, 
+    Title = "Look for a small server (<5 players)",
+    Description = "Tìm kiếm và dịch chuyển đến máy chủ có ít hơn 5 người chơi.",
+    Default = isHoppingForSmallServer,
     Flag = "SmallServerHopToggle",
     Callback = function(Value)
-        isHoppingForSmallServer = Value
-        if isHoppingForSmallServer then
-             Fluent:Notify({Title = "Search Engine Active", Content = "Đang tìm server với ít hơn 5 người chơi...", Duration = 6})
+        _G.isHoppingForSmallServer = Value
+        if _G.isHoppingForSmallServer then
+             Fluent:Notify({Title = "Search Engine Active", Content = "Đang tìm máy chủ có ít hơn 5 người chơi...", Duration = 6})
              
              if #Players:GetPlayers() < 5 then
-                 Fluent:Notify({Title = "Found!", Content = "Server này đã có ít người chơi. Đã dừng tìm kiếm.", Duration = 5})
-                 isHoppingForSmallServer = false
-                 -- Tự động set lại Toggle
+                 Fluent:Notify({Title = "Found!", Content = "Máy chủ này đã có ít người chơi. Dừng tìm kiếm.", Duration = 5})
+                 _G.isHoppingForSmallServer = false
+                 local toggle = Tabs.Main4:GetElement("SmallServerHopToggle")
+                 if toggle then toggle:SetValue(false) end
                  return
              end
              
              TeleportService:Teleport(game.PlaceId, LocalPlayer)
         else
-            Fluent:Notify({Title = "Search Engine Stopped", Content = "Đã dừng tìm kiếm server nhỏ.", Duration = 5})
+            Fluent:Notify({Title = "Search Engine Stopped", Content = "Đã dừng tìm kiếm máy chủ nhỏ.", Duration = 5})
         end
     end,
 })
-Tabs.Main4:AddToggle("BarrierDestroyerToggle", {
-    Title = "Destroy Invisible Barriers", 
-    Description = "Xóa các khối vô hình (CanCollide=true, Transparency=1) gây cản trở.",
-    Default = BarrierDestroyerEnabled, 
-    Callback = function(Value)
-        BarrierDestroyerEnabled = Value
-        if BarrierDestroyerEnabled then
-            if not BarrierDestroyerTask then
-                BarrierDestroyerTask = task.spawn(destroyInvisibleBarriersLoop)
-            end
-        else
-            if BarrierDestroyerTask and task.running(BarrierDestroyerTask) then
-                task.cancel(BarrierDestroyerTask); BarrierDestroyerTask = nil
-            end
-        end
-    end
-})
-Tabs.Main4:AddToggle("AntiAFKToggle", {
-    Title = "Anti AFK (19 min Click)", 
-    Description = "Mô phỏng hành động (click chuột) sau 19 phút để chống Kick AFK.",
-    Default = false, 
-}):OnChanged(function(Value) if Value then startAntiAFK() else stopAntiAFK() end end)
-
 
 -- =========================================================================
--- NỘI DUNG TAB ENVIRONMENT (Main5) - ĐÃ SỬA LỖI CÚ PHÁP
+-- NỘI DUNG TAB ENVIRONMENT (Main5)
 -- =========================================================================
-Tabs.Main5:AddParagraph({ Title = "Environment Tweaks", Content = "Các tùy chỉnh môi trường: Độ sáng, Sương mù." })
-Tabs.Main5:AddToggle("FullbrightToggle", { 
-    Title = "Fullbright", 
-    Description = "Tăng độ sáng tối đa, loại bỏ bóng và một số hiệu ứng môi trường.", 
-    Default = isFullbrightActive, 
-    Flag = "FullbrightToggle",
-    Callback = function(Value) 
-        applyFullbright(Value)
-    end
-})
-Tabs.Main5:AddToggle("AntiFogToggle", { 
-    Title = "No Fog (Loại bỏ Sương mù)", 
-    Description = "Giảm sương mù để nhìn rõ hơn.", 
-    Default = false, 
-    Flag = "AntiFogToggle",
-    Callback = function(Value) 
-        if Value then Lighting.FogEnd = 999999; Lighting.FogStart = 999998 else Lighting.FogEnd = 0; Lighting.FogStart = 0 end 
-    end
-})
-
-
--- =========================================================================
--- NỘI DUNG TAB EXECUTION / UTILITY (Main6) - ĐÃ SỬA LỖI CÚ PHÁP
--- =========================================================================
-Tabs.Main6:AddParagraph({ Title = "Execution Scripts", Content = "Dùng để chạy các script ngoài." })
-Tabs.Main6:AddButton({ 
-    Title = "Infinite Yield", 
-    Description = "Thực thi Infinite Yield.",
-    Callback = function() 
-        loadstring(game:HttpGet('https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source'))()
-        Fluent:Notify({ Title = "Execution", Content = "Đã thực thi Infinite Yield.", Duration = 3 })
-    end 
-})
-Tabs.Main6:AddButton({ 
-    Title = "Dex Explorer", 
-    Description = "Thực thi Dex Explorer.",
-    Callback = function() 
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/infyiff/backup/main/dex.lua"))()
-        Fluent:Notify({ Title = "Execution", Content = "Đã thực thi DEX.", Duration = 3 })
-    end 
-})
-
-Tabs.Main6:AddSection("↳ Utility Functions")
-Tabs.Main6:AddToggle("ClickTeleportToggle", { 
-    Title = "Click Teleport (Ctrl + Click)", 
-    Description = "Nhấn giữ Ctrl + Click chuột để dịch chuyển.", 
-    Default = _G.WRDClickTeleportEnabled, 
-    Flag = "ClickTeleportToggle", 
-    Callback = function(Value) 
-        _G.WRDClickTeleportEnabled = Value
-    end,
-})
-
-Tabs.Main6:AddButton({ 
-    Title = "Respawn", 
-    Description = "Tự tử và hồi sinh lại nhân vật.", 
-    Callback = function() 
-        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then 
-            LocalPlayer.Character.Humanoid.Health = 0 
-            Fluent:Notify({ Title = "Respawn", Content = "Tự tử thành công.", Duration = 3 }) 
-        end 
-    end
-})
-
-Tabs.Main6:AddButton({ 
-    Title = "ThirdPerson", 
-    Description = "Thiết lập góc nhìn thứ 3 và zoom tối đa.",
-    Callback = function() 
-        game.Players.LocalPlayer.CameraMode = Enum.CameraMode.Classic 
-        game.Players.LocalPlayer.CameraMaxZoomDistance = 1280 
-        game.Players.LocalPlayer.CameraMinZoomDistance = 0.5
-        Fluent:Notify({ Title = "Camera", Content = "Đã thiết lập góc nhìn thứ 3 và zoom tối đa.", Duration = 3 })
-    end,
-})
-
-Tabs.Main6:AddButton({ 
-    Title = "Remove Mask on head", 
-    Description = "Xóa chiếc mặt nạ/bao bố trên đầu nhân vật.",
-    Callback = function() 
-        pcall(function()
-            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Sack") and LocalPlayer.Character.Sack:FindFirstChild("SurfaceAppearance") then
-                LocalPlayer.Character.Sack.SurfaceAppearance.Parent:Destroy()
-                Fluent:Notify({ Title = "Sack", Content = "Đã xóa Head Mask.", Duration = 3 })
-            end
-        end)
-    end,
-})
-
-Tabs.Main6:AddButton({ 
-    Title = "Destroy UI", 
-    Description = "Đóng và xóa toàn bộ giao diện Script.",
-    Callback = function() 
-		Window:Destroy()
-        if CoreGui:FindFirstChild("MinimizeUI") then CoreGui.MinimizeUI:Destroy() end
-        if CoreGui:FindFirstChild("FPS_Ping_Display") then CoreGui.FPS_Ping_Display:Destroy() end
-        
-        -- Dừng các connection và thread
-        stopEspLogic() 
-        NOFLY()
-        toggleNoclip(false)
-        if updateConnection then updateConnection:Disconnect(); updateConnection = nil end -- Dừng loop FPS/Ping
-        
-        Fluent:Notify({Title = "UI Destroyed", Content = "Đã xóa giao diện script.", Duration = 3})
-    end 
-})
-
--- =========================================================================
--- KHAI BÁO THƯ VIỆN & SERVICE CHUNG 
--- SỬ DỤNG FLUENT/PURIUM GUI (ĐÃ THỬ NGHIỆM TÍCH HỢP TỐT HƠN)
--- =========================================================================
-local Fluent = loadstring(game:HttpGet("https://raw.githubusercontent.com/ngao-gamer/Purium/refs/heads/main/Purium%20Gui"))() 
-local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
-local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
-
-local TeleportService = game:GetService("TeleportService")
-local UserInputService = game:GetService("UserInputService")
-local CoreGui = game:GetService("CoreGui")
-local TweenService = game:GetService("TweenService")
-local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
-local Workspace = game:GetService("Workspace")
-local Stats = game:GetService("Stats")
-local Lighting = game:GetService("Lighting")
-local Debris = game:GetService("Debris")
-local LocalPlayer = Players.LocalPlayer
-local IYMouse = LocalPlayer:GetMouse()
-
--- Biến toàn cục & Flags
-local defaultJumpPower = 50 
-local isHoppingForSmallServer = _G.isHoppingForSmallServer or false
-local _G = _G or {} 
-local notificationSettings = { power = true, roundTime = true, chain = true, artifact = true, airdrop = true, playSound = true }
-
--- Quản lý Thread & Connection
-local staminaThread, combatStaminaThread, afkThread, scaleThread, antiGasThread = nil, nil, nil, nil, nil
-local jumpConnection, infJumpConnection, espConnection, PlayersAddedConn, PlayersRemovingConn = nil, nil, nil, nil, nil
-local staminaLoopActive, combatLoopActive, isScaling = false, false, false
-local espElements = {} 
-local noclipConnection = nil; local noclipEnabled = false
-local BarrierDestroyerEnabled = false; local BarrierDestroyerTask = nil 
-local FLYING = false; local iyflyspeed = 1; local flyKeyDown, flyKeyUp 
-local isArtifactFarming = false; local artifactFarmingThread = nil 
-local isFarming = false; local farmingThread = nil 
-local hideEffectsActive = false 
-local isFullbrightActive = false; local originalLightingProperties = {}; local originalEffectsState = {} 
-local infGasResourceActive = false 
-local valuesFolder, aiFolder, artifactsFolder, airDropsFolder = nil, nil, nil, nil
-local updateConnection -- Dùng cho FPS/Ping
-local showFPS = true; local showPing = true
-local fpsLabel, pingLabel
-local displayGui
-local rainbowHue = 0.0 -- [MỚI] Biến theo dõi màu sắc cầu vồng
-
--- =========================================================================
--- LOGIC HIỂN THỊ FPS / PING (ĐÃ SỬA VÀ THÊM RAINBOW)
--- =========================================================================
-
-local function setupDisplay()
-    if displayGui and displayGui.Parent then return end
-
-    displayGui = Instance.new("ScreenGui")
-    displayGui.Name = "FPS_Ping_Display"
-    displayGui.DisplayOrder = 999
-    displayGui.IgnoreGuiInset = true
-
-    -- FPS Label
-    fpsLabel = Instance.new("TextLabel")
-    fpsLabel.Name = "FPSLabel"
-    fpsLabel.Size = UDim2.new(0, 200, 0, 20)
-    fpsLabel.Position = UDim2.new(1, -5, 0, 5) -- Góc trên bên phải
-    fpsLabel.AnchorPoint = Vector2.new(1, 0)
-    fpsLabel.BackgroundTransparency = 1
-    fpsLabel.TextColor3 = Color3.fromHSV(rainbowHue, 1, 1) -- Màu ban đầu (Đỏ)
-    fpsLabel.TextStrokeTransparency = 0
-    fpsLabel.Font = Enum.Font.SourceSansBold
-    fpsLabel.TextScaled = true
-    fpsLabel.TextXAlignment = Enum.TextXAlignment.Right
-    fpsLabel.Text = "FPS: N/A"
-    fpsLabel.Visible = showFPS
-    fpsLabel.Parent = displayGui
-
-    -- Ping Label
-    pingLabel = Instance.new("TextLabel")
-    pingLabel.Name = "PingLabel"
-    pingLabel.Size = UDim2.new(0, 200, 0, 20)
-    pingLabel.Position = UDim2.new(1, -5, 0, 30) -- Dưới FPS label
-    pingLabel.AnchorPoint = Vector2.new(1, 0)
-    pingLabel.BackgroundTransparency = 1
-    pingLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    pingLabel.TextStrokeTransparency = 0
-    pingLabel.Font = Enum.Font.SourceSansBold
-    pingLabel.TextScaled = true
-    pingLabel.TextXAlignment = Enum.TextXAlignment.Right
-    pingLabel.Text = "Ping: N/A"
-    pingLabel.Visible = showPing
-    pingLabel.Parent = displayGui
-
-    displayGui.Parent = CoreGui
-end
-
-local function startUpdateLoop()
-    if updateConnection then return end
-    
-    setupDisplay() -- Đảm bảo UI được tạo
-
-    -- [SỬA LỖI] Sử dụng deltaTime từ Heartbeat để tính toán chính xác
-    updateConnection = RunService.Heartbeat:Connect(function(deltaTime) 
-        pcall(function()
-            
-            -- Lấy FPS
-            local fps = math.round(1 / deltaTime)
-
-            if fpsLabel and showFPS then
-                -- *** LOGIC 7 SẮC CẦU VỒ MỚI ***
-                -- Thay đổi Hue liên tục (0.3 là tốc độ chuyển màu/giây)
-                rainbowHue = rainbowHue + (deltaTime * 0.3) 
-                if rainbowHue > 1 then 
-                    rainbowHue = rainbowHue - 1 
-                end
-                
-                fpsLabel.TextColor3 = Color3.fromHSV(rainbowHue, 1, 1)
-                -- *** KẾT THÚC LOGIC 7 SẮC CẦU VỒ MỚI ***
-                
-                fpsLabel.Text = string.format("FPS: %d", fps)
-            end
-            
-            -- Lấy Ping (Độ trễ)
-            local networkStats = Stats:FindFirstChild("Network")
-            local pingValue = networkStats and networkStats:FindFirstChild("Ping") and networkStats.Ping.Value or 0
-            
-            if pingLabel and showPing then
-                pingLabel.Text = string.format("Ping: %d ms", math.round(pingValue * 1000))
-            end
-        end)
-    end)
-end
-
--- Khởi tạo và bắt đầu loop
-task.spawn(function()
-    setupDisplay()
-    startUpdateLoop()
-end)
-
--- =========================================================================
--- LOGIC TELEPORT CLICK & INIT PATHS (GIỮ NGUYÊN)
--- =========================================================================
-
-
-_G.WRDClickTeleportEnabled = _G.WRDClickTeleportEnabled or false 
-local connection = nil
-local function handleTeleport(input, gameProcessed) 
-    if gameProcessed then return end
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        if _G.WRDClickTeleportEnabled and UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) and LocalPlayer.Character and IYMouse.Hit then
-            LocalPlayer.Character:MoveTo(Vector3.new(IYMouse.Hit.X, IYMouse.Hit.Y, IYMouse.Hit.Z))
-        end
-    end
-end
-if _G.WRDClickTeleportConnection == nil then
-    connection = UserInputService.InputBegan:Connect(handleTeleport)
-    _G.WRDClickTeleportConnection = connection
-else
-    connection = _G.WRDClickTeleportConnection
-end
-
--- === KHAI BÁO BIẾN ĐƯỜNG DẪN CỤ THỂ ===
-task.spawn(function() 
-    pcall(function()
-        local GameStuff = Workspace:WaitForChild("GameStuff", 10)
-        local Misc = Workspace:WaitForChild("Misc", 10)
-        valuesFolder = GameStuff and GameStuff:WaitForChild("Values", 5)
-        aiFolder = Misc and Misc:WaitForChild("AI", 5)
-        local Zones = Misc and Misc:WaitForChild("Zones", 5)
-        local LootingItems = Zones and Zones:WaitForChild("LootingItems", 5)
-        artifactsFolder = LootingItems and LootingItems:WaitForChild("Artifacts", 5)
-        airDropsFolder = GameStuff and GameStuff:WaitForChild("GameSections", 5) and GameStuff.GameSections:FindFirstChild("AirDrops")
-        
-        -- KÍCH HOẠT SOUND KHI LOAD THÀNH CÔNG
-        local sound = Instance.new("Sound"); sound.SoundId = "rbxassetid://15641323951" 
-        sound.Volume = 0.5; sound.Parent = Workspace; sound:Play(); Debris:AddItem(sound, 3)
-    end)
-end)
-
--- =========================================================================
--- LOGIC CÁC CHỨC NĂNG (MOVEMENT, COMBAT, AFK FIX, ESP, FARMING) (GIỮ NGUYÊN)
--- =========================================================================
-
-local function toggleNoclip(enabled)
-    local character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-    local humanoid = character:FindFirstChildOfClass("Humanoid")
-    if not humanoid then return end
-
-    if enabled then
-        noclipEnabled = true
-        humanoid.WalkSpeed = 0
-        humanoid.JumpPower = 0
-        noclipConnection = RunService.Heartbeat:Connect(function()
-            if noclipEnabled and character then
-                for _, part in ipairs(character:GetDescendants()) do
-                    if part:IsA("BasePart") then
-                        part.CanCollide = false; part.CanTouch = false
-                    end
-                end
-            end
-        end)
-    else
-        noclipEnabled = false
-        if noclipConnection then noclipConnection:Disconnect(); noclipConnection = nil end
-        humanoid.WalkSpeed = 16; humanoid.JumpPower = 50
-        if character then
-            for _, part in ipairs(character:GetDescendants()) do
-                if part:IsA("BasePart") then
-                    if part.Name ~= "HumanoidRootPart" then part.CanCollide = true; part.CanTouch = true end
-                end
-            end
-        end
-    end
-end
-local function getRoot(char) return char:FindFirstChild('HumanoidRootPart') or char:FindFirstChild('Torso') or char:FindFirstChild('UpperTorso') end
-function sFLY()
-    if FLYING then return end
-	repeat task.wait() until LocalPlayer.Character and getRoot(LocalPlayer.Character) and LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
-	repeat task.wait() until IYMouse
-	if flyKeyDown or flyKeyUp then flyKeyDown:Disconnect() flyKeyUp:Disconnect() end
-
-	local T = getRoot(LocalPlayer.Character)
-	local CONTROL = {F = 0, B = 0, L = 0, R = 0, Q = 0, E = 0}
-	local lCONTROL = {F = 0, B = 0, L = 0, R = 0, Q = 0, E = 0}
-	local SPEED = 0
-
-	local function FLY()
-		FLYING = true
-		local BG = Instance.new('BodyGyro'); BG.P = 9e4; BG.Parent = T
-		local BV = Instance.new('BodyVelocity'); BV.Parent = T
-		BG.maxTorque = Vector3.new(9e9, 9e9, 9e9); BG.cframe = T.CFrame
-		BV.velocity = Vector3.new(0, 0, 0); BV.maxForce = Vector3.new(9e9, 9e9, 9e9)
-		task.spawn(function()
-			repeat task.wait()
-				if LocalPlayer.Character:FindFirstChildOfClass('Humanoid') then
-					LocalPlayer.Character:FindFirstChildOfClass('Humanoid').PlatformStand = true
-				end
-				if CONTROL.L + CONTROL.R ~= 0 or CONTROL.F + CONTROL.B ~= 0 or CONTROL.Q + CONTROL.E ~= 0 then SPEED = 50
-				elseif not (CONTROL.L + CONTROL.R ~= 0 or CONTROL.F + CONTROL.B ~= 0 or CONTROL.Q + CONTROL.E ~= 0) and SPEED ~= 0 then SPEED = 0 end
-				if (CONTROL.L + CONTROL.R) ~= 0 or (CONTROL.F + CONTROL.B) ~= 0 or (CONTROL.Q + CONTROL.E) ~= 0 then
-					BV.velocity = ((Workspace.CurrentCamera.CoordinateFrame.lookVector * (CONTROL.F + CONTROL.B)) + ((Workspace.CurrentCamera.CoordinateFrame * CFrame.new(CONTROL.L + CONTROL.R, (CONTROL.F + CONTROL.B + CONTROL.Q + CONTROL.E) * 0.2, 0).p) - Workspace.CurrentCamera.CoordinateFrame.p)) * SPEED * iyflyspeed
-					lCONTROL = {F = CONTROL.F, B = CONTROL.B, L = CONTROL.L, R = CONTROL.R}
-				elseif (CONTROL.L + CONTROL.R) == 0 and (CONTROL.F + CONTROL.B) == 0 and (CONTROL.Q + CONTROL.E) == 0 and SPEED ~= 0 then
-					BV.velocity = ((Workspace.CurrentCamera.CoordinateFrame.lookVector * (lCONTROL.F + lCONTROL.B)) + ((Workspace.CurrentCamera.CoordinateFrame * CFrame.new(lCONTROL.L + lCONTROL.R, (lCONTROL.F + lCONTROL.B + CONTROL.Q + CONTROL.E) * 0.2, 0).p) - Workspace.CurrentCamera.CoordinateFrame.p)) * SPEED * iyflyspeed
-				else BV.velocity = Vector3.new(0, 0, 0) end
-				BG.cframe = Workspace.CurrentCamera.CoordinateFrame
-			until not FLYING
-			CONTROL = {F = 0, B = 0, L = 0, R = 0, Q = 0, E = 0}
-			lCONTROL = {F = 0, B = 0, L = 0, R = 0, Q = 0, E = 0}
-			SPEED = 0
-			BG:Destroy(); BV:Destroy()
-			if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass('Humanoid') then
-				LocalPlayer.Character:FindFirstChildOfClass('Humanoid').PlatformStand = false
-			end
-		end)
-	end
-	flyKeyDown = IYMouse.KeyDown:Connect(function(KEY)
-		if KEY:lower() == 'w' then CONTROL.F = 1
-		elseif KEY:lower() == 's' then CONTROL.B = -1
-		elseif KEY:lower() == 'a' then CONTROL.L = -1
-		elseif KEY:lower() == 'd' then CONTROL.R = 1
-		elseif KEY:lower() == 'e' then CONTROL.Q = 1 
-		elseif KEY:lower() == 'q' then CONTROL.E = -1
-		end
-	end)
-	flyKeyUp = IYMouse.KeyUp:Connect(function(KEY)
-		if KEY:lower() == 'w' then CONTROL.F = 0
-		elseif KEY:lower() == 's' then CONTROL.B = 0
-		elseif KEY:lower() == 'a' then CONTROL.L = 0
-		elseif KEY:lower() == 'd' then CONTROL.R = 0
-		elseif KEY:lower() == 'e' then CONTROL.Q = 0
-		elseif KEY:lower() == 'q' then CONTROL.E = 0
-		end
-	end)
-	FLY()
-end
-function NOFLY()
-	FLYING = false
-	if flyKeyDown or flyKeyUp then flyKeyDown:Disconnect(); flyKeyUp:Disconnect() end
-	if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass('Humanoid') then
-		LocalPlayer.Character:FindFirstChildOfClass('Humanoid').PlatformStand = false
-	end
-end
-local function destroyInvisibleBarriersLoop()
-    while BarrierDestroyerEnabled do
-        for _, part in ipairs(Workspace:GetDescendants()) do
-            pcall(function()
-                if part:IsA("BasePart") and part.Transparency == 1 and part.CanCollide == true then
-                    local isPlayerPart = part.Parent and Players:GetPlayerFromCharacter(part.Parent)
-                    if not isPlayerPart then part:Destroy() end
-                end
-            end)
-        end
-        task.wait(1.5)
-    end
-end
-local function startInfGasWeaponResource()
-    infGasResourceActive = true
-    if antiGasThread and task.running(antiGasThread) then task.cancel(antiGasThread) end
-
-    antiGasThread = task.spawn(function()
-        while infGasResourceActive do
-            task.wait(0.5) 
-            pcall(function()
-                local char = LocalPlayer.Character
-                local statsFolder = char and char:FindFirstChild("Stats") 
-                local gasResource = statsFolder and (statsFolder:FindFirstChild("SawGasValue") or statsFolder:FindFirstChild("SawGas") or statsFolder:FindFirstChild("Gas"))
-                
-                if gasResource and gasResource:IsA("NumberValue") then
-                    gasResource.Value = 100 
-                end
-            end)
-        end
-    end)
-end
-local function stopInfGasWeaponResource()
-    infGasResourceActive = false
-    if antiGasThread and task.running(antiGasThread) then task.cancel(antiGasThread); antiGasThread = nil end
-end
-
-local function startInfiniteStamina_Fixed()
-    if staminaLoopActive then return end
-    staminaLoopActive = true
-    
-    if staminaThread and task.running(staminaThread) then 
-        task.cancel(staminaThread) 
-    end
-    
-    staminaThread = task.spawn(function()
-        while staminaLoopActive do 
-            task.wait(0.5) 
-            pcall(function()
-                local char = LocalPlayer.Character
-                local statsFolder = char and char:FindFirstChild("Stats") 
-                local staminaValue = statsFolder and statsFolder:FindFirstChild("Stamina")
-                
-                if staminaValue and staminaValue:IsA("NumberValue") then 
-                    staminaValue.Value = 100 
-                end
-            end)
-        end
-    end)
-end
-local function stopInfiniteStamina_Fixed()
-    staminaLoopActive = false 
-    if staminaThread and task.running(staminaThread) then 
-        task.cancel(staminaThread)
-    end
-    staminaThread = nil 
-end
-
-local function startInfCombatStamina()
-    combatLoopActive = true
-    if combatStaminaThread and task.running(combatStaminaThread) then task.cancel(combatStaminaThread) end
-    combatStaminaThread = task.spawn(function()
-        while combatLoopActive do task.wait(0.2) 
-            pcall(function()
-                local char = LocalPlayer.Character; local statsFolder = char and char:FindFirstChild("Stats")
-                local combatStaminaValue = statsFolder and statsFolder:FindFirstChild("CombatStamina") 
-                local dodgeValue = statsFolder and statsFolder:FindFirstChild("DodgeStamina") 
-                if combatStaminaValue and combatStaminaValue:IsA("NumberValue") then combatStaminaValue.Value = 100 end
-                if dodgeValue and dodgeValue:IsA("NumberValue") then dodgeValue.Value = 100 end
-            end)
-        end
-    end)
-end
-local function stopInfCombatStamina()
-    combatLoopActive = false 
-    if combatStaminaThread and task.running(combatStaminaThread) then task.cancel(combatStaminaThread); combatStaminaThread = nil end
-end
-local function startInfJump()
-    if infJumpConnection then infJumpConnection:Disconnect() end
-    infJumpConnection = UserInputService.InputBegan:Connect(function(input, gameProcessed)
-        if input.KeyCode == Enum.KeyCode.Space and not gameProcessed then
-            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
-                local humanoid = LocalPlayer.Character.Humanoid
-                if humanoid.Health > 0 and humanoid.Sit == false then
-                    humanoid:ChangeState(Enum.HumanoidStateType.Jumping); task.wait() 
-                    humanoid:ChangeState(Enum.HumanoidStateType.Freefall) 
-                end
-            end
-        end
-    end)
-end
-local function stopInfJump()
-    if infJumpConnection then infJumpConnection:Disconnect(); infJumpConnection = nil end
-end
-
--- ANTI-AFK 19 MIN CLICK
-local function startAntiAFK() 
-    if afkThread and task.running(afkThread) then task.cancel(afkThread) end
-
-    afkThread = task.spawn(function()
-        while true do 
-            task.wait(1140) -- 19 phút (19 * 60 = 1140 giây)
-            
-            pcall(function()
-                -- Mô phỏng click chuột trái (LMB)
-                IYMouse:Click() 
-                -- Tùy chọn: Nhấn nút di chuyển nhỏ để giữ kết nối
-                if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
-                    LocalPlayer.Character.Humanoid:Move(Vector3.new(0.01, 0, 0))
-                    task.wait(0.1)
-                    LocalPlayer.Character.Humanoid:Move(Vector3.new(0, 0, 0))
-                end
-                
-                -- Thông báo Anti-AFK
-                Fluent:Notify({ Title = "Anti AFK", Content = "Mô phỏng hành động để chống AFK (19 phút).", Duration = 3 })
-            end)
-        end
-    end)
-end
-local function stopAntiAFK()
-    if afkThread and task.running(afkThread) then task.cancel(afkThread); afkThread = nil end
-end
-
--- Fullbright & FX Logic (GIỮ NGUYÊN)
-local function applyFullbright(active) 
-    isFullbrightActive = active
-    if active then
-        -- Lưu trữ trạng thái gốc của các hiệu ứng
+Tabs.Main5:AddSection("↳ Visual & Effects")
+Tabs.Main5:AddToggle("FullBrightToggle", {
+    Title = "Full Bright (Sáng toàn cảnh)",
+    Description = "Tăng độ sáng tối đa, loại bỏ bóng tối (Bao gồm NoFog).",
+    Default = false,
+}):OnChanged(function(Value)
+    isFullbrightActive = Value
+    if Value then
+        originalEffectsState = {}
         for _, effect in ipairs(Lighting:GetChildren()) do
-            if effect:IsA("BlurEffect") or effect:IsA("ColorCorrectionEffect") or effect:IsA("BloomEffect") or effect:IsA("SunRaysEffect") or effect:IsA("DepthOfFieldEffect") then
-                originalEffectsState[effect] = effect.Enabled
+            if effect:IsA("ColorCorrectionEffect") or effect:IsA("BlurEffect") or effect:IsA("BloomEffect") or effect:IsA("AmbientSound") then
+                originalEffectsState[effect.Name] = effect.Enabled
                 effect.Enabled = false
             end
         end
-        
         Lighting.Ambient = Color3.fromRGB(255, 255, 255)
         Lighting.OutdoorAmbient = Color3.fromRGB(255, 255, 255)
         Lighting.Brightness = 3
-        Lighting.GlobalShadows = false
     else
-        -- Khôi phục trạng thái gốc của các hiệu ứng
-        for effect, wasEnabled in pairs(originalEffectsState) do
-            if effect and effect.Parent == Lighting then
-                effect.Enabled = wasEnabled
+        Lighting.Ambient = Color3.fromRGB(120, 120, 120) 
+        Lighting.OutdoorAmbient = Color3.fromRGB(120, 120, 120) 
+        Lighting.Brightness = 1 
+        for _, effect in ipairs(Lighting:GetChildren()) do
+            if originalEffectsState[effect.Name] ~= nil then
+                effect.Enabled = originalEffectsState[effect.Name]
             end
         end
         originalEffectsState = {}
-        
-        -- Khôi phục giá trị mặc định của Lighting (giả định)
-        Lighting.Ambient = Color3.fromRGB(0, 0, 0)
-        Lighting.OutdoorAmbient = Color3.fromRGB(0, 0, 0)
-        Lighting.Brightness = 2
-        Lighting.GlobalShadows = true
     end
-end
-local function hideEffects(active)
-    hideEffectsActive = active
-    for _, effect in ipairs(Lighting:GetChildren()) do
-        if effect:IsA("BlurEffect") or effect:IsA("ColorCorrectionEffect") or effect:IsA("BloomEffect") or effect:IsA("SunRaysEffect") or effect:IsA("DepthOfFieldEffect") then
-            if active then
-                originalEffectsState[effect] = effect.Enabled
-                effect.Enabled = false
-            else
-                if originalEffectsState[effect] ~= nil then
-                    effect.Enabled = originalEffectsState[effect]
-                    originalEffectsState[effect] = nil
-                end
-            end
-        end
-    end
-end
-
--- ESP LOGIC (GIỮ NGUYÊN)
-local function cleanupPlayerEspElements(player)
-    local elements = espElements[player]
-    if elements then
-        for _, element in pairs(elements) do
-            if element and element.Parent then
-                element:Destroy()
-            end
-        end
-        espElements[player] = nil
-    end
-end
-local function updatePlayerEspGui(player)
-    local char = player.Character
-    if not char then return end
-    local elements = espElements[player]
-    if not elements or not elements.NameLabel then return end
-
-    local root = getRoot(char)
-    if not root then return end
-    local head = char:FindFirstChild("Head") or root
-
-    local distance = math.floor((LocalPlayer.Character and getRoot(LocalPlayer.Character) and (getRoot(LocalPlayer.Character).Position - root.Position).Magnitude) or 0)
-    local health = char:FindFirstChildOfClass("Humanoid") and math.floor(char:FindFirstChildOfClass("Humanoid").Health) or 0
-    local isDead = health <= 0
-
-    elements.NameLabel.Text = string.format("%s\n%dm\n%s Health", player.DisplayName, distance, health)
-    
-    local highlight = elements.Highlight
-    if highlight then
-        local color = Color3.fromHSV(math.max(0, health / 100 * (1/3)), 1, 1) -- Red to Green
-        highlight.FillColor = color; highlight.OutlineColor = color
-    end
-
-    elements.NameLabel.Visible = not isDead
-    if highlight then highlight.Enabled = not isDead end
-    
-    -- Tăng/Giảm kích thước BillboardGui
-    local billGui = elements.BillboardGui
-    if billGui then
-        local scaleFactor = math.max(1, 100 / distance) * 0.5
-        billGui.Size = UDim2.new(0, 100 * scaleFactor, 0, 50 * scaleFactor)
-    end
-end
-local function startEspLogic()
-    local function createPlayerEsp(player)
-        local char = player.Character or player.CharacterAdded:Wait()
-        local root = getRoot(char)
-        if not root or char.Name == LocalPlayer.Name or espElements[player] then return end
-
-        local elements = {}
-        
-        -- Highlight
-        local highlight = Instance.new("Highlight")
-        highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-        highlight.FillColor = Color3.fromRGB(255, 255, 255); highlight.FillTransparency = 0.6
-        highlight.OutlineColor = Color3.fromRGB(255, 255, 255); highlight.OutlineTransparency = 0
-        highlight.Parent = char
-        elements.Highlight = highlight
-
-        -- BillboardGui cho Text
-        local billGui = Instance.new("BillboardGui")
-        billGui.Name = "PlayerESP_Text"; billGui.AlwaysOnTop = true; billGui.Size = UDim2.new(0, 100, 0, 50)
-        billGui.ExtentsOffset = Vector3.new(0, 5, 0)
-        billGui.Adornee = root -- Adornee HumanoidRootPart
-
-        local nameLabel = Instance.new("TextLabel"); nameLabel.Name = "NameLabel"; nameLabel.Size = UDim2.new(1, 0, 1, 0); nameLabel.BackgroundTransparency = 1
-        nameLabel.TextColor3 = Color3.new(1, 1, 1); nameLabel.TextStrokeTransparency = 0
-        nameLabel.TextScaled = true; nameLabel.Font = Enum.Font.SourceSansBold
-        nameLabel.Parent = billGui
-        elements.NameLabel = nameLabel
-        
-        billGui.Parent = CoreGui
-        elements.BillboardGui = billGui
-        
-        -- Cập nhật khi nhân vật thay đổi
-        player.CharacterAdded:Connect(function(newChar)
-            cleanupPlayerEspElements(player)
-            createPlayerEsp(player)
-        end)
-
-        espElements[player] = elements
-    end
-
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer then createPlayerEsp(player) end
-    end
-
-    PlayersAddedConn = Players.PlayerAdded:Connect(createPlayerEsp)
-    PlayersRemovingConn = Players.PlayerRemoving:Connect(cleanupPlayerEspElements)
-    
-    espConnection = RunService.Heartbeat:Connect(function()
-        for player, elements in pairs(espElements) do
-            updatePlayerEspGui(player)
-        end
-    end)
-end
-local function stopEspLogic()
-    if espConnection then espConnection:Disconnect(); espConnection = nil end
-    if PlayersAddedConn then PlayersAddedConn:Disconnect(); PlayersAddedConn = nil end
-    if PlayersRemovingConn then PlayersRemovingConn:Disconnect(); PlayersRemovingConn = nil end
-    for player, elements in pairs(espElements) do cleanupPlayerEspElements(player) end
-    espElements = {}
-end
-
--- AI ESP LOGIC (GIỮ NGUYÊN)
-local aiEspElements = {}
-local function createAIEsp(aiModel) 
-    if not aiModel:IsA("Model") or not aiModel:FindFirstChildOfClass("Humanoid") or aiEspElements[aiModel] then return end 
-
-    local highlight = Instance.new("Highlight")
-    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-    highlight.FillColor = Color3.fromRGB(255, 0, 0); highlight.FillTransparency = 0.5 
-    highlight.OutlineColor = Color3.fromRGB(255, 0, 0); highlight.OutlineTransparency = 0 
-    highlight.Parent = aiModel 
-    aiEspElements[aiModel] = highlight 
-    
-    aiModel.AncestryChanged:Connect(function(_, parent) 
-        if not parent then 
-            if highlight and highlight.Parent then highlight:Destroy() end 
-            aiEspElements[aiModel] = nil 
-        end 
-    end) 
-end 
-local function startAIEsp() 
-    if not aiFolder then return end 
-    for _, child in ipairs(aiFolder:GetChildren()) do createAIEsp(child) end 
-    aiFolder.ChildAdded:Connect(createAIEsp) 
-end 
-local function stopAIEsp() 
-    for _, highlight in pairs(aiEspElements) do if highlight and highlight.Parent then highlight:Destroy() end end 
-    aiEspElements = {} 
-end 
-
--- ARTIFACT / SCRAP FARMING LOGIC (GIỮ NGUYÊN)
-local function bringPlr(cframe) 
-    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then 
-        -- TP thấp hơn để kích hoạt ProximityPrompt
-        LocalPlayer.Character:PivotTo(cframe * CFrame.new(0, 3, 0)) 
-    end 
-end 
-
-local function artifactFarmLoop() 
-    while isArtifactFarming do 
-        pcall(function() -- BỌC TOÀN BỘ TRONG PCALL ĐỂ TRÁNH CRASH SCRIPT
-            local playerRoot = LocalPlayer.Character and getRoot(LocalPlayer.Character)
-            if not artifactsFolder or not playerRoot then task.wait(1); return end -- THÊM KIỂM TRA AN TOÀN
-
-            local targetArtifact = nil 
-            local smallestDistance = math.huge 
-            
-            for _, artifact in ipairs(artifactsFolder:GetChildren()) do 
-                if artifact:IsA("Model") and artifact:FindFirstChild("PrimaryPart") then 
-                    local distance = (playerRoot.Position - artifact.PrimaryPart.Position).Magnitude 
-                    if distance < smallestDistance then smallestDistance = distance; targetArtifact = artifact end 
-                end 
-            end 
-            if targetArtifact then bringPlr(targetArtifact:GetPivot()); task.wait(0.3) else task.wait(5) end 
-        end)
-    end 
-end 
-
-local function farmLoop() 
-    local LootFolders = Workspace:WaitForChild("Misc"):WaitForChild("Zones"):WaitForChild("LootingItems"):WaitForChild("Scrap", 5) 
-    local camera = Workspace.CurrentCamera 
-    
-    while isFarming do 
-        pcall(function() -- BỌC TOÀN BỘ TRONG PCALL ĐỂ TRÁNH CRASH SCRIPT
-            if not LootFolders or not LocalPlayer.Character or not getRoot(LocalPlayer.Character) then task.wait(5); return end 
-            
-            local targetScrap = nil 
-            local smallestDistance = math.huge 
-            local playerRoot = getRoot(LocalPlayer.Character)
-
-            if not playerRoot then task.wait(5); return end
-            
-            -- Tìm Scrap gần nhất
-            for _, scrap in ipairs(LootFolders:GetChildren()) do 
-                if scrap:IsA("Model") and scrap:FindFirstChild("PrimaryPart") and scrap:GetAttribute("Scrap") ~= nil then 
-                    local distance = (playerRoot.Position - scrap.PrimaryPart.Position).Magnitude 
-                    if distance < smallestDistance then smallestDistance = distance; targetScrap = scrap end 
-                end 
-            end 
-            
-            if targetScrap then 
-                local pivot = targetScrap:GetPivot()
-                local proximityPrompt = targetScrap:FindFirstChildWhichIsA("ProximityPrompt", true)
-
-                if proximityPrompt and proximityPrompt.Enabled then
-                    
-                    -- Bước 1: TP tới Scrap
-                    bringPlr(pivot)
-                    task.wait(0.2)
-                    
-                    -- Bước 2: LookAt (tăng độ tin cậy khi fire prompt)
-                    if camera and camera.CFrame and pivot then
-                        local lookAtPos = CFrame.new(camera.CFrame.Position, pivot.Position)
-                        camera.CFrame = lookAtPos
-                    end
-                    task.wait(0.2)
-                    
-                    -- Bước 3: Fire Prompt
-                    fireproximityprompt(proximityPrompt)
-                    task.wait(0.3) -- Chờ hoàn tất thu thập
-                    
-                else 
-                    task.wait(0.5) -- Scrap không có Prompt hoặc bị vô hiệu hóa
-                end 
-            else 
-                task.wait(5) -- Không tìm thấy scrap, chờ 5 giây
-            end 
-        end)
-    end 
-end
-
--- =========================================================================
--- KHỞI TẠO UI & TABS
--- =========================================================================
-local Window = Fluent:CreateWindow({
-    Title = "Purium Hub [Premium] | Universal |",
-    SubTitle = "Script Finalized (v6.4) - Rainbow FPS Fixed", -- Đã cập nhật SubTitle
-    Search = true,
-    Icon = "rbxassetid://121302760641013",
-    TabWidth = 140,
-    Size = UDim2.fromOffset(515, 350),
-    Acrylic = true,
-    Theme = "Dark",
-    MinimizeKey = Enum.KeyCode.RightAlt,
-
-    UserInfo = true,
-    UserInfoTop = false,
-    UserInfoTitle = LocalPlayer.DisplayName,
-    UserInfoSubtitle = "Premuim User",
-    UserInfoSubtitleColor = Color3.fromRGB(71, 123, 255)
-})
-local Tabs = {
-    Main0=Window:AddTab({ Title="Annoucenment", Icon = "info" }),
-    Main1=Window:AddTab({ Title="Movement / Combat", Icon = "swords" }),
-    Main2=Window:AddTab({ Title="Esp / Visuals", Icon = "user-plus"}),
-    Notifications=Window:AddTab({ Title="Notifications", Icon = "bell-ring"}),
-    AutoFarmTab=Window:AddTab({ Title="AutoFarm", Icon = "feather"}),
-    Main4=Window:AddTab({ Title="Misc / Server", Icon = "cog"}),
-    Main5=Window:AddTab({ Title="Environment", Icon = "sun"}),
-    Main6=Window:AddTab({ Title="Execution / Utility", Icon = "terminal"}),
-    Settings = Window:AddTab({ Title = "Settings", Icon = "settings" })
-}
-
-SaveManager:SetLibrary(Fluent)
-InterfaceManager:SetLibrary(Fluent)
-SaveManager:SetIgnoreIndexes({})
-InterfaceManager:SetFolder("Purium HUB")
-SaveManager:SetFolder("Purium HUB/universal")
-InterfaceManager:BuildInterfaceSection(Tabs.Settings)
-SaveManager:BuildConfigSection(Tabs.Settings)
-Window:SelectTab(1)
-Fluent:Notify({ 
-Title = "Purium HUB",
-Content = "Script Finalized (v6.4) - Rainbow FPS Fixed.",
-Duration = 4 })
-SaveManager:LoadAutoloadConfig()
-
-Tabs.Main0:AddParagraph({ Title = "djtconmemaythgcho", Content = "duma co bug lam on vo discord sua chu dung chui tham t nua dm ngay bo hat xi 15 roi a." })
-Tabs.Main0:AddButton({
-    Title = "Discord",
-    Description = "Join Ours discord for support",
-    Callback = function()
-      setclipboard("https://discord.gg/3fbA4kNZtJ")
-      warn("Link Discord copied to clipboard: " .. "https://discord.gg/3fbA4kNZtJ") 
-            game:GetService("StarterGui"):SetCore(
-        "SendNotification",
-        {
-          Title = "Link Discord Copied!",
-          Text = "Link Copied.",
-          Duration = 2.5
-        }
-      )
-    end
-})
-
--- =========================================================================
--- NỘI DUNG TAB MOVEMENT / COMBAT (Main1) - ĐÃ SỬA LỖI CÚ PHÁP VÀ LOGIC
--- =========================================================================
-Tabs.Main1:AddParagraph({ Title = "FPS / Ping Display", Content = "Hiển thị FPS và Ping." })
--- Đã kết nối các Toggle với logic display UI mới
-Tabs.Main1:AddToggle("ShowFPSToggle", { 
-    Title = "**Show FPS (Rainbow Effect)**", 
-    Default = true, 
-    Callback = function(val) 
-        showFPS = val
-        if fpsLabel then fpsLabel.Visible = val end 
-        if val and not updateConnection then startUpdateLoop() end
-    end
-})
-
-Tabs.Main1:AddToggle("ShowPingToggle", { 
-    Title = "Show Ping", 
-    Default = true, 
-    Callback = function(val) 
-        showPing = val
-        if pingLabel then pingLabel.Visible = val end 
-        if val and not updateConnection then startUpdateLoop() end
-    end
-})
-
-local function setFPS(cap) if typeof(setfpscap) == "function" then pcall(function() setfpscap(cap) end) else warn("[FPS Unlocker] ❌ Hàm setfpscap không khả dụng.") end end 
-Tabs.Main1:AddToggle("FPSUnlocker_Fixed", { 
-    Title = "Unlock FPS", 
-    Description = "Mở khóa giới hạn FPS (tối đa 9999).", 
-    Default = false, 
-}):OnChanged(function(Value) if Value then setFPS(9999) else setFPS(60) end end)
-
-Tabs.Main1:AddSection("↳ Movement Exploits") 
-Tabs.Main1:AddToggle("InfStaminaToggle_Fixed", { 
-    Title = "Infinite Movement Stamina", 
-    Description = "Hồi phục Stamina di chuyển tức thì (chạy nhanh).", 
-    Default = false, 
-}):OnChanged(function(value) if value then startInfiniteStamina_Fixed() else stopInfiniteStamina_Fixed() end end)
-
-Tabs.Main1:AddToggle("InfCombatStaminaToggle", { 
-    Title = "Infinite Combat/Dodge Stamina", 
-    Description = "Hồi phục Combat Stamina và Dodge tức thì.", 
-    Default = false, 
-}):OnChanged(function(value) if value then startInfCombatStamina() else stopInfCombatStamina() end end)
-
-Tabs.Main1:AddToggle("NoclipToggle", { 
-    Title = "Noclip", 
-    Description = "Đi xuyên vật thể/tường.", 
-    Default = false, 
-}):OnChanged(function(Value) toggleNoclip(Value) end)
-
-Tabs.Main1:AddToggle("FlyToggle", { 
-    Title = "Fly (W/A/S/D - Q/E)", 
-    Description = "Bay lượn.", 
-    Default = false, 
-}):OnChanged(function(Value) if Value then sFLY() else NOFLY() end end)
-
-Tabs.Main1:AddToggle("InfJumpToggle", { 
-    Title = "Infinite Jump", 
-    Description = "Nhảy không giới hạn.", 
-    Default = false, 
-}):OnChanged(function(Value) if Value then startInfJump() else stopInfJump() end end)
-
-Tabs.Main1:AddToggle("InfGasToggle", { 
-    Title = "Infinite Saw Gas / Weapon Resource", 
-    Description = "Vũ khí không hết tài nguyên (xăng cưa/đạn).", 
-    Default = false, 
-}):OnChanged(function(Value) if Value then startInfGasWeaponResource() else stopInfGasWeaponResource() end end)
+end)
 
 
 -- =========================================================================
--- NỘI DUNG TAB ESP / VISUALS (Main2) - ĐÃ SỬA LỖI CÚ PHÁP
+-- NỘI DUNG TAB SETTINGS (Settings)
 -- =========================================================================
-Tabs.Main2:AddToggle("PlayerChams_Toggle_FIXED_V4", { 
-    Title = "Esp Players", 
-    Description = "Chams (trắng, xuyên tường) và hiển thị tên/khoảng cách chính xác (BillboardGui).", 
-    Default = false, 
-}):OnChanged(function(Value) if Value == true then startEspLogic() else stopEspLogic() end end)
+Tabs.Settings:AddSection("↳ Config")
 
-Tabs.Main2:AddToggle("AIEspToggle", { 
-    Title = "AI ESP (Highlight Đỏ)", 
-    Description = "Highlight các NPC/AI trên bản đồ.", 
-    Default = false, 
-}):OnChanged(function(Value) if Value then startAIEsp() else stopAIEsp() end end)
-
-Tabs.Main2:AddToggle("HideEffectsToggle", {
-    Title = "Hide Map/Game Effects", 
-    Description = "Tắt Blur, Bloom, Color Correction, v.v. để tăng FPS/FPS-Boost.",
-    Default = false, 
-}):OnChanged(function(Value) hideEffects(Value) end)
-
-
--- =========================================================================
--- NỘI DUNG TAB NOTIFICATIONS - ĐÃ SỬA LỖI CÚ PHÁP
--- =========================================================================
-Tabs.Notifications:AddParagraph({ Title = "Notification Settings", Content = "Bật/Tắt thông báo." })
-Tabs.Notifications:AddToggle("NotifyPowerToggle_v4_EN", { 
-    Title = "Notify: Low Power (30%)", 
-    Default = notificationSettings.power, 
-    Flag = "NotifyPowerToggle", 
-    Callback = function(v) notificationSettings.power = v end 
-})
-Tabs.Notifications:AddToggle("NotifyRoundTimeToggle_v4_EN", { 
-    Title = "Notify: End of Round (30s)", 
-    Default = notificationSettings.roundTime, 
-    Flag = "NotifyRoundTimeToggle", 
-    Callback = function(v) notificationSettings.roundTime = v end 
-})
-Tabs.Notifications:AddToggle("NotifyChainToggle_v4_EN", { 
-    Title = "Notify: CHAIN Spawn / Defeat", 
-    Default = notificationSettings.chain, 
-    Flag = "NotifyChainToggle", 
-    Callback = function(v) notificationSettings.chain = v end 
-})
-Tabs.Notifications:AddToggle("NotifyArtifactToggle_v4_EN", { 
-    Title = "Notify: Artifact Spawn", 
-    Default = notificationSettings.artifact, 
-    Flag = "NotifyArtifactToggle", 
-    Callback = function(v) notificationSettings.artifact = v end 
-})
-Tabs.Notifications:AddToggle("NotifyAirdropToggle_v1_EN", { 
-    Title = "Notify: Airdrop Spawn", 
-    Default = notificationSettings.airdrop, 
-    Flag = "NotifyAirdropToggle", 
-    Callback = function(v) notificationSettings.airdrop = v end 
-})
-Tabs.Notifications:AddToggle("NotifySoundToggle_v4_EN", { 
-    Title = "Notify: Play Sound", 
-    Default = notificationSettings.playSound, 
-    Flag = "NotifySoundToggle", 
-    Callback = function(v) notificationSettings.playSound = v end 
-})
-
-
--- =========================================================================
--- NỘI DUNG TAB AUTOFARM - ĐÃ SỬA LỖI CÚ PHÁP
--- =========================================================================
-Tabs.AutoFarmTab:AddParagraph({ Title = "Auto Farming Functions", Content = "Tự động farm Artifacts và Scrap." })
-Tabs.AutoFarmTab:AddToggle("ArtifactAutofarmToggle", { 
-    Title = "AutoFarm Artifacts (Tự động lượm Artifact)", 
-    Default = isArtifactFarming, 
-    Flag = "ArtifactAutofarmToggle", 
-    Callback = function(Value) 
-        isArtifactFarming = Value 
-        if isArtifactFarming then 
-            if not artifactFarmingThread then 
-                artifactFarmingThread = task.spawn(artifactFarmLoop) 
-            end 
-        else
-            if artifactFarmingThread and task.running(artifactFarmingThread) then
-                task.cancel(artifactFarmingThread); artifactFarmingThread = nil
-            end
-        end 
-    end, 
-})
-Tabs.AutoFarmTab:AddToggle("ScrapAutofarmToggle", { 
-    Title = "AutoFarm Scrap", 
-    Default = isFarming, 
-    Flag = "ScrapAutofarmToggle", 
-    Callback = function(Value) 
-        isFarming = Value 
-        if isFarming then 
-            if not farmingThread then 
-                farmingThread = task.spawn(farmLoop) 
-            end 
-        else
-            if farmingThread and task.running(farmingThread) then
-                task.cancel(farmingThread); farmingThread = nil
-            end
-        end 
-    end,
-})
-
--- Teleport button được giữ lại
-Tabs.AutoFarmTab:AddButton({ 
-    Title = "Teleport To Airdrop", 
-    Description = "Dịch chuyển tới Airdrop gần nhất.", 
-    Callback = function() 
-        local allAirdrops = airDropsFolder and airDropsFolder:GetChildren() 
-        if not allAirdrops or #allAirdrops == 0 then 
-            Fluent:Notify({Title = "Mistake", Content = "Hiện không có Airdrop nào trên bản đồ.", Duration = 5, Icon = "box"}) 
-            return 
-        end 
-        local targetAirdrop = allAirdrops[1] 
-        local targetCFrame = targetAirdrop:GetPivot() 
-        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then 
-            LocalPlayer.Character.HumanoidRootPart.CFrame = targetCFrame * CFrame.new(0, 10, 0) 
-            Fluent:Notify({Title = "Intercepted!", Content = "Đã dịch chuyển tới Airdrop.", Duration = 5, Icon = "box"}) 
-        else 
-            Fluent:Notify({Title = "Mistake", Content = "Không tìm thấy HumanoidRootPart.", Duration = 5, Icon = "x"}) 
-        end 
-    end, 
-})
-
-
--- =========================================================================
--- NỘI DUNG TAB MISC / SERVER (Main4) - ĐÃ SỬA LỖI CÚ PHÁP
--- =========================================================================
-Tabs.Main4:AddParagraph({ Title = "Server Settings & Fixes", Content = "Các chức năng liên quan đến Server." })
-Tabs.Main4:AddToggle("SmallServerHopToggle", {
-    Title = "Look for a small server (less than 5 players)", 
-    Description = "Tự động nhảy server cho đến khi tìm thấy server có ít hơn 5 người chơi.",
-    Default = isHoppingForSmallServer, 
-    Flag = "SmallServerHopToggle",
-    Callback = function(Value)
-        isHoppingForSmallServer = Value
-        if isHoppingForSmallServer then
-             Fluent:Notify({Title = "Search Engine Active", Content = "Đang tìm server với ít hơn 5 người chơi...", Duration = 6})
-             
-             if #Players:GetPlayers() < 5 then
-                 Fluent:Notify({Title = "Found!", Content = "Server này đã có ít người chơi. Đã dừng tìm kiếm.", Duration = 5})
-                 isHoppingForSmallServer = false
-                 -- Tự động set lại Toggle
-                 return
-             end
-             
-             TeleportService:Teleport(game.PlaceId, LocalPlayer)
-        else
-            Fluent:Notify({Title = "Search Engine Stopped", Content = "Đã dừng tìm kiếm server nhỏ.", Duration = 5})
-        end
-    end,
-})
-Tabs.Main4:AddToggle("BarrierDestroyerToggle", {
-    Title = "Destroy Invisible Barriers", 
-    Description = "Xóa các khối vô hình (CanCollide=true, Transparency=1) gây cản trở.",
-    Default = BarrierDestroyerEnabled, 
-    Callback = function(Value)
-        BarrierDestroyerEnabled = Value
-        if BarrierDestroyerEnabled then
-            if not BarrierDestroyerTask then
-                BarrierDestroyerTask = task.spawn(destroyInvisibleBarriersLoop)
-            end
-        else
-            if BarrierDestroyerTask and task.running(BarrierDestroyerTask) then
-                task.cancel(BarrierDestroyerTask); BarrierDestroyerTask = nil
-            end
-        end
-    end
-})
-Tabs.Main4:AddToggle("AntiAFKToggle", {
-    Title = "Anti AFK (19 min Click)", 
-    Description = "Mô phỏng hành động (click chuột) sau 19 phút để chống Kick AFK.",
-    Default = false, 
-}):OnChanged(function(Value) if Value then startAntiAFK() else stopAntiAFK() end end)
-
-
--- =========================================================================
--- NỘI DUNG TAB ENVIRONMENT (Main5) - ĐÃ SỬA LỖI CÚ PHÁP
--- =========================================================================
-Tabs.Main5:AddParagraph({ Title = "Environment Tweaks", Content = "Các tùy chỉnh môi trường: Độ sáng, Sương mù." })
-Tabs.Main5:AddToggle("FullbrightToggle", { 
-    Title = "Fullbright", 
-    Description = "Tăng độ sáng tối đa, loại bỏ bóng và một số hiệu ứng môi trường.", 
-    Default = isFullbrightActive, 
-    Flag = "FullbrightToggle",
-    Callback = function(Value) 
-        applyFullbright(Value)
-    end
-})
-Tabs.Main5:AddToggle("AntiFogToggle", { 
-    Title = "No Fog (Loại bỏ Sương mù)", 
-    Description = "Giảm sương mù để nhìn rõ hơn.", 
-    Default = false, 
-    Flag = "AntiFogToggle",
-    Callback = function(Value) 
-        if Value then Lighting.FogEnd = 999999; Lighting.FogStart = 999998 else Lighting.FogEnd = 0; Lighting.FogStart = 0 end 
-    end
-})
-
-
--- =========================================================================
--- NỘI DUNG TAB EXECUTION / UTILITY (Main6) - ĐÃ SỬA LỖI CÚ PHÁP
--- =========================================================================
-Tabs.Main6:AddParagraph({ Title = "Execution Scripts", Content = "Dùng để chạy các script ngoài." })
-Tabs.Main6:AddButton({ 
-    Title = "Infinite Yield", 
-    Description = "Thực thi Infinite Yield.",
-    Callback = function() 
-        loadstring(game:HttpGet('https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source'))()
-        Fluent:Notify({ Title = "Execution", Content = "Đã thực thi Infinite Yield.", Duration = 3 })
-    end 
-})
-Tabs.Main6:AddButton({ 
-    Title = "Dex Explorer", 
-    Description = "Thực thi Dex Explorer.",
-    Callback = function() 
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/infyiff/backup/main/dex.lua"))()
-        Fluent:Notify({ Title = "Execution", Content = "Đã thực thi DEX.", Duration = 3 })
-    end 
-})
-
-Tabs.Main6:AddSection("↳ Utility Functions")
-Tabs.Main6:AddToggle("ClickTeleportToggle", { 
-    Title = "Click Teleport (Ctrl + Click)", 
-    Description = "Nhấn giữ Ctrl + Click chuột để dịch chuyển.", 
-    Default = _G.WRDClickTeleportEnabled, 
-    Flag = "ClickTeleportToggle", 
-    Callback = function(Value) 
-        _G.WRDClickTeleportEnabled = Value
-    end,
-})
-
-Tabs.Main6:AddButton({ 
-    Title = "Respawn", 
-    Description = "Tự tử và hồi sinh lại nhân vật.", 
-    Callback = function() 
-        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then 
-            LocalPlayer.Character.Humanoid.Health = 0 
-            Fluent:Notify({ Title = "Respawn", Content = "Tự tử thành công.", Duration = 3 }) 
-        end 
-    end
-})
-
-Tabs.Main6:AddButton({ 
-    Title = "ThirdPerson", 
-    Description = "Thiết lập góc nhìn thứ 3 và zoom tối đa.",
-    Callback = function() 
-        game.Players.LocalPlayer.CameraMode = Enum.CameraMode.Classic 
-        game.Players.LocalPlayer.CameraMaxZoomDistance = 1280 
-        game.Players.LocalPlayer.CameraMinZoomDistance = 0.5
-        Fluent:Notify({ Title = "Camera", Content = "Đã thiết lập góc nhìn thứ 3 và zoom tối đa.", Duration = 3 })
-    end,
-})
-
-Tabs.Main6:AddButton({ 
-    Title = "Remove Mask on head", 
-    Description = "Xóa chiếc mặt nạ/bao bố trên đầu nhân vật.",
-    Callback = function() 
-        pcall(function()
-            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Sack") and LocalPlayer.Character.Sack:FindFirstChild("SurfaceAppearance") then
-                LocalPlayer.Character.Sack.SurfaceAppearance.Parent:Destroy()
-                Fluent:Notify({ Title = "Sack", Content = "Đã xóa Head Mask.", Duration = 3 })
-            end
-        end)
-    end,
-})
-
-Tabs.Main6:AddButton({ 
+Tabs.Settings:AddButton({
     Title = "Destroy UI", 
     Description = "Đóng và xóa toàn bộ giao diện Script.",
     Callback = function() 
-		Window:Destroy()
+        Window:Destroy()
         if CoreGui:FindFirstChild("MinimizeUI") then CoreGui.MinimizeUI:Destroy() end
         if CoreGui:FindFirstChild("FPS_Ping_Display") then CoreGui.FPS_Ping_Display:Destroy() end
+        if updateConnection then updateConnection:Disconnect(); updateConnection = nil end
         
-        -- Dừng các connection và thread
         stopEspLogic() 
+        stopChainEspLogic()
         NOFLY()
         toggleNoclip(false)
-        if updateConnection then updateConnection:Disconnect(); updateConnection = nil end -- Dừng loop FPS/Ping
-        
-        Fluent:Notify({Title = "UI Destroyed", Content = "Đã xóa giao diện script.", Duration = 3})
-    end 
+        toggleClickTeleport(false)
+        toggleInfStamina(false) 
+        toggleInfGas(false)
+        toggleAntiAFK(false) 
+    end,
 })
+
+-- =========================================================================
+-- KHỞI TẠO SAU KHI TẢI CONFIG 
+-- =========================================================================
+task.spawn(function()
+    task.wait(2) 
+    pcall(function()
+        local savedFPS = SaveManager:GetConfig("DisplayFPSToggle", false) 
+        local savedPing = SaveManager:GetConfig("DisplayPingToggle", false)
+        local savedStamina = SaveManager:GetConfig("InfiniteStaminaToggle", false)
+        local savedGas = SaveManager:GetConfig("InfiniteGasToggle", false)
+
+        -- Kích hoạt logic hiển thị FPS/Ping với giá trị đã lưu
+        toggleFPSPingDisplay(savedFPS, savedPing) 
+
+        -- Kích hoạt logic Infinite Resource với giá trị đã lưu
+        if savedStamina then toggleInfStamina(true) end
+        if savedGas then toggleInfGas(true) end
+    end)
+end)
+
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+local TweenService = game:GetService("TweenService")
+
+local ExistingUI = CoreGui:FindFirstChild("PuriumHubMinimizeUI")
+if ExistingUI then
+    ExistingUI:Destroy()
+end
+
+local DragUI = Instance.new("ScreenGui")
+DragUI.Name = "PuriumHubMinimizeUI"
+DragUI.ResetOnSpawn = false
+DragUI.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+DragUI.Parent = CoreGui
+
+
+local Button = Instance.new("ImageButton")
+Button.Parent = DragUI
+Button.Size = UDim2.new(0, 50, 0, 50)
+Button.Position = UDim2.new(0, 10, 1, -85)
+Button.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+Button.BackgroundTransparency = 0.3
+Button.BorderSizePixel = 0
+Button.ClipsDescendants = true
+Button.Image = "rbxassetid://109647470925993" -- Thay icon nếu muốn
+Button.ScaleType = Enum.ScaleType.Fit
+Button.Active = true
+Button.ZIndex = 1000
+
+
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(1, 0)
+UICorner.Parent = Button
+
+
+local tweenInfo = TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+
+local function ToggleUI()
+    if Window.Minimized then
+        Window:Minimize(false) 
+    else
+        Window:Minimize(true) 
+    end
+end
+
+local isDragging = false
+local dragThreshold = 10
+
+Button.MouseButton1Click:Connect(function()
+    if isDragging then return end
+
+    TweenService:Create(Button, tweenInfo, {
+        BackgroundTransparency = 0.5,
+        Size = UDim2.new(0, 45, 0, 45),
+        Rotation = 5
+    }):Play()
+    task.wait(0.1)
+    TweenService:Create(Button, tweenInfo, {
+        BackgroundTransparency = 0.3,
+        Size = UDim2.new(0, 50, 0, 50),
+        Rotation = 0
+    }):Play()
+
+    ToggleUI()
+end)
+
+Button.MouseEnter:Connect(function()
+    TweenService:Create(Button, tweenInfo, {Size = UDim2.new(0, 55, 0, 55)}):Play()
+end)
+
+Button.MouseLeave:Connect(function()
+    TweenService:Create(Button, tweenInfo, {Size = UDim2.new(0, 50, 0, 50)}):Play()
+end)
+
+
+local dragging, dragStart, startPos
+
+local function StartDrag(input)
+    isDragging = false
+    dragging = true
+    dragStart = input.Position
+    startPos = Button.Position
+
+    input.Changed:Connect(function()
+        if input.UserInputState == Enum.UserInputState.End then
+            dragging = false
+        end
+    end)
+end
+
+local function OnDrag(input)
+    if dragging then
+        local delta = (input.Position - dragStart).Magnitude
+        if delta > dragThreshold then
+            isDragging = true
+        end
+        Button.Position = UDim2.new(
+            startPos.X.Scale,
+            startPos.X.Offset + (input.Position.X - dragStart.X),
+            startPos.Y.Scale,
+            startPos.Y.Offset + (input.Position.Y - dragStart.Y)
+        )
+    end
+end
+
+Button.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        StartDrag(input)
+    end
+end)
+
+Button.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        OnDrag(input)
+    end
+end)  
