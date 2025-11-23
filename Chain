@@ -16,8 +16,6 @@ local Lighting = game:GetService("Lighting")
 local Debris = game:GetService("Debris")
 local LocalPlayer = Players.LocalPlayer
 local IYMouse = LocalPlayer:GetMouse()
-local fireproximityprompt = fireproximityprompt or function(prompt) prompt:InputHoldSuccess() end 
-
 
 -- Biến toàn cục & Flags
 local isHoppingForSmallServer = _G.isHoppingForSmallServer or false
@@ -37,8 +35,6 @@ local isFarming = false; local farmingThread = nil
 local hideEffectsActive = false 
 local isFullbrightActive = false; local originalEffectsState = {} 
 local infStaminaActive = false; local infGasActive = false; local infResourceThread = nil 
-local isAutoScrapRunning = false
-local autoScrapThread = nil
 
 local valuesFolder, aiFolder, artifactsFolder, airDropsFolder = nil, nil, nil, nil
 
@@ -63,9 +59,6 @@ local TELEPORT_LOCATIONS = {
     ["Khu Vực Loot"] = CFrame.new(250, 100, -250),
 }
 
-
--- =========================================================================
--- LOGIC HỖ TRỢ CHUNG & INIT PATHS 
 -- =========================================================================
 local function getRoot(char) return char:FindFirstChild('HumanoidRootPart') or char:FindFirstChild('Torso') or char:FindFirstChild('UpperTorso') end
 local function bringPlr(cframe) 
@@ -76,7 +69,7 @@ end
 local function playSound() 
     if notificationSettings.playSound then 
         local sound = Instance.new("Sound"); 
-        sound.SoundId = "rbxassetid://100736080025788" 
+        sound.SoundId = "rbxassetid://15641323951" 
         sound.Volume = 0.5; 
         sound.Parent = Workspace; 
         sound:Play(); 
@@ -706,13 +699,13 @@ SaveManager:SetLibrary(Fluent)
 InterfaceManager:SetLibrary(Fluent)
 SaveManager:SetIgnoreIndexes({})
 InterfaceManager:SetFolder("Purium HUB")
-SaveManager:SetFolder("Purium HUB/universal")
+SaveManager:SetFolder("Purium HUB/chain")
 InterfaceManager:BuildInterfaceSection(Tabs.Settings)
 SaveManager:BuildConfigSection(Tabs.Settings)
 Window:SelectTab(1)
 Fluent:Notify({ 
 Title = "Purium HUB",
-Content = "Script Finalized (v7.9) - Confirmed 'Title' parameter is crucial for Toggles.", 
+Content = "Script Finalized (v7.9) - beta", 
 Duration = 4 })
 SaveManager:LoadAutoloadConfig()
 
@@ -903,103 +896,6 @@ Tabs.AutoFarmTab:AddToggle("ArtifactFarmToggle", {
     end
 end)
 
-local function GetCharacter()
-    return LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
-end
-
-local function GetDistance(p1, p2)
-    return (p1 - p2).Magnitude
-end
-
-local function BringPlayerTo(cframe)
-    local character = GetCharacter()
-    if character and character:FindFirstChild("HumanoidRootPart") then
-        character:PivotTo(cframe) 
-    end
-end
-
-local function FindNearestScrap(maxRange)
-    local character = GetCharacter()
-    if not character or not character:FindFirstChild("HumanoidRootPart") then return nil end
-    local playerPos = character.HumanoidRootPart.Position
-
-    local nearestScrap = nil
-    local shortestDistance = maxRange or 500 
-
-    -- Tìm kiếm chung trong Workspace (cần điều chỉnh theo cấu trúc game)
-    for _, scrap in pairs(Workspace:GetDescendants()) do
-        local prompt = scrap:FindFirstChildWhichIsA("ProximityPrompt", true)
-        
-        if prompt and prompt.Enabled and (scrap:IsA("BasePart") or scrap:IsA("Model")) then
-            local partToMeasure = scrap:IsA("Model") and scrap:FindFirstChild("PrimaryPart") or scrap
-            if partToMeasure or scrap:IsA("Model") then
-                local position = partToMeasure and partToMeasure.Position or scrap:GetPivot().Position
-                local dist = GetDistance(position, playerPos)
-                if dist < shortestDistance then
-                    shortestDistance = dist
-                    nearestScrap = scrap 
-                end
-            end
-        end
-    end
-    
-    return nearestScrap
-end
-
--- =========================================================================
--- LOGIC VÀ HÀM TOGGLE CHÍNH
--- =========================================================================
-
-local function AutoScrapLoop()
-    while isAutoScrapRunning do
-        local nearestScrap = FindNearestScrap(1000)
-        
-        if nearestScrap then
-            local pivotCFrame = nearestScrap:GetPivot()
-            BringPlayerTo(pivotCFrame * CFrame.new(0, 5, 0)) 
-            
-            RunService.Heartbeat:Wait()
-            
-            local prompt = nearestScrap:FindFirstChildWhichIsA("ProximityPrompt", true)
-            if prompt and prompt.Enabled then
-                print("Đang thu thập: " .. nearestScrap.Name)
-                fireproximityprompt(prompt)
-                task.wait(prompt.HoldDuration + 0.1) 
-            else
-                task.wait(0.5)
-            end
-        else
-            task.wait(2) 
-        end
-        
-        task.wait(0.1) 
-    end
-end
-
---- Hàm Toggle chính mà bạn cần
---- @param state boolean: true để bật, false để tắt
-function ToggleAutoScrap(state)
-    isAutoScrapRunning = state
-    if state then
-        print("Đã BẬT Auto Scrap. Đang bắt đầu vòng lặp.")
-        -- Dùng task.spawn để chạy vòng lặp trên một luồng riêng
-        if autoScrapThread and task.running(autoScrapThread) then 
-            task.cancel(autoScrapThread) 
-        end
-        autoScrapThread = task.spawn(AutoScrapLoop)
-    else
-        print("Đã TẮT Auto Scrap.")
-        -- Dừng luồng nếu nó đang chạy
-        if autoScrapThread and task.running(autoScrapThread) then 
-            task.cancel(autoScrapThread)
-        end
-        autoScrapThread = nil
-    end
-end
-
--- Xuất hàm ToggleAutoScrap ra môi trường chung (nếu cần) hoặc chỉ sử dụng nội bộ
-_G.ToggleAutoScrap = ToggleAutoScrap
-print("Hàm ToggleAutoScrap đã sẵn sàng. Gọi _G.ToggleAutoScrap(true) để bật.")
 
 -- =========================================================================
 -- NỘI DUNG TAB NOTIFICATIONS (ĐÃ FIX LỖI THIẾU TITLE)
@@ -1159,17 +1055,18 @@ task.spawn(function()
     end)
 end)
 
+
 local UserInputService = game:GetService("UserInputService")
 local CoreGui = game:GetService("CoreGui")
 local TweenService = game:GetService("TweenService")
 
-local ExistingUI = CoreGui:FindFirstChild("PuriumHubMinimizeUI")
+local ExistingUI = CoreGui:FindFirstChild("chainUI")
 if ExistingUI then
     ExistingUI:Destroy()
 end
 
 local DragUI = Instance.new("ScreenGui")
-DragUI.Name = "PuriumHubMinimizeUI"
+DragUI.Name = "chainUI"
 DragUI.ResetOnSpawn = false
 DragUI.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 DragUI.Parent = CoreGui
