@@ -16,6 +16,122 @@ local Lighting = game:GetService("Lighting")
 local Debris = game:GetService("Debris")
 local LocalPlayer = Players.LocalPlayer
 local IYMouse = LocalPlayer:GetMouse()
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+local TweenService = game:GetService("TweenService")
+
+local ExistingUI = CoreGui:FindFirstChild("PuriumHubMinimizeUI")
+if ExistingUI then
+    ExistingUI:Destroy()
+end
+
+local DragUI = Instance.new("ScreenGui")
+DragUI.Name = "PuriumHubMinimizeUI"
+DragUI.ResetOnSpawn = false
+DragUI.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+DragUI.Parent = CoreGui
+
+
+local Button = Instance.new("ImageButton")
+Button.Parent = DragUI
+Button.Size = UDim2.new(0, 50, 0, 50)
+Button.Position = UDim2.new(0, 10, 1, -85)
+Button.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+Button.BackgroundTransparency = 0.3
+Button.BorderSizePixel = 0
+Button.ClipsDescendants = true
+Button.Image = "rbxassetid://109647470925993" -- Thay icon nếu muốn
+Button.ScaleType = Enum.ScaleType.Fit
+Button.Active = true
+Button.ZIndex = 1000
+
+
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(1, 0)
+UICorner.Parent = Button
+
+
+local tweenInfo = TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+
+local function ToggleUI()
+    if Window.Minimized then
+        Window:Minimize(false) 
+    else
+        Window:Minimize(true) 
+    end
+end
+
+local isDragging = false
+local dragThreshold = 10
+
+Button.MouseButton1Click:Connect(function()
+    if isDragging then return end
+
+    TweenService:Create(Button, tweenInfo, {
+        BackgroundTransparency = 0.5,
+        Size = UDim2.new(0, 45, 0, 45),
+        Rotation = 5
+    }):Play()
+    task.wait(0.1)
+    TweenService:Create(Button, tweenInfo, {
+        BackgroundTransparency = 0.3,
+        Size = UDim2.new(0, 50, 0, 50),
+        Rotation = 0
+    }):Play()
+
+    ToggleUI()
+end)
+
+Button.MouseEnter:Connect(function()
+    TweenService:Create(Button, tweenInfo, {Size = UDim2.new(0, 55, 0, 55)}):Play()
+end)
+
+Button.MouseLeave:Connect(function()
+    TweenService:Create(Button, tweenInfo, {Size = UDim2.new(0, 50, 0, 50)}):Play()
+end)
+
+
+local dragging, dragStart, startPos
+
+local function StartDrag(input)
+    isDragging = false
+    dragging = true
+    dragStart = input.Position
+    startPos = Button.Position
+
+    input.Changed:Connect(function()
+        if input.UserInputState == Enum.UserInputState.End then
+            dragging = false
+        end
+    end)
+end
+
+local function OnDrag(input)
+    if dragging then
+        local delta = (input.Position - dragStart).Magnitude
+        if delta > dragThreshold then
+            isDragging = true
+        end
+        Button.Position = UDim2.new(
+            startPos.X.Scale,
+            startPos.X.Offset + (input.Position.X - dragStart.X),
+            startPos.Y.Scale,
+            startPos.Y.Offset + (input.Position.Y - dragStart.Y)
+        )
+    end
+end
+
+Button.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        StartDrag(input)
+    end
+end)
+
+Button.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        OnDrag(input)
+    end
+end)  
 
 -- Biến toàn cục & Flags
 local isHoppingForSmallServer = _G.isHoppingForSmallServer or false
@@ -59,6 +175,9 @@ local TELEPORT_LOCATIONS = {
     ["Khu Vực Loot"] = CFrame.new(250, 100, -250),
 }
 
+
+-- =========================================================================
+-- LOGIC HỖ TRỢ CHUNG & INIT PATHS 
 -- =========================================================================
 local function getRoot(char) return char:FindFirstChild('HumanoidRootPart') or char:FindFirstChild('Torso') or char:FindFirstChild('UpperTorso') end
 local function bringPlr(cframe) 
@@ -69,7 +188,7 @@ end
 local function playSound() 
     if notificationSettings.playSound then 
         local sound = Instance.new("Sound"); 
-        sound.SoundId = "rbxassetid://15641323951" 
+        sound.SoundId = "rbxassetid://100736080025788" 
         sound.Volume = 0.5; 
         sound.Parent = Workspace; 
         sound:Play(); 
@@ -670,8 +789,8 @@ end
 -- KHỞI TẠO UI & TABS
 -- =========================================================================
 local Window = Fluent:CreateWindow({
-    Title = "Purium Hub [Premium] | Universal |",
-    SubTitle = "Script Finalized (v7.9) - Confirmed UI Fix", 
+    Title = "Purium Hub [Premium] | Chain |",
+    SubTitle = "New Chain Script - Confirmed UI Fix", 
     Search = true,
     Icon = "rbxassetid://121302760641013",
     TabWidth = 140,
@@ -679,8 +798,12 @@ local Window = Fluent:CreateWindow({
     Acrylic = true,
     Theme = "Dark",
     MinimizeKey = Enum.KeyCode.RightAlt,
-    UserInfo = true, UserInfoTop = false, UserInfoTitle = LocalPlayer.DisplayName,
-    UserInfoSubtitle = "Premuim User", UserInfoSubtitleColor = Color3.fromRGB(71, 123, 255)
+
+    UserInfo = true,
+    UserInfoTop = false,
+    UserInfoTitle = game:GetService("Players").LocalPlayer.DisplayName,
+    UserInfoSubtitle = "Premuim User",
+    UserInfoSubtitleColor = Color3.fromRGB(71, 123, 255)
 })
 
 local Tabs = {
@@ -699,13 +822,13 @@ SaveManager:SetLibrary(Fluent)
 InterfaceManager:SetLibrary(Fluent)
 SaveManager:SetIgnoreIndexes({})
 InterfaceManager:SetFolder("Purium HUB")
-SaveManager:SetFolder("Purium HUB/chain")
+SaveManager:SetFolder("Purium HUB/universal")
 InterfaceManager:BuildInterfaceSection(Tabs.Settings)
 SaveManager:BuildConfigSection(Tabs.Settings)
 Window:SelectTab(1)
 Fluent:Notify({ 
 Title = "Purium HUB",
-Content = "Script Finalized (v7.9) - beta", 
+Content = "Script Finalized (v7.9) - Confirmed Fixed errors.", 
 Duration = 4 })
 SaveManager:LoadAutoloadConfig()
 
@@ -1054,121 +1177,3 @@ task.spawn(function()
         if savedGas then toggleInfGas(true) end
     end)
 end)
-
-
-local UserInputService = game:GetService("UserInputService")
-local CoreGui = game:GetService("CoreGui")
-local TweenService = game:GetService("TweenService")
-
-local ExistingUI = CoreGui:FindFirstChild("chainUI")
-if ExistingUI then
-    ExistingUI:Destroy()
-end
-
-local DragUI = Instance.new("ScreenGui")
-DragUI.Name = "chainUI"
-DragUI.ResetOnSpawn = false
-DragUI.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-DragUI.Parent = CoreGui
-
-
-local Button = Instance.new("ImageButton")
-Button.Parent = DragUI
-Button.Size = UDim2.new(0, 50, 0, 50)
-Button.Position = UDim2.new(0, 10, 1, -85)
-Button.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-Button.BackgroundTransparency = 0.3
-Button.BorderSizePixel = 0
-Button.ClipsDescendants = true
-Button.Image = "rbxassetid://109647470925993" -- Thay icon nếu muốn
-Button.ScaleType = Enum.ScaleType.Fit
-Button.Active = true
-Button.ZIndex = 1000
-
-
-local UICorner = Instance.new("UICorner")
-UICorner.CornerRadius = UDim.new(1, 0)
-UICorner.Parent = Button
-
-
-local tweenInfo = TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-
-local function ToggleUI()
-    if Window.Minimized then
-        Window:Minimize(false) 
-    else
-        Window:Minimize(true) 
-    end
-end
-
-local isDragging = false
-local dragThreshold = 10
-
-Button.MouseButton1Click:Connect(function()
-    if isDragging then return end
-
-    TweenService:Create(Button, tweenInfo, {
-        BackgroundTransparency = 0.5,
-        Size = UDim2.new(0, 45, 0, 45),
-        Rotation = 5
-    }):Play()
-    task.wait(0.1)
-    TweenService:Create(Button, tweenInfo, {
-        BackgroundTransparency = 0.3,
-        Size = UDim2.new(0, 50, 0, 50),
-        Rotation = 0
-    }):Play()
-
-    ToggleUI()
-end)
-
-Button.MouseEnter:Connect(function()
-    TweenService:Create(Button, tweenInfo, {Size = UDim2.new(0, 55, 0, 55)}):Play()
-end)
-
-Button.MouseLeave:Connect(function()
-    TweenService:Create(Button, tweenInfo, {Size = UDim2.new(0, 50, 0, 50)}):Play()
-end)
-
-
-local dragging, dragStart, startPos
-
-local function StartDrag(input)
-    isDragging = false
-    dragging = true
-    dragStart = input.Position
-    startPos = Button.Position
-
-    input.Changed:Connect(function()
-        if input.UserInputState == Enum.UserInputState.End then
-            dragging = false
-        end
-    end)
-end
-
-local function OnDrag(input)
-    if dragging then
-        local delta = (input.Position - dragStart).Magnitude
-        if delta > dragThreshold then
-            isDragging = true
-        end
-        Button.Position = UDim2.new(
-            startPos.X.Scale,
-            startPos.X.Offset + (input.Position.X - dragStart.X),
-            startPos.Y.Scale,
-            startPos.Y.Offset + (input.Position.Y - dragStart.Y)
-        )
-    end
-end
-
-Button.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        StartDrag(input)
-    end
-end)
-
-Button.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-        OnDrag(input)
-    end
-end)  
