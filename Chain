@@ -1,803 +1,996 @@
 -- =========================================================================
 -- KHAI BÁO THƯ VIỆN & SERVICE CHUNG 
--- SỬ DỤNG FLUENT/PURIUM GUI (ĐÃ TỐI ƯU HÓA)
--- (Script đã được fix lỗi 'missing Title' và logic FPS/Ping)
+-- SỬ DỤNG FLUENT PLUS (ĐÃ SỬA LỖI INFINITE DODGE VÀ UNIFIED ESP)
 -- =========================================================================
-local Fluent = loadstring(game:HttpGet("https://raw.githubusercontent.com/ngao-gamer/Purium/refs/heads/main/Purium%20Gui"))() 
+
+-- 1. Load Fluent UI Library
+local Fluent = loadstring(game:HttpGet("https://raw.githubusercontent.com/discoart/FluentPlus/refs/heads/main/release.lua"))()
 local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
 local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
+-- 2. Khai báo Services
 local TeleportService = game:GetService("TeleportService")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local Workspace = game:GetService("Workspace")
-local Stats = game:GetService("Stats")
 local Lighting = game:GetService("Lighting")
 local Debris = game:GetService("Debris")
-local LocalPlayer = Players.LocalPlayer
-local IYMouse = LocalPlayer:GetMouse()
 local UserInputService = game:GetService("UserInputService")
 local CoreGui = game:GetService("CoreGui")
 local TweenService = game:GetService("TweenService")
+local HttpService = game:GetService("HttpService")
+local Stats = game:GetService("Stats")
 
-local ExistingUI = CoreGui:FindFirstChild("PuriumHubMinimizeUI")
-if ExistingUI then
-    ExistingUI:Destroy()
-end
+-- 3. Biến Local Player và Chuột
+local LocalPlayer = Players.LocalPlayer
+local IYMouse = LocalPlayer:GetMouse()
+local CurrentCamera = Workspace.CurrentCamera
+local defaultWalkSpeed = 16
+local defaultJumpPower = 50
 
-local DragUI = Instance.new("ScreenGui")
-DragUI.Name = "PuriumHubMinimizeUI"
-DragUI.ResetOnSpawn = false
-DragUI.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-DragUI.Parent = CoreGui
+-- =========================================================================
+-- GLOBAL FLAGS & CONFIGS 
+-- =========================================================================
+local staminaLoopActive = false
+local gasLoopActive = false
+local combatStaminaLoopActive = false
+local clashLoopActive = false
+local BarrierDestroyerEnabled = false
+local noclipEnabled = false
+local FLYING = false
+local aimbotEnabled = false
+local clickTeleportEnabled = false
+local jumpUnlockerEnabled = false
+local antiAFKActive = false
+local cancelRecoilActive = false
+local targetWalkSpeed = defaultWalkSpeed
+local infDodgeConnection 
 
+-- =========================================================================
+-- LOGIC HÀM TÁCH RỜI (EXPLICIT & VERBOSE FUNCTIONS)
+-- =========================================================================
 
-local Button = Instance.new("ImageButton")
-Button.Parent = DragUI
-Button.Size = UDim2.new(0, 50, 0, 50)
-Button.Position = UDim2.new(0, 10, 1, -85)
-Button.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-Button.BackgroundTransparency = 0.3
-Button.BorderSizePixel = 0
-Button.ClipsDescendants = true
-Button.Image = "rbxassetid://109647470925993" -- Thay icon nếu muốn
-Button.ScaleType = Enum.ScaleType.Fit
-Button.Active = true
-Button.ZIndex = 1000
-
-
-local UICorner = Instance.new("UICorner")
-UICorner.CornerRadius = UDim.new(1, 0)
-UICorner.Parent = Button
-
-
-local tweenInfo = TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
-
-local function ToggleUI()
-    if Window.Minimized then
-        Window:Minimize(false) 
-    else
-        Window:Minimize(true) 
+--- HÀM: INFINITE RESOURCES ---
+local function toggleInfStamina(Value)
+    staminaLoopActive = Value
+    if Value then
+        task.spawn(function()
+            while staminaLoopActive do
+                pcall(function() 
+                    local stats = LocalPlayer.Character and LocalPlayer.Character.Stats
+                    if stats and stats.Stamina then stats.Stamina.Value = 100 end
+                end)
+                task.wait(0.5) 
+            end
+        end)
     end
 end
 
-local isDragging = false
-local dragThreshold = 10
+local function toggleInfCombatStamina(Value)
+    combatStaminaLoopActive = Value
+    if Value then
+        task.spawn(function()
+            while combatStaminaLoopActive do
+                pcall(function() 
+                    local stats = LocalPlayer.Character and LocalPlayer.Character.Stats
+                    if stats and stats.CombatStamina then stats.CombatStamina.Value = 100 end
+                end)
+                task.wait(0.5) 
+            end
+        end)
+    end
+end
 
-Button.MouseButton1Click:Connect(function()
-    if isDragging then return end
+local function toggleAutoWinClash(Value)
+    clashLoopActive = Value
+    if Value then
+        task.spawn(function()
+            while clashLoopActive do
+                pcall(function() 
+                    local stats = LocalPlayer.Character and LocalPlayer.Character.Stats
+                    if stats and stats.ClashStrength then stats.ClashStrength.Value = 100 end
+                end)
+                task.wait(0.01) 
+            end
+        end)
+    end
+end
 
-    TweenService:Create(Button, tweenInfo, {
-        BackgroundTransparency = 0.5,
-        Size = UDim2.new(0, 45, 0, 45),
-        Rotation = 5
-    }):Play()
-    task.wait(0.1)
-    TweenService:Create(Button, tweenInfo, {
-        BackgroundTransparency = 0.3,
-        Size = UDim2.new(0, 50, 0, 50),
-        Rotation = 0
-    }):Play()
+local function toggleInfGas(Value)
+    gasLoopActive = Value
+    if Value then
+        task.spawn(function()
+            while gasLoopActive do
+                pcall(function() 
+                    local items = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Items")
+                    if items and items:FindFirstChild("XSaw") then
+                        items.XSaw:SetAttribute("Gas", 100)
+                    end
+                end)
+                task.wait(0.1) 
+            end
+        end)
+    end
+end
 
-    ToggleUI()
-end)
-
-Button.MouseEnter:Connect(function()
-    TweenService:Create(Button, tweenInfo, {Size = UDim2.new(0, 55, 0, 55)}):Play()
-end)
-
-Button.MouseLeave:Connect(function()
-    TweenService:Create(Button, tweenInfo, {Size = UDim2.new(0, 50, 0, 50)}):Play()
-end)
-
-
-local dragging, dragStart, startPos
-
-local function StartDrag(input)
-    isDragging = false
-    dragging = true
-    dragStart = input.Position
-    startPos = Button.Position
-
-    input.Changed:Connect(function()
-        if input.UserInputState == Enum.UserInputState.End then
-            dragging = false
+--- HÀM: INFINITE DODGE (ĐÃ FIX LỖI) ---
+local function enableInfDodge()
+    if infDodgeConnection and infDodgeConnection.Disconnect then infDodgeConnection:Disconnect() end
+    
+    local original_call_ref 
+    
+    local hooked_result = hookmetamethod(game, "__namecall", function(self, ...)
+        if not original_call_ref then return end
+        
+        if not checkcaller() and getnamecallmethod() == "FireServer" then
+            if self.Name == "CTS" then
+                local args = {...}
+                if args[1] == "DoneDodge" then args[1] = "Dodge" end
+                return original_call_ref(self, unpack(args))
+            end
         end
+        return original_call_ref(self, ...)
     end)
+    
+    infDodgeConnection = hooked_result 
+    original_call_ref = hooked_result 
 end
 
-local function OnDrag(input)
-    if dragging then
-        local delta = (input.Position - dragStart).Magnitude
-        if delta > dragThreshold then
-            isDragging = true
-        end
-        Button.Position = UDim2.new(
-            startPos.X.Scale,
-            startPos.X.Offset + (input.Position.X - dragStart.X),
-            startPos.Y.Scale,
-            startPos.Y.Offset + (input.Position.Y - dragStart.Y)
-        )
+--- HÀM: AIMBOT & RECOIL ---
+
+local cancelRecoilConnection
+local function toggleCancelRecoil(Value)
+    cancelRecoilActive = Value
+    if cancelRecoilConnection then cancelRecoilConnection:Disconnect() end
+
+    if Value then
+        cancelRecoilConnection = RunService.RenderStepped:Connect(function()
+            pcall(function() 
+                local character = LocalPlayer.Character
+                if character then
+                    local humanoid = character:FindFirstChildOfClass("Humanoid")
+                    if humanoid then
+                        humanoid.CameraOffset = Vector3.new(0, 0, 0)
+                    end
+                end
+            end)
+        end)
+    else
+        cancelRecoilConnection = nil
     end
 end
 
-Button.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        StartDrag(input)
-    end
-end)
-
-Button.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-        OnDrag(input)
-    end
-end)  
-
--- Biến toàn cục & Flags
-local isHoppingForSmallServer = _G.isHoppingForSmallServer or false
-local _G = _G or {} 
-local notificationSettings = { power = true, roundTime = true, chain = true, artifact = true, airdrop = true, playSound = true }
-
--- Quản lý Thread & Connection
-local staminaThread, combatStaminaThread, afkThread, scaleThread, antiGasThread = nil, nil, nil, nil, nil
-local jumpConnection, infJumpConnection, espConnection = nil, nil, nil
-local staminaLoopActive, combatLoopActive, isScaling = false, false, false
-local espElements = {} 
-local noclipConnection = nil; local noclipEnabled = false
-local BarrierDestroyerEnabled = false; local BarrierDestroyerTask = nil 
-local FLYING = false; local iyflyspeed = 1; local flyKeyDown, flyKeyUp 
-local isArtifactFarming = false; local artifactFarmingThread = nil 
-local isFarming = false; local farmingThread = nil 
-local hideEffectsActive = false 
-local isFullbrightActive = false; local originalEffectsState = {} 
-local infStaminaActive = false; local infGasActive = false; local infResourceThread = nil 
-
-local valuesFolder, aiFolder, artifactsFolder, airDropsFolder = nil, nil, nil, nil
-
--- KHÔI PHỤC BIẾN FPS/PING
-local updateConnection 
-local showFPS = false; local showPing = false 
-local fpsLabel, pingLabel
-local displayGui
-local rainbowHue = 0.0
-
-local chainModel = nil 
-local chainEsp = {} 
-local chainWarningFlag = false 
-local clickTeleportConnection = nil
-_G.WRDClickTeleportEnabled = _G.WRDClickTeleportEnabled or false
-
--- Vị trí Teleport cố định
-local TELEPORT_LOCATIONS = {
-    ["Spawn / SafeZone"] = CFrame.new(-100, 100, -100),
-    ["Outpost (Khác)"] = CFrame.new(0, 100, 500),
-    ["Khu Vực Chain"] = CFrame.new(500, 100, 0),
-    ["Khu Vực Loot"] = CFrame.new(250, 100, -250),
-}
-
-
--- =========================================================================
--- LOGIC HỖ TRỢ CHUNG & INIT PATHS 
--- =========================================================================
-local function getRoot(char) return char:FindFirstChild('HumanoidRootPart') or char:FindFirstChild('Torso') or char:FindFirstChild('UpperTorso') end
-local function bringPlr(cframe) 
-    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then 
-        LocalPlayer.Character:PivotTo(cframe * CFrame.new(0, 3, 0)) 
-    end 
-end 
-local function playSound() 
-    if notificationSettings.playSound then 
-        local sound = Instance.new("Sound"); 
-        sound.SoundId = "rbxassetid://100736080025788" 
-        sound.Volume = 0.5; 
-        sound.Parent = Workspace; 
-        sound:Play(); 
-        Debris:AddItem(sound, 3)
-    end
-end
-local function findChainBoss()
+local rightMouseDown = false
+local aimbotConnection
+local function getChainTarget()
+    local aiFolder = Workspace:FindFirstChild("Misc") and Workspace.Misc:FindFirstChild("AI")
     if not aiFolder then return nil end
     for _, child in ipairs(aiFolder:GetChildren()) do
-        local name = child.Name:lower()
-        if name:match("chain") or name:match("thechain") or name:match("boss") then
-            return child
+        if child:FindFirstChild("HumanoidRootPart") and child.Name:match("CHAIN") then
+            return child 
         end
     end
     return nil
 end
-local function findNearestObject(targetFolder, nameMatch)
-    local root = getRoot(LocalPlayer.Character)
-    if not root or not targetFolder then return nil end
-    local smallestDistance = math.huge
-    local target = nil
 
-    for _, item in ipairs(targetFolder:GetChildren()) do
-        if item.Name:match(nameMatch) and item:IsA("Model") and item:FindFirstChild("PrimaryPart") then 
-            local distance = (root.Position - item.PrimaryPart.Position).Magnitude
-            if distance < smallestDistance then 
-                smallestDistance = distance
-                target = item
+local function handleAimbotLoop()
+    if aimbotConnection then return end
+    aimbotConnection = RunService.RenderStepped:Connect(function()
+        if aimbotEnabled and rightMouseDown then
+            local aimTarget = getChainTarget()
+            if aimTarget and aimTarget:FindFirstChild("HumanoidRootPart") then
+                local targetHRP = aimTarget.HumanoidRootPart
+                CurrentCamera.CFrame = CFrame.new(CurrentCamera.CFrame.Position, targetHRP.Position)
             end
         end
-    end
-    return target
-end
-
--- === KHAI BÁO BIẾN ĐƯỜNG DẪN CỤ THỂ VÀ NOTIFICATION FIX ===
-local function setupPowerNotification()
-    if not valuesFolder then 
-        warn("[Power Notify] valuesFolder not found, retrying in 5s.")
-        task.delay(5, setupPowerNotification) 
-        return 
-    end
-
-    local powerAttribute = "Power" 
-    local roundTimeAttribute = "RoundTime"
-    local threshold = 30
-    local powerNotified = false
-    local roundTimeNotified = false
-    
-    local function checkPower(value)
-        if not notificationSettings.power then powerNotified = false; return end
-        if type(value) ~= "number" or value <= 0 then return end
-        
-        local conditionMet = (value <= threshold)
-        
-        if conditionMet and not powerNotified then
-            playSound()
-            Fluent:Notify({Title = "Cảnh Báo Năng Lượng", Content = string.format("Năng lượng sắp hết! Còn %d%%.", math.floor(value)), Duration = 5, Icon = "zap-off"})
-            powerNotified = true
-        elseif not conditionMet and powerNotified then
-            powerNotified = false
-        end
-    end
-
-    local function checkRoundTime(value)
-        if not notificationSettings.roundTime then roundTimeNotified = false; return end
-        if type(value) ~= "number" or value <= 0 then return end
-        
-        local conditionMet = (value <= threshold)
-        
-        if conditionMet and not roundTimeNotified then
-            playSound()
-            Fluent:Notify({Title = "Vòng Chơi Kết Thúc", Content = string.format("Vòng chơi sắp kết thúc! Còn %d giây.", math.floor(value)), Duration = 5, Icon = "clock"})
-            roundTimeNotified = true
-        elseif not conditionMet and roundTimeNotified then
-            roundTimeNotified = false
-        end
-    end
-    
-    local initialPower = valuesFolder:GetAttribute(powerAttribute)
-    local initialRoundTime = valuesFolder:GetAttribute(roundTimeAttribute)
-    if initialPower and type(initialPower) == "number" then checkPower(initialPower) end
-    if initialRoundTime and type(initialRoundTime) == "number" then checkRoundTime(initialRoundTime) end
-
-    valuesFolder:GetAttributeChangedSignal(powerAttribute):Connect(function()
-        checkPower(valuesFolder:GetAttribute(powerAttribute))
-    end)
-    valuesFolder:GetAttributeChangedSignal(roundTimeAttribute):Connect(function()
-        checkRoundTime(valuesFolder:GetAttribute(roundTimeAttribute))
     end)
 end
 
-task.spawn(function() 
+local function setupAimbotInput()
+    UserInputService.InputBegan:Connect(function(input, processed)
+        if processed then return end
+        if input.UserInputType == Enum.UserInputType.MouseButton2 then rightMouseDown = true end
+    end)
+    UserInputService.InputEnded:Connect(function(input)
+        if input.UserInputType == Enum.UserInputType.MouseButton2 then rightMouseDown = false end
+    end)
+end
+
+local function toggleAimbot(Value)
+    aimbotEnabled = Value
+    if Value then
+        handleAimbotLoop()
+        setupAimbotInput()
+    end
+end
+
+--- HÀM: UTILITY KHÁC ---
+
+local function toggleWorkbenchGui(Value)
     pcall(function()
-        local GameStuff = Workspace:WaitForChild("GameStuff", 10)
-        local Misc = Workspace:WaitForChild("Misc", 10)
-        valuesFolder = GameStuff and GameStuff:WaitForChild("Values", 5)
-        aiFolder = Misc and Misc:WaitForChild("AI", 5)
-        local Zones = Misc and Misc:WaitForChild("Zones", 5)
-        local LootingItems = Zones and Zones:WaitForChild("LootingItems", 5)
-        artifactsFolder = LootingItems and LootingItems:WaitForChild("Artifacts", 5)
-        airDropsFolder = GameStuff and GameStuff:WaitForChild("GameSections", 5) and GameStuff.GameSections:FindFirstChild("AirDrops")
-        
-        playSound() 
-        setupPowerNotification() 
+        local Work = LocalPlayer:WaitForChild("PlayerGui"):WaitForChild("Ingame"):WaitForChild("Workbench")
+        Work.Visible = Value
     end)
-end)
-
--- =========================================================================
--- LOGIC HIỂN THỊ FPS/PING (FIXED: Cập nhật showFPS/showPing)
--- =========================================================================
-
-local function createFPSPingDisplay()
-    if displayGui then return end
-
-    displayGui = Instance.new("ScreenGui")
-    displayGui.Name = "FPS_Ping_Display"
-    displayGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-    displayGui.DisplayOrder = 100 
-    displayGui.IgnoreGuiInset = true 
-
-    local frame = Instance.new("Frame")
-    frame.Size = UDim2.new(0, 150, 0, 50)
-    frame.Position = UDim2.new(1, -160, 0, 10) 
-    frame.BackgroundTransparency = 1
-    frame.Parent = displayGui
-
-    fpsLabel = Instance.new("TextLabel")
-    fpsLabel.Size = UDim2.new(1, 0, 0.5, 0)
-    fpsLabel.Position = UDim2.new(0, 0, 0, 0)
-    fpsLabel.Text = "FPS: 60"
-    fpsLabel.BackgroundTransparency = 1
-    fpsLabel.TextColor3 = Color3.fromRGB(255, 255, 255) 
-    fpsLabel.TextScaled = true
-    fpsLabel.Font = Enum.Font.SourceSansBold
-    fpsLabel.TextXAlignment = Enum.TextXAlignment.Right
-    fpsLabel.Parent = frame
-
-    pingLabel = Instance.new("TextLabel")
-    pingLabel.Size = UDim2.new(1, 0, 0.5, 0)
-    pingLabel.Position = UDim2.new(0, 0, 0.5, 0)
-    pingLabel.Text = "PING: 0ms"
-    pingLabel.BackgroundTransparency = 1
-    pingLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-    pingLabel.TextScaled = true
-    pingLabel.Font = Enum.Font.SourceSansBold
-    pingLabel.TextXAlignment = Enum.TextXAlignment.Right
-    pingLabel.Parent = frame
-    
-    displayGui.Parent = CoreGui
 end
 
-local function toggleFPSPingDisplay(fpsValue, pingValue)
-    showFPS = fpsValue 
-    showPing = pingValue 
-    
-    if showFPS or showPing then
-        createFPSPingDisplay()
-        if displayGui then displayGui.Enabled = true end 
-        
-        if not updateConnection then
-            updateConnection = RunService.Heartbeat:Connect(function()
+local function toggleDeconstructorGui(Value)
+    pcall(function()
+        local De = LocalPlayer:WaitForChild("PlayerGui"):WaitForChild("Ingame"):WaitForChild("Deconstructor")
+        De.Visible = Value
+    end)
+end
+
+local function toggleShopGui(Value)
+    pcall(function()
+        local Shop = LocalPlayer:WaitForChild("PlayerGui"):WaitForChild("Ingame"):FindFirstChild("Shop")
+        if Shop then Shop.Visible = Value end
+    end)
+end
+
+local function unlockBlueprint(itemName)
+    pcall(function()
+        local blueprints = LocalPlayer:WaitForChild("PlayerStats"):WaitForChild("Blueprints")
+        if blueprints:GetAttribute(itemName) ~= nil then
+            blueprints:SetAttribute(itemName, true)
+            Fluent:Notify({ Title = "Thành công!", Content = "Đã mở khóa: " .. itemName, Duration = 3 })
+        else
+            Fluent:Notify({ Title = "Lỗi", Content = "Không tìm thấy thuộc tính: " .. itemName, Duration = 3 })
+        end
+    end)
+end
+
+local function ThirdPerson()
+    pcall(function()
+        LocalPlayer.CameraMode = Enum.CameraMode.Classic 
+        LocalPlayer.CameraMaxZoomDistance = 1280 
+        LocalPlayer.CameraMinZoomDistance = 0.5
+    end)
+end
+
+local function removeMask()
+    pcall(function()
+        local sack = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Sack")
+        if sack and sack:FindFirstChild("SurfaceAppearance") then
+            sack.SurfaceAppearance.Parent:Destroy()
+            Fluent:Notify({ Title = "Thành công!", Content = "Đã gỡ mặt nạ trên đầu.", Duration = 3 })
+        end
+    end)
+end
+
+local function toggleBarrierDestroyer(Value)
+    BarrierDestroyerEnabled = Value
+    if Value then
+        task.spawn(function()
+            while BarrierDestroyerEnabled do
                 pcall(function()
-                    if displayGui and displayGui.Enabled then
-                        if showFPS and fpsLabel then
-                            local fps = math.floor(1 / task.wait()) 
-                            fpsLabel.Text = string.format("FPS: %d", fps)
-                            
-                            rainbowHue = (rainbowHue + 0.005) % 1 
-                            fpsLabel.TextColor3 = Color3.fromHSV(rainbowHue, 1, 1)
-                        elseif fpsLabel then
-                            fpsLabel.Text = "FPS: Hidden"
-                            fpsLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-                        end
-                        
-                        if showPing and pingLabel then
-                            local ping = LocalPlayer.GetNetworkStats and LocalPlayer:GetNetworkStats().Ping or 0
-                            pingLabel.Text = string.format("PING: %dms", math.floor(ping * 1000))
-                        elseif pingLabel then
-                            pingLabel.Text = "PING: Hidden"
+                    for _, child in ipairs(Workspace:GetDescendants()) do
+                        if child:IsA("BasePart") and child.CanCollide and child.Transparency > 0.99 then
+                            child.CanCollide = false
                         end
                     end
                 end)
-            end)
-        end
-
-        if fpsLabel then fpsLabel.Visible = showFPS end
-        if pingLabel then pingLabel.Visible = showPing end
-        
-    else
-        if updateConnection then 
-            updateConnection:Disconnect() 
-            updateConnection = nil
-        end
-        if displayGui then displayGui.Enabled = false end
+                task.wait(1)
+            end
+        end)
     end
 end
 
--- =========================================================================
--- MOVEMENT/COMBAT LOGIC & INFINITE RESOURCE LOGIC 
--- =========================================================================
+local jumpConnection
+local function toggleJumpUnlock(Value)
+    jumpUnlockerEnabled = Value
+    if jumpConnection then jumpConnection:Disconnect(); jumpConnection = nil end
+
+    if Value then
+        jumpConnection = RunService.Heartbeat:Connect(function() 
+            local character = LocalPlayer.Character
+            if character then 
+                local humanoid = character:FindFirstChildOfClass("Humanoid")
+                if humanoid and humanoid.JumpPower ~= defaultJumpPower then 
+                    humanoid.JumpPower = defaultJumpPower 
+                end
+            end
+        end)
+    else
+        pcall(function()
+            LocalPlayer.Character:FindFirstChildOfClass("Humanoid").JumpPower = defaultJumpPower
+        end)
+    end
+end
+
+local antiAFKConnection
+local function toggleAntiAFK(Value)
+    antiAFKActive = Value
+    if antiAFKConnection then antiAFKConnection:Disconnect(); antiAFKConnection = nil end
+
+    if Value then
+        antiAFKConnection = RunService.Heartbeat:Connect(function()
+            if antiAFKActive then
+                UserInputService:SimulateKeyPress(Enum.KeyCode.W)
+                task.wait(0.5)
+                UserInputService:SimulateKeyPress(Enum.KeyCode.S)
+            end
+        end)
+    end
+end
+
+--- HÀM: MOVEMENT & TELEPORT ---
+
+local noclipConnection
 local function toggleNoclip(enabled)
     noclipEnabled = enabled
+    local character = LocalPlayer.Character
+    if not character then return end
+    
+    if noclipConnection then noclipConnection:Disconnect() end
+    
     if enabled then
-        noclipConnection = LocalPlayer.Character.Humanoid:GetPropertyChangedSignal("HipHeight"):Connect(function()
-            if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-                LocalPlayer.Character.HumanoidRootPart.CanCollide = false
+        noclipConnection = RunService.Heartbeat:Connect(function()
+            if character then
+                for _, part in ipairs(character:GetDescendants()) do
+                    if part:IsA("BasePart") then
+                        part.CanCollide = false
+                        part.CanTouch = false
+                    end
+                end
             end
         end)
+        if character:FindFirstChildOfClass("Humanoid") then
+            character:FindFirstChildOfClass("Humanoid").WalkSpeed = 0
+            character:FindFirstChildOfClass("Humanoid").JumpPower = 0
+        end
     else
-        if noclipConnection then noclipConnection:Disconnect(); noclipConnection = nil end
-        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
-            LocalPlayer.Character.HumanoidRootPart.CanCollide = true
+        if character:FindFirstChildOfClass("Humanoid") then
+            character:FindFirstChildOfClass("Humanoid").WalkSpeed = targetWalkSpeed
+            character:FindFirstChildOfClass("Humanoid").JumpPower = defaultJumpPower
+        end
+        if character then
+            for _, part in ipairs(character:GetDescendants()) do
+                if part:IsA("BasePart") then
+                    part.CanCollide = true
+                    part.CanTouch = true
+                end
+            end
         end
     end
 end
 
-local function FLY(speed)
-    if FLYING then return end
-    FLYING = true
-    iyflyspeed = speed
-    local HRP = getRoot(LocalPlayer.Character)
-    if not HRP then return end
-    
-    local BodyVelocity = Instance.new("BodyVelocity")
-    BodyVelocity.MaxForce = Vector3.new(0, 0, 0)
-    BodyVelocity.Velocity = Vector3.new(0, 0, 0)
-    BodyVelocity.Parent = HRP
-
-    HRP.CFrame = HRP.CFrame + Vector3.new(0, 1, 0)
-    
-    local function flyUpdate()
-        if not FLYING or not HRP or not BodyVelocity then return end
-        
-        BodyVelocity.MaxForce = Vector3.new(4e9, 4e9, 4e9)
-        HRP.Velocity = Vector3.new(0, 0, 0)
-        
-        local Direction = Vector3.new()
-        if flyKeyDown["W"] then Direction = Direction + HRP.CFrame.lookVector end
-        if flyKeyDown["S"] then Direction = Direction - HRP.CFrame.lookVector end
-        if flyKeyDown["A"] then Direction = Direction - HRP.CFrame.rightVector end
-        if flyKeyDown["D"] then Direction = Direction + HRP.CFrame.rightVector end
-        if flyKeyDown["Space"] then Direction = Direction + Vector3.new(0, 1, 0) end
-        if flyKeyDown["LeftShift"] then Direction = Direction - Vector3.new(0, 1, 0) end
-
-        BodyVelocity.Velocity = Direction.unit * iyflyspeed
-    end
-
-    flyKeyDown = {}; flyKeyUp = {}
-    
-    UserInputService.InputBegan:Connect(function(Input, gameProcessed)
-        if gameProcessed or not FLYING then return end
-        local Key = Input.KeyCode.Name
-        flyKeyDown[Key] = true
-    end)
-    UserInputService.InputEnded:Connect(function(Input, gameProcessed)
-        if gameProcessed or not FLYING then return end
-        local Key = Input.KeyCode.Name
-        flyKeyDown[Key] = false
-    end)
-
-    RunService.Stepped:Connect(flyUpdate)
-end
-
+local flyKeyDown, flyKeyUp, flyRenderStep
 local function NOFLY()
     FLYING = false
-    local HRP = getRoot(LocalPlayer.Character)
-    if HRP then
-        local BodyVelocity = HRP:FindFirstChildOfClass("BodyVelocity")
-        if BodyVelocity then BodyVelocity:Destroy() end
+    pcall(function() 
+        if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+            local hrp = LocalPlayer.Character.HumanoidRootPart
+            if hrp:FindFirstChild("FlyVelocity") then hrp.FlyVelocity:Destroy() end
+            if hrp:FindFirstChild("FlyTorque") then hrp.FlyTorque:Destroy() end
+        end
+        if flyKeyDown then flyKeyDown:Disconnect(); flyKeyDown = nil end
+        if flyKeyUp then flyKeyUp:Disconnect(); flyKeyUp = nil end
+        if flyRenderStep then flyRenderStep:Disconnect(); flyRenderStep = nil end
+    end)
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
+        LocalPlayer.Character:FindFirstChildOfClass("Humanoid").PlatformStand = false
     end
 end
 
--- TÁCH LOGIC INFINITE STAMINA (CHỈ XỬ LÝ "Stamina")
-local function toggleInfStamina(enabled)
-    infStaminaActive = enabled
-    if enabled and not infResourceThread then
-        infResourceThread = task.spawn(function()
-            local maxResource = 100 
-            while infStaminaActive or infGasActive do
-                pcall(function()
-                    if valuesFolder and infStaminaActive then
-                        local currentValue = valuesFolder:GetAttribute("Stamina")
-                        if currentValue and type(currentValue) == "number" and currentValue < maxResource then
-                            valuesFolder:SetAttribute("Stamina", maxResource)
-                        end
-                    end
-                    if valuesFolder and infGasActive then
-                        local currentValue = valuesFolder:GetAttribute("Gas")
-                        if currentValue and type(currentValue) == "number" and currentValue < maxResource then
-                            valuesFolder:SetAttribute("Gas", maxResource)
-                        end
-                    end
-                end)
-                task.wait(0.05) 
+local function sFLY(speed)
+    NOFLY()
+    FLYING = true
+    local hrp = LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+    
+    LocalPlayer.Character:FindFirstChildOfClass("Humanoid").PlatformStand = true
+    
+    local bv = Instance.new("BodyVelocity", hrp)
+    bv.Name = "FlyVelocity"
+    bv.MaxForce = Vector3.new(4e9, 4e9, 4e9)
+    bv.Velocity = Vector3.zero
+    
+    local bg = Instance.new("BodyGyro", hrp)
+    bg.Name = "FlyTorque"
+    bg.P = 9e5
+    bg.MaxTorque = Vector3.new(4e9, 4e9, 4e9)
+    bg.CFrame = hrp.CFrame
+    
+    local CONTROL = {F = 0, B = 0, L = 0, R = 0, Q = 0, E = 0}
+    local lCONTROL = {F = 0, B = 0, L = 0, R = 0, Q = 0, E = 0}
+    
+    flyRenderStep = RunService.RenderStepped:Connect(function()
+        if not FLYING or not hrp or not hrp.Parent then NOFLY(); return end
+
+        local SPEED = 0
+        local flySpeed = speed or 100
+
+        if CONTROL.L + CONTROL.R ~= 0 or CONTROL.F + CONTROL.B ~= 0 or CONTROL.Q + CONTROL.E ~= 0 then
+            SPEED = 50
+        elseif not (CONTROL.L + CONTROL.R ~= 0 or CONTROL.F + CONTROL.B ~= 0 or CONTROL.Q + CONTROL.E ~= 0) and SPEED ~= 0 then
+            SPEED = 0
+        end
+
+        if (CONTROL.L + CONTROL.R) ~= 0 or (CONTROL.F + CONTROL.B) ~= 0 or (CONTROL.Q + CONTROL.E) ~= 0 then
+            bv.velocity = ((CurrentCamera.CoordinateFrame.lookVector * (CONTROL.F + CONTROL.B)) + ((CurrentCamera.CoordinateFrame * CFrame.new(CONTROL.L + CONTROL.R, (CONTROL.F + CONTROL.B + CONTROL.Q + CONTROL.E) * 0.2, 0).p) - CurrentCamera.CoordinateFrame.p)) * SPEED * (flySpeed/50)
+            lCONTROL = {F = CONTROL.F, B = CONTROL.B, L = CONTROL.L, R = CONTROL.R}
+        elseif (CONTROL.L + CONTROL.R) == 0 and (CONTROL.F + CONTROL.B) == 0 and (CONTROL.Q + CONTROL.E) == 0 and SPEED ~= 0 then
+            bv.velocity = ((CurrentCamera.CoordinateFrame.lookVector * (lCONTROL.F + lCONTROL.B)) + ((CurrentCamera.CoordinateFrame * CFrame.new(lCONTROL.L + lCONTROL.R, (lCONTROL.F + lCONTROL.B + CONTROL.Q + CONTROL.E) * 0.2, 0).p) - CurrentCamera.CoordinateFrame.p)) * SPEED * (flySpeed/50)
+        else
+            bv.velocity = Vector3.new(0, 0, 0)
+        end
+        bg.cframe = CurrentCamera.CoordinateFrame
+    end)
+
+
+    flyKeyDown = IYMouse.KeyDown:Connect(function(key)
+        key = key:lower()
+        if key == 'w' then CONTROL.F = 1 elseif key == 's' then CONTROL.B = -1
+        elseif key == 'a' then CONTROL.L = -1 elseif key == 'd' then CONTROL.R = 1
+        elseif key == 'e' then CONTROL.Q = 1 elseif key == 'q' then CONTROL.E = -1 
+        elseif key == 'v' then NOFLY() return end
+    end)
+    
+    flyKeyUp = IYMouse.KeyUp:Connect(function(key)
+        key = key:lower()
+        if key == 'w' then CONTROL.F = 0 elseif key == 's' then CONTROL.B = 0
+        elseif key == 'a' then CONTROL.L = 0 elseif key == 'd' then CONTROL.R = 0
+        elseif key == 'e' then CONTROL.Q = 0 elseif key == 'q' then CONTROL.E = 0 end
+    end)
+end
+
+local clickTeleportConnection
+local function handleTeleportInput(input, gameProcessed)
+    if gameProcessed then return end
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        if clickTeleportEnabled and UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then
+            local hit = IYMouse.Hit
+            if hit and LocalPlayer.Character then
+                LocalPlayer.Character:MoveTo(Vector3.new(hit.X, hit.Y, hit.Z))
             end
-            infResourceThread = nil
-        end)
-    elseif not enabled then
-        if not infGasActive and infResourceThread then
-            task.cancel(infResourceThread)
-            infResourceThread = nil
         end
     end
 end
 
--- TÁCH LOGIC INFINITE GAS (CHỈ XỬ LÝ "Gas")
-local function toggleInfGas(enabled)
-    infGasActive = enabled
-    if enabled and not infResourceThread then
-        infResourceThread = task.spawn(function()
-            local maxResource = 100 
-            while infStaminaActive or infGasActive do
-                pcall(function()
-                    if valuesFolder and infStaminaActive then
-                        local currentValue = valuesFolder:GetAttribute("Stamina")
-                        if currentValue and type(currentValue) == "number" and currentValue < maxResource then
-                            valuesFolder:SetAttribute("Stamina", maxResource)
-                        end
-                    end
-                    if valuesFolder and infGasActive then
-                        local currentValue = valuesFolder:GetAttribute("Gas")
-                        if currentValue and type(currentValue) == "number" and currentValue < maxResource then
-                            valuesFolder:SetAttribute("Gas", maxResource)
-                        end
-                    end
-                end)
-                task.wait(0.05) 
-            end
-            infResourceThread = nil
-        end)
-    elseif not enabled then
-        if not infStaminaActive and infResourceThread then
-            task.cancel(infResourceThread)
-            infResourceThread = nil
-        end
-    end
-end
+local function toggleClickTeleport(Value)
+    clickTeleportEnabled = Value
+    if clickTeleportConnection then clickTeleportConnection:Disconnect() end
 
--- Click Teleport Logic
-local function handleTeleport(input, gameProcessed)
-    if not _G.WRDClickTeleportEnabled or gameProcessed then return end
-    if input.UserInputType == Enum.UserInputType.MouseButton2 and UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then
-        local ray = Workspace:Raycast(IYMouse.UnitRay.Origin, IYMouse.UnitRay.Direction * 1000)
-        if ray then
-            bringPlr(CFrame.new(ray.Position))
-            Fluent:Notify({Title = "Click TP", Content = "Đã dịch chuyển tới điểm click.", Duration = 3})
-        end
-    end
-end
-local function toggleClickTeleport(enabled)
-    _G.WRDClickTeleportEnabled = enabled
-    if enabled and not clickTeleportConnection then
-        clickTeleportConnection = UserInputService.InputBegan:Connect(handleTeleport)
-    elseif not enabled and clickTeleportConnection then
-        clickTeleportConnection:Disconnect()
+    if Value then
+        clickTeleportConnection = UserInputService.InputBegan:Connect(handleTeleportInput)
+    else
         clickTeleportConnection = nil
     end
 end
-if _G.WRDClickTeleportEnabled then toggleClickTeleport(true) end
 
+local function simpleServerHop()
+    pcall(function()
+        TeleportService:Teleport(game.PlaceId, LocalPlayer)
+    end)
+end
 
--- =========================================================================
--- ESP LOGIC (PLAYER) - TỐI ƯU HÓA LAG 
--- =========================================================================
-local espThread = nil
-local function cleanupPlayerEspElements(player)
-    local elements = espElements[player]
-    if elements then
-        for _, element in pairs(elements) do
-            if element and element.Parent then
-                element:Destroy()
-            end
-        end
-        espElements[player] = nil
+local function findAndTeleportToAirdrop()
+    local allAirdrops = Workspace:FindFirstChild("GameStuff") and Workspace.GameStuff:FindFirstChild("GameSections") and Workspace.GameStuff.GameSections:FindFirstChild("AirDrops")
+    if not allAirdrops or #allAirdrops:GetChildren() == 0 then
+        Fluent:Notify({Title = "Lỗi", Content = "Hiện không có Airdrop trên bản đồ.", Duration = 5}) 
+        return
+    end
+    
+    local targetAirdrop = allAirdrops:GetChildren()[1]
+    local targetCFrame = targetAirdrop:GetPivot()
+    
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        LocalPlayer.Character.HumanoidRootPart.CFrame = targetCFrame * CFrame.new(0, 10, 0)
+        Fluent:Notify({Title = "Thành công", Content = "Đã dịch chuyển tới Airdrop.", Duration = 5})
     end
 end
 
-local function updatePlayerEspGui(player)
-    local char = player.Character
-    if not char then return end
-    local elements = espElements[player]
-    if not elements or not elements.NameLabel then return end
+--- HÀM: VISUALS (ESP & GUI) ---
 
-    local root = getRoot(char)
-    if not root then return end
+local screenEffectConnection
+local function toggleHideScreenEffects(Value)
+    local elementsToManage = { "CursedText", "Glitch", "StaticRegular", "StaticScare", "WhiteLines" }
+    local playerGui = LocalPlayer:WaitForChild("PlayerGui", 5)
     
-    local playerRoot = getRoot(LocalPlayer.Character)
-    if not playerRoot then return end
+    if screenEffectConnection then screenEffectConnection:Disconnect(); screenEffectConnection = nil end
 
-    local distance = math.floor((playerRoot.Position - root.Position).Magnitude)
-    local health = char:FindFirstChildOfClass("Humanoid") and math.floor(char:FindFirstChildOfClass("Humanoid").Health) or 0
-    local isDead = health <= 0
+    if Value then
+        screenEffectConnection = RunService.RenderStepped:Connect(function()
+            for _, name in ipairs(elementsToManage) do
+                local element = playerGui:FindFirstChild(name)
+                if element and element.Visible then
+                    element.Visible = false
+                end
+            end
+        end)
+    end
+end
 
-    elements.NameLabel.Text = string.format("%s\n%dm\n%s Health", player.DisplayName, distance, health)
+local infoGUIVisible = false
+local infoGUIDisplay
+local function createStyledInfoGUI()
+    if infoGUIDisplay then return end
+    infoGUIVisible = true
     
-    local highlight = elements.Highlight
-    if highlight then
-        local color = Color3.fromHSV(math.max(0, health / 100 * (1/3)), 1, 1) 
-        highlight.FillColor = color; highlight.OutlineColor = color
+    local ScreenGui = Instance.new("ScreenGui")
+    ScreenGui.Name = "ChainInfoGUI"
+    ScreenGui.ResetOnSpawn = false
+    ScreenGui.Parent = CoreGui
+    
+    local mainFrame = Instance.new("Frame")
+    mainFrame.Name = "InfoFrame"
+    mainFrame.Size = UDim2.new(0, 250, 0, 150)
+    mainFrame.Position = UDim2.new(1, -260, 0.5, -75)
+    mainFrame.BackgroundColor3 = Color3.fromRGB(15, 15, 15)
+    mainFrame.BackgroundTransparency = 0.2
+    mainFrame.BorderSizePixel = 0
+    mainFrame.Parent = ScreenGui
+    
+    local corner = Instance.new("UICorner")
+    corner.CornerRadius = UDim.new(0, 6)
+    corner.Parent = mainFrame
+    
+    local titleLabel = Instance.new("TextLabel")
+    titleLabel.Text = "Chain Boss Info"
+    titleLabel.Size = UDim2.new(1, 0, 0, 30)
+    titleLabel.Position = UDim2.new(0, 0, 0, 0)
+    titleLabel.BackgroundColor3 = Color3.fromRGB(128, 0, 128)
+    titleLabel.BackgroundTransparency = 0.6
+    titleLabel.Font = Enum.Font.SourceSansBold
+    titleLabel.TextColor3 = Color3.new(1, 1, 1)
+    titleLabel.TextSize = 18
+    titleLabel.Parent = mainFrame
+    
+    local contentFrame = Instance.new("Frame")
+    contentFrame.Size = UDim2.new(1, 0, 1, -30)
+    contentFrame.Position = UDim2.new(0, 0, 0, 30)
+    contentFrame.BackgroundTransparency = 1
+    contentFrame.Parent = mainFrame
+    
+    local layout = Instance.new("UIListLayout")
+    layout.Padding = UDim.new(0, 5)
+    layout.FillDirection = Enum.FillDirection.Vertical
+    layout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+    layout.Parent = contentFrame
+    
+    local labels = {}
+    local function createLabel(name)
+        local label = Instance.new("TextLabel")
+        label.Name = name
+        label.Size = UDim2.new(1, -10, 0, 20)
+        label.BackgroundTransparency = 1
+        label.Font = Enum.Font.SourceSans
+        label.TextColor3 = Color3.fromRGB(200, 200, 200)
+        label.TextSize = 16
+        label.TextXAlignment = Enum.TextXAlignment.Left
+        label.Parent = contentFrame
+        return label
     end
 
-    elements.NameLabel.Visible = not isDead
-    if highlight then highlight.Enabled = not isDead end
+    labels.RoundTime = createLabel("RoundTimeLabel")
+    labels.Intermission = createLabel("IntermissionLabel")
+    labels.Power = createLabel("PowerLabel")
+
+    infoGUIDisplay = ScreenGui
+
+    task.spawn(function()
+        local valuesFolder = Workspace:WaitForChild("GameStuff"):WaitForChild("Values")
+        while infoGUIVisible do
+            pcall(function()
+                local rt = valuesFolder:GetAttribute("RoundTime")
+                local pwr = valuesFolder:GetAttribute("Power")
+                
+                labels.RoundTime.Text = "Round Time: " .. (rt and string.format("%.0f", rt) .. "s" or "N/A")
+                labels.Intermission.Text = "Intermission: " .. (valuesFolder:GetAttribute("Intermission") and "Yes" or "No")
+                labels.Power.Text = "Power: " .. (pwr and string.format("%.0f", pwr) .. "%" or "N/A")
+            end)
+            task.wait(1)
+        end
+    end)
+end
+
+local function destroyStyledInfoGUI()
+    infoGUIVisible = false
+    if infoGUIDisplay then infoGUIDisplay:Destroy(); infoGUIDisplay = nil end
+end
+
+local function toggleInfoGUI(Value)
+    if Value then createStyledInfoGUI() else destroyStyledInfoGUI() end
+end
+
+-- =========================================================================
+-- HỆ THỐNG ESP THỐNG NHẤT (UNIFIED ESP)
+-- =========================================================================
+local espSettings = {
+    Player = { Enabled = false, Color = Color3.fromRGB(255, 0, 0), Name = "Player" },
+    Chain = { Enabled = false, Color = Color3.fromRGB(255, 21, 21), Name = "CHAIN BOSS" },
+    Scrap = { Enabled = false, Color = Color3.fromRGB(255, 165, 0), Name = "Scrap" },
+    Arctic = { Enabled = false, Color = Color3.fromRGB(0, 255, 255), Name = "Arctic" },
+}
+local espElements = {} -- Lưu trữ: { Instance = { Label, Highlight } }
+local espGui
+local espRenderStep
+
+local function createEspGui()
+    if espGui then return end
     
-    local billGui = elements.BillboardGui
-    if billGui then
-        local scaleFactor = math.max(1, 100 / distance) * 0.5
-        billGui.Size = UDim2.new(0, 100 * scaleFactor, 0, 50 * scaleFactor)
-        billGui.Adornee = root 
+    espGui = Instance.new("ScreenGui")
+    espGui.Name = "UniversalESPGUI"
+    espGui.ResetOnSpawn = false
+    espGui.Parent = CoreGui
+end
+
+local function getPartPosition(instance)
+    if instance:IsA("Model") then
+        return instance.PrimaryPart and instance.PrimaryPart.Position or instance:GetPivot().Position
+    elseif instance:IsA("BasePart") then
+        return instance.Position
     end
+    return nil
+end
+
+local function getAllEspTargets()
+    local targets = {}
+    local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not hrp then return targets end
+
+    -- 1. Players
+    if espSettings.Player.Enabled then
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                table.insert(targets, { 
+                    Instance = player.Character, 
+                    Type = "Player", 
+                    Name = player.Name, 
+                    Color = espSettings.Player.Color,
+                    isModel = true,
+                })
+            end
+        end
+    end
+
+    -- 2. Chain Boss
+    if espSettings.Chain.Enabled then
+        local chain = Workspace:FindFirstChild("Misc") and Workspace.Misc:FindFirstChild("AI") and Workspace.Misc.AI:FindFirstChild("CHAIN")
+        if chain and chain:FindFirstChild("HumanoidRootPart") then
+             table.insert(targets, { 
+                Instance = chain, 
+                Type = "Chain", 
+                Name = espSettings.Chain.Name, 
+                Color = espSettings.Chain.Color,
+                isModel = true,
+            })
+        end
+    end
+
+    -- 3. Loot Items (Scrap & Arctic)
+    if espSettings.Scrap.Enabled or espSettings.Arctic.Enabled then
+        local itemsToFind = { 
+            Scrap = { Type = "Scrap", Color = espSettings.Scrap.Color, Enabled = espSettings.Scrap.Enabled },
+            Arctic = { Type = "Arctic", Color = espSettings.Arctic.Color, Enabled = espSettings.Arctic.Enabled }
+        }
+        for _, item in ipairs(Workspace:GetDescendants()) do
+            local itemName = item.Name
+            local itemConfig = itemsToFind[itemName]
+            
+            if itemConfig and itemConfig.Enabled and (item:IsA("Part") or item:IsA("Model")) then 
+                table.insert(targets, {
+                    Instance = item,
+                    Type = itemConfig.Type,
+                    Name = itemConfig.Name,
+                    Color = itemConfig.Color,
+                    isModel = item:IsA("Model")
+                })
+            end
+        end
+    end
+    
+    return targets
+end
+
+-- HÀM ĐÃ SỬA: SỬ DỤNG IF NOT POS THEN RETURN/ELSE
+local function updateUniversalESP()
+    local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
+    if not hrp then return end
+    
+    local hrpPosition = hrp.Position
+    local currentTargets = {}
+    local targetsData = getAllEspTargets()
+
+    for _, data in ipairs(targetsData) do
+        local item = data.Instance
+        local itemKey = item 
+
+        currentTargets[itemKey] = true
+
+        local pos = getPartPosition(item)
+        
+        -- FIX TƯƠNG THÍCH: Thay 'if not pos then continue end' bằng 'if pos then ... end'
+        if pos then
+            if not espElements[itemKey] then
+                local label = Instance.new("TextLabel")
+                label.Size = UDim2.new(0, 100, 0, 16) 
+                label.BackgroundTransparency = 1
+                label.Font = Enum.Font.SourceSansBold
+                label.TextSize = 12 
+                label.TextColor3 = data.Color
+                label.TextStrokeTransparency = 0.5 
+                label.Parent = espGui
+
+                local highlight = Instance.new("Highlight")
+                highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+                highlight.FillColor = data.Color
+                highlight.FillTransparency = 0.8
+                highlight.OutlineColor = Color3.new(1, 1, 1)
+                highlight.Enabled = false 
+                pcall(function() highlight.Parent = item end) 
+
+                espElements[itemKey] = { Label = label, Highlight = highlight, Target = item }
+                
+                item.Destroying:Connect(function()
+                    if espElements[itemKey] then
+                        pcall(function() espElements[itemKey].Label:Destroy() end)
+                        pcall(function() espElements[itemKey].Highlight:Destroy() end)
+                        espElements[itemKey] = nil
+                    end
+                end)
+            end
+
+            local elements = espElements[itemKey]
+            local label = elements.Label
+            local highlight = elements.Highlight
+            
+            local vec, onScreen = CurrentCamera:WorldToScreenPoint(pos)
+            local distance = (pos - hrpPosition).Magnitude
+
+            highlight.Enabled = onScreen and distance < 1000 
+            
+            if distance < 10000 then 
+                label.Visible = true
+                
+                local nameToDisplay = data.isModel and data.Name or data.Name .. " Loot"
+
+                if onScreen then
+                    label.Position = UDim2.new(0, vec.X - label.Size.X.Offset / 2, 0, vec.Y)
+                    label.Text = string.format("%s [~%.0fM]", nameToDisplay, distance)
+                else
+                    local viewPortSize = CurrentCamera.ViewportSize
+                    local center = Vector2.new(viewPortSize.X / 2, viewPortSize.Y / 2)
+                    local vector2 = Vector2.new(vec.X, vec.Y)
+                    
+                    local direction = (vector2 - center).unit
+                    local radius = math.min(center.X, center.Y) * 0.95 
+                    
+                    local newPos = center + direction * radius
+                    
+                    label.Position = UDim2.new(0, newPos.X - label.Size.X.Offset / 2, 0, newPos.Y - label.Size.Y.Offset / 2)
+                    label.Text = string.format("-> %s [~%.0fM]", nameToDisplay, distance)
+                    
+                    highlight.Enabled = false 
+                end
+            else
+                label.Visible = false
+                highlight.Enabled = false
+            end
+        else
+            -- Trường hợp pos là nil, chúng ta vẫn cần đảm bảo ẩn Label và Highlight
+             if espElements[itemKey] then
+                pcall(function() espElements[itemKey].Label.Visible = false end)
+                pcall(function() espElements[itemKey].Highlight.Enabled = false end)
+            end
+        end
+    end
+    
+    -- Dọn dẹp các phần tử không còn trong danh sách mục tiêu
+    for itemKey, elements in pairs(espElements) do
+        if not currentTargets[itemKey] and elements.Label.Visible then
+            pcall(function() elements.Label.Visible = false end)
+            pcall(function() 
+                if elements.Highlight.Parent == itemKey then elements.Highlight.Enabled = false end 
+            end)
+        end
+    end
+end
+
+local function isAnyEspActive()
+    for _, config in pairs(espSettings) do
+        if config.Enabled then return true end
+    end
+    return false
 end
 
 local function startEspLoop()
-    if espThread and task.running(espThread) then return end
-    espThread = task.spawn(function()
-        while true do
-            pcall(function()
-                for player, elements in pairs(espElements) do
-                    updatePlayerEspGui(player)
-                end
-            end)
-            task.wait(0.2) 
-        end
-    end)
-end
-local function createPlayerEsp(player)
-    local char = player.Character or player.CharacterAdded:Wait()
-    local root = getRoot(char)
-    if not root or char.Name == LocalPlayer.Name or espElements[player] then return end
-
-    local elements = {}
-    
-    local highlight = Instance.new("Highlight")
-    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-    highlight.FillColor = Color3.fromRGB(255, 255, 255); highlight.FillTransparency = 0.6
-    highlight.OutlineColor = Color3.fromRGB(255, 255, 255); highlight.OutlineTransparency = 0
-    highlight.Parent = char
-    elements.Highlight = highlight
-
-    local billGui = Instance.new("BillboardGui")
-    billGui.Name = "PlayerESP_Text"; billGui.AlwaysOnTop = true; billGui.Size = UDim2.new(0, 100, 0, 50)
-    billGui.ExtentsOffset = Vector3.new(0, 5, 0)
-    billGui.Adornee = root 
-
-    local nameLabel = Instance.new("TextLabel"); nameLabel.Name = "NameLabel"; nameLabel.Size = UDim2.new(1, 0, 1, 0); nameLabel.BackgroundTransparency = 1
-    nameLabel.TextColor3 = Color3.new(1, 1, 1); nameLabel.TextStrokeTransparency = 0
-    nameLabel.TextScaled = true; nameLabel.Font = Enum.Font.SourceSansBold
-    nameLabel.Parent = billGui
-    elements.NameLabel = nameLabel
-    
-    billGui.Parent = CoreGui
-    elements.BillboardGui = billGui
-    
-    player.CharacterAdded:Connect(function(newChar)
-        cleanupPlayerEspElements(player)
-        createPlayerEsp(player)
-    end)
-
-    espElements[player] = elements
-end
-local function startEspLogic()
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player ~= LocalPlayer then createPlayerEsp(player) end
-    end
-
-    Players.PlayerAdded:Connect(createPlayerEsp)
-    Players.PlayerRemoving:Connect(cleanupPlayerEspElements)
-    
-    startEspLoop() 
-end
-local function stopEspLogic()
-    if espConnection then espConnection:Disconnect(); espConnection = nil end
-    if espThread then task.cancel(espThread); espThread = nil end 
-    for player, elements in pairs(espElements) do cleanupPlayerEspElements(player) end
-    espElements = {}
+    if espRenderStep then return end
+    createEspGui()
+    espRenderStep = RunService.RenderStepped:Connect(updateUniversalESP)
 end
 
--- =========================================================================
--- ESP LOGIC (CHAIN BOSS) & AUTO-TRACKING 
--- =========================================================================
-local chainEspThread = nil
-local function cleanupChainEsp()
-    for _, element in pairs(chainEsp) do if element and element.Parent then element:Destroy() end end
-    chainEsp = {}
-    chainModel = nil
-end
-
-local function updateChainEsp(model)
-    if not model or not LocalPlayer.Character or not getRoot(LocalPlayer.Character) then return end
-    local root = getRoot(model)
-    local humanoid = model:FindFirstChildOfClass("Humanoid")
-    local playerRoot = getRoot(LocalPlayer.Character)
-    if not root or not humanoid or not playerRoot then return end
-
-    if not chainEsp.Highlight then
-        chainEsp.Highlight = Instance.new("Highlight")
-        chainEsp.Highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-        chainEsp.Highlight.FillColor = Color3.fromRGB(255, 100, 0); chainEsp.Highlight.FillTransparency = 0.5 
-        chainEsp.Highlight.OutlineColor = Color3.fromRGB(255, 100, 0); chainEsp.Highlight.OutlineTransparency = 0 
-        chainEsp.Highlight.Parent = model
-        
-        chainEsp.BillboardGui = Instance.new("BillboardGui")
-        chainEsp.BillboardGui.Name = "ChainESP_Text"; chainEsp.BillboardGui.AlwaysOnTop = true; chainEsp.BillboardGui.Size = UDim2.new(0, 200, 0, 80)
-        chainEsp.BillboardGui.ExtentsOffset = Vector3.new(0, 5, 0)
-        chainEsp.BillboardGui.Adornee = root
-        chainEsp.BillboardGui.Parent = CoreGui
-        
-        chainEsp.NameLabel = Instance.new("TextLabel"); chainEsp.NameLabel.Name = "NameLabel"; chainEsp.NameLabel.Size = UDim2.new(1, 0, 1, 0); chainEsp.NameLabel.BackgroundTransparency = 1
-        chainEsp.NameLabel.TextColor3 = Color3.fromRGB(255, 100, 0); chainEsp.NameLabel.TextStrokeTransparency = 0
-        chainEsp.NameLabel.TextScaled = true; chainEsp.NameLabel.Font = Enum.Font.SourceSansBold
-        chainEsp.NameLabel.TextWrapped = true
-        chainEsp.NameLabel.Parent = chainEsp.BillboardGui
-    end
-    
-    local distance = math.floor((playerRoot.Position - root.Position).Magnitude)
-    local health = math.floor(humanoid.Health)
-    local maxHealth = math.floor(humanoid.MaxHealth)
-    
-    chainEsp.NameLabel.Text = string.format("CHAIN BOSS\n%d/%d HP\n%dm", health, maxHealth, distance)
-    
-    local scaleFactor = math.max(1, 200 / distance) * 0.5
-    chainEsp.BillboardGui.Size = UDim2.new(0, 150 * scaleFactor, 0, 75 * scaleFactor)
-    
-    if distance >= 150 and distance <= 180 and not chainWarningFlag then
-        if notificationSettings.chain then 
-             playSound()
-             Fluent:Notify({Title = "CHAIN WARNING", Content = string.format("Chain Boss đang ở gần! (%dm)", distance), Duration = 5, Icon = "alert-triangle"}) 
-             chainWarningFlag = true 
-             task.spawn(function()
-                 task.wait(15) 
-                 chainWarningFlag = false
-             end)
+local function stopEspLoop()
+    if espRenderStep and not isAnyEspActive() then
+        espRenderStep:Disconnect()
+        espRenderStep = nil
+        if espGui then 
+            espGui:Destroy() 
+            espGui = nil 
+            espElements = {}
         end
     end
 end
 
-local function startChainEspLogic()
-    if chainEspThread then return end
-    
-    chainEspThread = task.spawn(function()
-        while true do
-            pcall(function()
-                local newChainModel = findChainBoss()
-                
-                if newChainModel and newChainModel ~= chainModel then
-                    cleanupChainEsp() 
-                    chainModel = newChainModel
-                end
-                
-                if chainModel then
-                    if chainModel.Parent == aiFolder then 
-                         updateChainEsp(chainModel)
-                    else
-                        cleanupChainEsp()
-                    end
-                end
-            end)
-            task.wait(0.2) 
+-- Hàm Callback chung cho ESP
+local function toggleEspSetting(settingName, Value)
+    espSettings[settingName].Enabled = Value
+    if Value then
+        startEspLoop()
+    else
+        for itemKey, elements in pairs(espElements) do
+            local item = itemKey
+            if item and (
+                (settingName == "Player" and item:IsA("Model") and item:FindFirstChildOfClass("Humanoid")) or 
+                (settingName == "Chain" and item.Name == "CHAIN") or
+                (settingName == "Scrap" and item.Name == "Scrap") or
+                (settingName == "Arctic" and item.Name == "Arctic")
+            ) then
+                pcall(function() elements.Label.Visible = false end)
+                pcall(function() elements.Highlight.Enabled = false end)
+            end
         end
+        stopEspLoop()
+    end
+end
+
+--- HÀM: LIGHTING & FULLBRIGHT ---
+
+local originalLightingProperties = {}
+local originalEffectsState = {}
+local isFullbrightActive = false
+
+local function saveOriginalSettings()
+    originalLightingProperties.Ambient = Lighting.Ambient
+    originalLightingProperties.OutdoorAmbient = Lighting.OutdoorAmbient
+    originalLightingProperties.Brightness = Lighting.Brightness
+    originalLightingProperties.TimeOfDay = Lighting.TimeOfDay
+    originalLightingProperties.FogEnd = Lighting.FogEnd
+    originalLightingProperties.GlobalShadows = Lighting.GlobalShadows
+    
+    for _, child in ipairs(Lighting:GetChildren()) do
+        if child:IsA("PostEffect") then 
+            originalEffectsState[child] = child.Enabled
+        end
+    end
+end
+
+local function restoreOriginalSettings()
+    for property, value in pairs(originalLightingProperties) do
+        Lighting[property] = value
+    end
+    for effect, isEnabled in pairs(originalEffectsState) do
+        if pcall(function() return effect.Parent end) then 
+            effect.Enabled = isEnabled
+        end
+    end
+end
+
+saveOriginalSettings()
+
+local function toggleFullbright(Value)
+    isFullbrightActive = Value
+    
+    if Value then
+        for _, effect in ipairs(Lighting:GetChildren()) do 
+            if effect:IsA("BloomEffect") or effect:IsA("BlurEffect") or effect:IsA("ColorCorrectionEffect") or effect:IsA("SunRaysEffect") or effect:IsA("DepthOfFieldEffect") then 
+                effect.Enabled = false 
+            end 
+        end
+        Lighting.Ambient = Color3.new(1, 1, 1)
+        Lighting.OutdoorAmbient = Color3.new(1, 1, 1)
+        Lighting.Brightness = 5
+        Lighting.TimeOfDay = "12:00:00"
+        Lighting.GlobalShadows = false
+        Lighting.FogEnd = 100000 
+    else
+        restoreOriginalSettings()
+    end
+end
+
+local function setNoFog()
+    Lighting.FogEnd = 100000 
+    Lighting.FogStart = 0
+    Fluent:Notify({ Title = "Thành công!", Content = "Đã loại bỏ sương mù (NoFog).", Duration = 3 })
+end
+
+--- Hàm Notifications ---
+
+local notificationSettings = { power = true, roundTime = true, chain = true, artifact = true, airdrop = true, playSound = true }
+
+local function playNotificationSound()
+    if not notificationSettings.playSound then return end
+    pcall(function()
+        local sound = Instance.new("Sound")
+        sound.SoundId = "rbxassetid://15641323951"
+        sound.Volume = 8 
+        sound.Parent = Workspace
+        sound:Play()
+        Debris:AddItem(sound, 3)
     end)
 end
 
-local function stopChainEspLogic()
-    if chainEspThread then task.cancel(chainEspThread); chainEspThread = nil end
-    cleanupChainEsp()
-end
+local function setupNotificationSystem()
+    local valuesFolder = Workspace.GameStuff and Workspace.GameStuff:WaitForChild("Values", 5)
+    local aiFolder = Workspace:FindFirstChild("Misc") and Workspace.Misc:WaitForChild("AI", 5)
+    local artifactsFolder = Workspace:FindFirstChild("Misc") and Workspace.Misc:FindFirstChild("Zones") and Workspace.Misc.Zones:FindFirstChild("LootingItems") and Workspace.Misc.Zones.LootingItems:WaitForChild("Artifacts", 5)
+    local airDropsFolder = Workspace.GameStuff and Workspace.GameStuff:WaitForChild("GameSections") and Workspace.GameStuff.GameSections:WaitForChild("AirDrops", 5)
 
--- =========================================================================
--- AFK BYPASS LOGIC 
--- =========================================================================
-local afkThread = nil
-local isAfkActive = false
+    if not valuesFolder or not aiFolder then return end
 
-local function toggleAntiAFK(enabled)
-    isAfkActive = enabled
-    if enabled and not afkThread then
-        afkThread = task.spawn(function()
-            while isAfkActive do
-                pcall(function()
-                    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
-                        LocalPlayer.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-                        local HRP = getRoot(LocalPlayer.Character)
-                        if HRP then
-                            HRP.CFrame = HRP.CFrame * CFrame.Angles(0, math.rad(0.001), 0)
-                        end
-                    end
-                end)
-                task.wait(20) 
+    local function createThresholdNotifier(config)
+        local hasBeenNotified = false
+        valuesFolder:GetAttributeChangedSignal(config.Attribute):Connect(function()
+            if not notificationSettings[config.SettingName] then return end
+            local value = valuesFolder:GetAttribute(config.Attribute)
+            
+            if type(value) == "number" and value <= config.Threshold and not hasBeenNotified then
+                hasBeenNotified = true
+                playNotificationSound()
+                Fluent:Notify({ Title = config.Title, Content = config.Content, Duration = 8 })
+            elseif type(value) == "number" and value > config.Threshold and hasBeenNotified then
+                hasBeenNotified = false
             end
         end)
-    elseif not enabled and afkThread then
-        task.cancel(afkThread)
-        afkThread = nil
+    end
+
+    createThresholdNotifier({ Attribute = "Power", SettingName = "power", Threshold = 30, Title = "Low Power!", Content = "30% power remaining." })
+    createThresholdNotifier({ Attribute = "RoundTime", SettingName = "roundTime", Threshold = 30, Title = "Round Ending!", Content = "30 seconds remaining!" })
+
+    task.spawn(function()
+        local isChainActive = false
+        while task.wait(3) do
+            if notificationSettings.chain then
+                local chain = aiFolder:FindFirstChild("CHAIN")
+                local alive = chain and chain:FindFirstChild("Humanoid") and chain.Humanoid.Health > 0
+                
+                if alive and not isChainActive then
+                    isChainActive = true
+                    playNotificationSound()
+                    Fluent:Notify({ Title = "‼️ CHAIN HAS SPAAWN ‼️", Content = "Kẻ thù chính đã xuất hiện trên bản đồ.", Duration = 10 })
+                elseif not alive and isChainActive then
+                    isChainActive = false
+                    playNotificationSound()
+                    Fluent:Notify({ Title = "✅ CHAIN DEFEATED ✅", Content = "Chain đã bị đánh bại.", Duration = 10 })
+                end
+            end
+        end
+    end)
+
+    if artifactsFolder then
+        artifactsFolder.ChildAdded:Connect(function(child)
+            if notificationSettings.artifact and child:IsA("Model") then
+                playNotificationSound()
+                Fluent:Notify({ Title = "Artifact Spawned!", Content = "Một Artifact mới đã xuất hiện.", Duration = 7 })
+            end
+        end)
+    end
+
+    if airDropsFolder then
+        airDropsFolder.ChildAdded:Connect(function(child)
+            if notificationSettings.airdrop and child:IsA("Model") then
+                playNotificationSound()
+                Fluent:Notify({ Title = "Airdrop Detected!", Content = "Một Airdrop đã xuất hiện.", Duration = 8 })
+            end
+        end)
     end
 end
 
+task.spawn(setupNotificationSystem)
+
+
 -- =========================================================================
--- KHỞI TẠO UI & TABS
+-- UI SETUP (KHỞI TẠO GIAO DIỆN FLUENT)
 -- =========================================================================
+
 local Window = Fluent:CreateWindow({
-    Title = "Purium Hub [Premium] | Chain |",
-    SubTitle = "New Chain Script - Confirmed UI Fix", 
-    Search = true,
-    Icon = "rbxassetid://121302760641013",
-    TabWidth = 140,
-    Size = UDim2.fromOffset(515, 350), 
+    Title = "💢 Purium 💢 | Chain | (Beta) 1.71",
+    SubTitle = "by Purium | Full Feature Set",
+    TabWidth = 160,
+    Size = UDim2.fromOffset(515, 370),
     Acrylic = true,
     Theme = "Dark",
-    MinimizeKey = Enum.KeyCode.RightAlt,
+    MinimizeKey = Enum.KeyCode.RightControl,
 
     UserInfo = true,
     UserInfoTop = false,
@@ -807,373 +1000,471 @@ local Window = Fluent:CreateWindow({
 })
 
 local Tabs = {
-    Main0=Window:AddTab({ Title="Annoucenment", Icon = "info" }),
-    Main1=Window:AddTab({ Title="Movement / Combat", Icon = "swords" }),
-    Teleport=Window:AddTab({ Title="Teleport", Icon = "globe" }), 
-    Main2=Window:AddTab({ Title="Esp / Visuals", Icon = "user-plus"}),
-    AutoFarmTab=Window:AddTab({ Title="AutoFarm", Icon = "feather"}),
-    Notifications=Window:AddTab({ Title="Notifications", Icon = "bell-ring"}),
-    Main4=Window:AddTab({ Title="Utility / Server", Icon = "cog"}), 
-    Main5=Window:AddTab({ Title="Environment", Icon = "sun"}),
+    Main = Window:AddTab({ Title = "Utility / Misc", Icon = "home" }),
+    Character = Window:AddTab({ Title = "Character Exploits", Icon = "user" }),
+    Movement = Window:AddTab({ Title = "Movement / Teleport", Icon = "map" }),
+    Visuals = Window:AddTab({ Title = "Visuals / ESP", Icon = "eye" }),
+    Tools = Window:AddTab({ Title = "Unlock / GUI Tools", Icon = "box" }),
+    Lighting = Window:AddTab({ Title = "Lighting Control", Icon = "sun" }),
+    Notify = Window:AddTab({ Title = "Notifications", Icon = "bell" }),
     Settings = Window:AddTab({ Title = "Settings", Icon = "settings" })
 }
 
+
+-- =========================================================================
+-- SETUP MINIMIZE BUTTON 
+-- =========================================================================
+local ExistingUI = CoreGui:FindFirstChild("PuriumHubMinimizeUI")
+if ExistingUI then ExistingUI:Destroy() end
+
+local DragUI = Instance.new("ScreenGui")
+DragUI.Name = "PuriumHubMinimizeUI"
+DragUI.ResetOnSpawn = false
+DragUI.Parent = CoreGui
+
+local Button = Instance.new("ImageButton")
+Button.Parent = DragUI
+Button.Size = UDim2.new(0, 50, 0, 50)
+Button.Position = UDim2.new(0, 10, 1, -85)
+Button.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+Button.BackgroundTransparency = 0.3
+Button.BorderSizePixel = 0
+Button.Image = "rbxassetid://109647470925993" 
+Button.ScaleType = Enum.ScaleType.Fit
+Button.Active = true
+Button.ZIndex = 1000
+
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(1, 0)
+UICorner.Parent = Button
+
+local isDragging = false
+local dragStart, startPos
+
+local function ToggleUI()
+    if Window then Window:Minimize() end
+end
+
+Button.MouseButton1Click:Connect(function()
+    if isDragging then 
+        isDragging = false 
+        return 
+    end
+    ToggleUI()
+end)
+
+Button.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        isDragging = false
+        dragStart = input.Position
+        startPos = Button.Position
+    end
+end)
+
+Button.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        if dragStart then
+            local delta = (input.Position - dragStart).Magnitude
+            if delta > 10 then 
+                isDragging = true
+                Button.Position = UDim2.new(
+                    startPos.X.Scale, 
+                    startPos.X.Offset + (input.Position.X - dragStart.X), 
+                    startPos.Y.Scale, 
+                    startPos.Y.Offset + (input.Position.Y - dragStart.Y)
+                )
+            end
+        end
+    end
+end)
+
+Button.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragStart = nil
+        startPos = nil
+    end
+end)
+
+
+-- =========================================================================
+-- TAB: UTILITY / MISC
+-- =========================================================================
+
+Tabs.Main:AddButton({
+    Title = "Load Infinite Yield (Admin Commands)",
+    Callback = function() loadstring(game:HttpGet('https://raw.githubusercontent.com/EdgeIY/infiniteyield/master/source'))() end
+})
+
+Tabs.Main:AddButton({
+    Title = "Load DEX Explorer (Game Structure)",
+    Callback = function() loadstring(game:HttpGet("https://raw.githubusercontent.com/infyiff/backup/main/dex.lua"))() end
+})
+
+Tabs.Main:AddButton({
+    Title = "Remove Adonis Anti-Cheat",
+    Description = "Cần thiết cho Inf Dodge",
+    Callback = function() 
+        local adonis = "https://raw.githubusercontent.com/Pixeluted/adoniscries/refs/heads/main/Source.lua"
+        loadstring(game:HttpGet(adonis))()
+    end
+})
+
+Tabs.Main:AddToggle("BarrierDestroyer", {
+    Title = "Destroy Invisible Barriers",
+    Description = "Phá hủy các vật cản vô hình (Transparency = 1, CanCollide = true)",
+    Default = false,
+    Callback = toggleBarrierDestroyer
+})
+
+Tabs.Main:AddButton({
+    Title = "Third Person Max Zoom",
+    Description = "Chuyển sang góc nhìn thứ ba cổ điển",
+    Callback = ThirdPerson
+})
+
+Tabs.Main:AddButton({
+    Title = "Remove Mask on Head",
+    Description = "Xóa mặt nạ/túi trên đầu nhân vật (nếu có)",
+    Callback = removeMask
+})
+
+Tabs.Main:AddButton({
+    Title = "Destroy Current GUI",
+    Description = "Đóng và xóa toàn bộ giao diện Script",
+    Callback = function() 
+        Window:Destroy()
+        if DragUI then DragUI:Destroy() end
+        if espRenderStep then espRenderStep:Disconnect() end 
+        if espGui then espGui:Destroy() end
+        NOFLY()
+        toggleNoclip(false)
+        toggleFullbright(false) 
+        toggleJumpUnlock(false)
+        toggleAntiAFK(false)
+        Fluent:Notify({ Title = "Thành công!", Content = "Đã dọn dẹp và xóa script.", Duration = 3 })
+    end,
+})
+
+-- =========================================================================
+-- TAB: CHARACTER EXPLOITS
+-- =========================================================================
+
+Tabs.Character:AddToggle("InfStamina", {
+    Title = "Infinite Stamina",
+    Description = "Stamina luôn đầy (di chuyển)",
+    Default = false,
+    Callback = toggleInfStamina
+})
+
+Tabs.Character:AddToggle("InfCombatStamina", {
+    Title = "Infinite Combat Stamina",
+    Description = "Stamina luôn đầy (tấn công)",
+    Default = false,
+    Callback = toggleInfCombatStamina
+})
+
+Tabs.Character:AddToggle("InfGas", {
+    Title = "Infinite XSaw Gas",
+    Description = "Bật cưa XSaw không giới hạn",
+    Default = false,
+    Callback = toggleInfGas
+})
+
+Tabs.Character:AddToggle("AutoWinClash", {
+    Title = "Auto Win XSaw Clash",
+    Description = "Tự động thắng khi giao chiến bằng cưa",
+    Default = false,
+    Callback = toggleAutoWinClash
+})
+
+Tabs.Character:AddToggle("InfDodge", {
+    Title = "Infinite Dodge (ĐÃ FIX LỖI)",
+    Description = "Né tránh không giới hạn (Cần gỡ Anti-Cheat trước)",
+    Default = false,
+    Callback = function(Value)
+        if Value then
+            enableInfDodge()
+            Fluent:Notify({ Title = "LƯU Ý", Content = "Chắc chắn đã gỡ Anti-Cheat trước khi bật!", Duration = 5 })
+        else
+            if infDodgeConnection and infDodgeConnection.Disconnect then infDodgeConnection:Disconnect() end
+        end
+    end
+})
+
+Tabs.Character:AddToggle("CancelRecoil", {
+    Title = "Cancel Recoil (Xóa độ giật súng)",
+    Description = "Loại bỏ độ lệch camera do độ giật tạo ra",
+    Default = false,
+    Callback = toggleCancelRecoil
+})
+
+Tabs.Character:AddToggle("Aimbot", {
+    Title = "Aimbot (Giữ chuột phải)",
+    Description = "Camera khóa vào mục tiêu (Chain Boss)",
+    Default = false,
+    Callback = toggleAimbot
+})
+
+Tabs.Character:AddToggle("JumpUnlocker", {
+    Title = "Unlock Jump (Bỏ khóa nhảy)",
+    Description = "Giúp bạn luôn có thể nhảy (Humanoid.JumpPower)",
+    Default = false,
+    Callback = toggleJumpUnlock
+})
+
+Tabs.Character:AddToggle("AntiAFK", {
+    Title = "Anti-AFK (Di chuyển nhẹ nhàng)",
+    Description = "Mô phỏng bấm W/S để chống bị kick AFK",
+    Default = false,
+    Callback = toggleAntiAFK
+})
+
+Tabs.Character:AddSlider("WalkSpeed", {
+    Title = "Tốc độ di chuyển (Walk Speed)",
+    Default = defaultWalkSpeed,
+    Min = defaultWalkSpeed,
+    Max = 200,
+    Rounding = 1,
+    Callback = function(Value)
+        targetWalkSpeed = Value
+    end
+})
+
+RunService.Heartbeat:Connect(function()
+    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("Humanoid") then
+        if LocalPlayer.Character.Humanoid.WalkSpeed ~= targetWalkSpeed then
+            LocalPlayer.Character.Humanoid.WalkSpeed = targetWalkSpeed
+        end
+    end
+end)
+
+-- =========================================================================
+-- TAB: MOVEMENT / TELEPORT
+-- =========================================================================
+
+Tabs.Movement:AddToggle("Fly", {
+    Title = "Fly Mode (Phím V để dừng)",
+    Default = false,
+    Callback = function(Value)
+        if Value then sFLY(100) else NOFLY() end
+    end
+})
+
+Tabs.Movement:AddToggle("Noclip", {
+    Title = "Noclip (Xuyên tường)",
+    Default = false,
+    Callback = toggleNoclip
+})
+
+Tabs.Movement:AddToggle("ClickTeleport", {
+    Title = "Click Teleport (Giữ Ctrl + Click)",
+    Description = "Dịch chuyển tới vị trí chuột",
+    Default = false,
+    Callback = toggleClickTeleport
+})
+
+Tabs.Movement:AddButton({
+    Title = "Server Hop (Chuyển Server)",
+    Description = "Chuyển sang một server ngẫu nhiên khác",
+    Callback = simpleServerHop
+})
+
+local function bringPlr(cframe) 
+    local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild('HumanoidRootPart')
+    if hrp then hrp.CFrame = cframe end
+end
+
+local function getChainBossCFrame()
+    local aiFolder = Workspace:FindFirstChild("Misc") and Workspace.Misc:FindFirstChild("AI")
+    if not aiFolder then return nil end
+    local chain = aiFolder:FindFirstChild("CHAIN")
+    if chain and chain:IsA("Model") and chain:FindFirstChild("HumanoidRootPart") then
+        return chain:GetPivot()
+    end
+    return nil
+end
+
+local TELEPORT_LOCATIONS = {
+    ["SafeHouse"] = CFrame.new(162.68, -94.26, 230.03),
+    ["WorkShop Outside"] = CFrame.new(130.92, -106.07, -2.17),
+    ["Shop"] = CFrame.new(-111.37, -87.20, 203.52),
+    ["PowerStation"] = CFrame.new(-208.29, -110.60, -120.22),
+    ["WareHouse"] = CFrame.new(314.62, -113.51, -258.48),
+    ["Ritual Site"] = CFrame.new(-18.60, -107.77, -229.89),
+    ["LeaderBoard"] = CFrame.new(45.65, -97.96, 25.84),
+}
+
+Tabs.Movement:AddSection("Teleports")
+
+for name, cf in pairs(TELEPORT_LOCATIONS) do
+    Tabs.Movement:AddButton({
+        Title = "TP: " .. name,
+        Callback = function() bringPlr(cf) end
+    })
+end
+
+Tabs.Movement:AddButton({
+    Title = "TP: Chain Boss",
+    Callback = function()
+        local cf = getChainBossCFrame()
+        if cf then 
+            bringPlr(cf * CFrame.new(0, 5, 0))
+        else 
+            Fluent:Notify({Title="Lỗi", Content="Không tìm thấy Chain Boss trên bản đồ."})
+        end
+    end
+})
+
+Tabs.Movement:AddButton({
+    Title = "TP: Airdrop Location",
+    Callback = findAndTeleportToAirdrop
+})
+
+-- =========================================================================
+-- TAB: VISUALS / ESP (SỬ DỤNG HỆ THỐNG UNIFIED ESP MỚI)
+-- =========================================================================
+
+Tabs.Visuals:AddToggle("PlayerChams", {
+    Title = "Player ESP (Chams + Label)",
+    Description = "Highlight và hiển thị Label/Khoảng cách Người chơi",
+    Default = false,
+    Callback = function(Value) toggleEspSetting("Player", Value) end
+})
+
+Tabs.Visuals:AddToggle("ChainESP", {
+    Title = "Chain Boss ESP (Chams + Label)",
+    Description = "Highlight và hiển thị Label/Khoảng cách Chain Boss",
+    Default = false,
+    Callback = function(Value) toggleEspSetting("Chain", Value) end
+})
+
+Tabs.Visuals:AddToggle("ScrapESP", {
+    Title = "Scrap ESP (Label + Chams)",
+    Description = "Hiển thị Label/Highlight cho Scrap",
+    Default = false,
+    Callback = function(Value) toggleEspSetting("Scrap", Value) end
+})
+
+Tabs.Visuals:AddToggle("ArcticESP", {
+    Title = "Arctic ESP (Label + Chams)",
+    Description = "Hiển thị Label/Highlight cho Arctic",
+    Default = false,
+    Callback = function(Value) toggleEspSetting("Arctic", Value) end
+})
+
+Tabs.Visuals:AddToggle("ChainInfoGUI", {
+    Title = "Chain Info GUI (Hiển thị thời gian/Power)",
+    Description = "Hiển thị thông tin trận đấu trên màn hình",
+    Default = false,
+    Callback = toggleInfoGUI
+})
+
+Tabs.Visuals:AddToggle("HideScreenEffects", {
+    Title = "Annoying Chain Screen effect (Xóa hiệu ứng Chain)",
+    Description = "Xóa hiệu ứng màn hình khó chịu khi Chain xuất hiện",
+    Default = false,
+    Callback = toggleHideScreenEffects
+})
+
+-- =========================================================================
+-- TAB: UNLOCK / GUI TOOLS 
+-- =========================================================================
+
+Tabs.Tools:AddButton({
+    Title = "Unlock CombatKnife",
+    Description = "Mở khóa bản thiết kế: CombatKnife",
+    Callback = function() unlockBlueprint("CombatKnife") end
+})
+
+Tabs.Tools:AddButton({
+    Title = "Unlock DoubleBarrel",
+    Description = "Mở khóa bản thiết kế: DoubleBarrel",
+    Callback = function() unlockBlueprint("DoubleBarrel") end
+})
+
+Tabs.Tools:AddButton({
+    Title = "Unlock M1911",
+    Description = "Mở khóa bản thiết kế: M1911",
+    Callback = function() unlockBlueprint("M1911") end
+})
+
+Tabs.Tools:AddSection("Toggle Game GUIs")
+
+Tabs.Tools:AddToggle("WorkbenchGui", {
+    Title = "Toggle Workbench Gui",
+    Description = "Hiện/Ẩn giao diện Chế tạo",
+    Default = false,
+    Callback = toggleWorkbenchGui
+})
+
+Tabs.Tools:AddToggle("DeconstructorGui", {
+    Title = "Toggle Deconstructor Gui",
+    Description = "Hiện/Ẩn giao diện Tháo dỡ",
+    Default = false,
+    Callback = toggleDeconstructorGui
+})
+
+Tabs.Tools:AddToggle("ShopGui", {
+    Title = "Toggle Shop Gui",
+    Description = "Hiện/Ẩn giao diện Cửa hàng",
+    Default = false,
+    Callback = toggleShopGui
+})
+
+-- =========================================================================
+-- TAB: LIGHTING CONTROL
+-- =========================================================================
+
+Tabs.Lighting:AddToggle("Fullbright", {
+    Title = "Fullbright (Sáng tuyệt đối)",
+    Description = "Ánh sáng tối đa, xóa bóng, loại bỏ hiệu ứng sương mù",
+    Default = false,
+    Callback = toggleFullbright
+})
+
+Tabs.Lighting:AddButton({
+    Title = "NoFog (Loại bỏ sương mù)",
+    Description = "Thiết lập lại tầm nhìn (FogEnd)",
+    Callback = setNoFog
+})
+
+Tabs.Lighting:AddButton({
+    Title = "Restore Default Lighting",
+    Description = "Khôi phục cài đặt ánh sáng gốc của game",
+    Callback = function()
+        toggleFullbright(false) 
+        restoreOriginalSettings()
+        Fluent:Notify({ Title = "Thành công!", Content = "Đã khôi phục cài đặt ánh sáng gốc.", Duration = 3 })
+    end
+})
+
+
+-- =========================================================================
+-- TAB: NOTIFICATIONS
+-- =========================================================================
+Tabs.Notify:AddToggle("NotifyPower", { Title = "Low Power (30%)", Default = true, Callback = function(v) notificationSettings.power = v end })
+Tabs.Notify:AddToggle("NotifyRound", { Title = "Round End (30s)", Default = true, Callback = function(v) notificationSettings.roundTime = v end })
+Tabs.Notify:AddToggle("NotifyChain", { Title = "Chain Spawn/Defeat", Default = true, Callback = function(v) notificationSettings.chain = v end })
+Tabs.Notify:AddToggle("NotifyArtifact", { Title = "Artifact Spawn", Default = true, Callback = function(v) notificationSettings.artifact = v end })
+Tabs.Notify:AddToggle("NotifyAirdrop", { Title = "Airdrop Spawn", Default = true, Callback = function(v) notificationSettings.airdrop = v end })
+Tabs.Notify:AddToggle("NotifySound", { Title = "Play Sounds for Notifications", Default = true, Callback = function(v) notificationSettings.playSound = v end })
+
+
+-- =========================================================================
+-- FINAL INIT (QUẢN LÝ LƯU TRỮ VÀ CẤU HÌNG)
+-- =========================================================================
+
 SaveManager:SetLibrary(Fluent)
 InterfaceManager:SetLibrary(Fluent)
+SaveManager:IgnoreThemeSettings()
 SaveManager:SetIgnoreIndexes({})
 InterfaceManager:SetFolder("Purium HUB")
-SaveManager:SetFolder("Purium HUB/universal")
+SaveManager:SetFolder("Purium HUB/Chain")
 InterfaceManager:BuildInterfaceSection(Tabs.Settings)
 SaveManager:BuildConfigSection(Tabs.Settings)
 Window:SelectTab(1)
 Fluent:Notify({ 
 Title = "Purium HUB",
-Content = "Script Finalized (v7.9) - Confirmed Fixed errors.", 
-Duration = 4 })
+Content = "Chain script loaded successfully!",
+Duration = 5 })
 SaveManager:LoadAutoloadConfig()
-
-
--- =========================================================================
--- NỘI DUNG TAB ANNOUNCEMENT (Main0) 
--- =========================================================================
-Tabs.Main0:AddSection("↳ Info / Credits")
-Tabs.Main0:AddParagraph({ 
-    Title = "Finalized Universal Script (v7.9)", 
-    Description = "Đã xác nhận và sửa lỗi thiếu `Title` trong tab Notifications. Lỗi FPS/Ping `GetElement` đã được sửa hoàn toàn ở phiên bản trước. Script đã được tối ưu hóa cho Fluent GUI.",
-})
-Tabs.Main0:AddParagraph({ 
-    Title = "🛠️ Developer: hlck49", 
-    Description = "Thiết kế và phát triển giao diện người dùng (UI Library: Fluent/Purium).",
-})
-Tabs.Main0:AddParagraph({ 
-    Title = "⚙️ Code Logic: @unknow", 
-    Description = "Hỗ trợ phát triển và logic code chính.",
-})
-
-
--- =========================================================================
--- NỘI DUNG TAB MOVEMENT / COMBAT (Main1)
--- =========================================================================
-Tabs.Main1:AddSection("↳ Infinite Hacks (Separated)")
-Tabs.Main1:AddToggle("InfiniteStaminaToggle", {
-    Title = "**Infinite Stamina**",
-    Description = "Cố gắng duy trì Stamina ở mức tối đa.",
-    Default = false,
-}):OnChanged(toggleInfStamina) 
-
-Tabs.Main1:AddToggle("InfiniteGasToggle", {
-    Title = "**Infinite Gas**",
-    Description = "Cố gắng duy trì Gas ở mức tối đa.",
-    Default = false,
-}):OnChanged(toggleInfGas) 
-
-Tabs.Main1:AddSection("↳ Movement Hacks")
-Tabs.Main1:AddToggle("InfiniteJumpToggle", {
-    Title = "Infinite Jump",
-    Description = "Nhảy vô hạn.",
-    Default = false,
-}):OnChanged(function(Value)
-    if Value == true then
-        infJumpConnection = UserInputService.InputBegan:Connect(function(input, gameProcessed)
-            if input.UserInputType == Enum.UserInputType.Keyboard and input.KeyCode == Enum.KeyCode.Space and not gameProcessed then
-                if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
-                    LocalPlayer.Character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
-                end
-            end
-        end)
-    elseif infJumpConnection then
-        infJumpConnection:Disconnect()
-        infJumpConnection = nil
-    end
-end)
-
-Tabs.Main1:AddToggle("FlyToggle", {
-    Title = "Fly (V-Key)",
-    Description = "Bật chế độ bay (Nhấn V để bay/tắt).",
-    Default = false,
-}):OnChanged(function(Value)
-    if Value == true then FLY(50) else NOFLY() end
-end)
-UserInputService.InputBegan:Connect(function(input, gameProcessed)
-    if gameProcessed then return end
-    if input.KeyCode == Enum.KeyCode.V then
-        local toggle = Tabs.Main1:GetElement("FlyToggle")
-        if toggle then
-            toggle:SetValue(not toggle.Value)
-        end
-    end
-end)
-
-Tabs.Main1:AddSection("↳ Noclip / CanCollide")
-Tabs.Main1:AddToggle("NoClipToggle", {
-    Title = "NoClip (Xuyên tường)",
-    Description = "Cho phép đi xuyên qua các vật thể.",
-    Default = false,
-}):OnChanged(function(Value)
-    if LocalPlayer.Character and LocalPlayer.Character:FindFirstChildOfClass("Humanoid") then
-        toggleNoclip(Value)
-    end
-end)
-
-
--- =========================================================================
--- NỘI DUNG TAB TELEPORT 
--- =========================================================================
-Tabs.Teleport:AddSection("↳ Click Teleport")
-Tabs.Teleport:AddToggle("ClickTeleportToggle", { 
-    Title = "Click Teleport (Ctrl + Click)", 
-    Description = "Nhấn giữ Ctrl + Click chuột phải để dịch chuyển.", 
-    Default = _G.WRDClickTeleportEnabled, 
-    Flag = "ClickTeleportToggle", 
-    Callback = toggleClickTeleport,
-})
-
-Tabs.Teleport:AddSection("↳ Teleport To Hardcoded Locations")
-for name, cframe in pairs(TELEPORT_LOCATIONS) do
-    Tabs.Teleport:AddButton({
-        Title = "TP: " .. name,
-        Description = "Dịch chuyển tới: " .. name,
-        Callback = function()
-            bringPlr(cframe)
-            Fluent:Notify({Title = "Teleported", Content = "Đã dịch chuyển tới: " .. name, Duration = 3})
-        end
-    })
-end
-Tabs.Teleport:AddButton({
-    Title = "TP: Chain Boss (Dynamic)",
-    Description = "Dịch chuyển tới Chain Boss (nếu đang ở trên bản đồ).",
-    Callback = function()
-        pcall(function()
-            local chain = findChainBoss()
-            if chain and chain:FindFirstChild("HumanoidRootPart") then
-                bringPlr(chain:GetPivot())
-                Fluent:Notify({Title = "Teleported", Content = "Đã dịch chuyển tới Chain Boss.", Duration = 3})
-            else
-                Fluent:Notify({Title = "Error", Content = "Không tìm thấy Chain Boss trên bản đồ.", Duration = 3})
-            end
-        end)
-    end
-})
-
-
--- =========================================================================
--- NỘI DUNG TAB ESP / VISUALS (Main2)
--- =========================================================================
-Tabs.Main2:AddSection("↳ Player & AI ESP")
-Tabs.Main2:AddToggle("PlayerChams_Toggle_FIXED_V5", { 
-    Title = "**Esp Players (Tối ưu Lag FIX)**", 
-    Description = "Hiển thị tên/khoảng cách chính xác và Box/Outline ESP.", 
-    Default = false, 
-}):OnChanged(function(Value) if Value == true then startEspLogic() else stopEspLogic() end end)
-
-Tabs.Main2:AddToggle("ChainBossEspToggle_V1", { 
-    Title = "**Chain Boss ESP (Auto-Tracking FIX)**", 
-    Description = "Highlight và hiển thị thông tin Chi tiết Chain Boss (Tự động bật lại khi Boss hồi sinh).", 
-    Default = false, 
-}):OnChanged(function(Value) if Value then startChainEspLogic() else stopChainEspLogic() end end)
-
-Tabs.Main2:AddSection("↳ Information Display")
-Tabs.Main2:AddToggle("DisplayFPSToggle", {
-    Title = "**Display FPS (Rainbow)**",
-    Description = "Hiển thị số khung hình trên giây (Frames Per Second) với màu cầu vồng.",
-    Default = false,
-}):OnChanged(function(Value) 
-    toggleFPSPingDisplay(Value, showPing) 
-end)
-
-Tabs.Main2:AddToggle("DisplayPingToggle", {
-    Title = "Display Ping (Latency)",
-    Description = "Hiển thị độ trễ mạng (Ping) tính bằng ms.",
-    Default = false,
-}):OnChanged(function(Value) 
-    toggleFPSPingDisplay(showFPS, Value)
-end)
-
--- =========================================================================
--- NỘI DUNG TAB AUTOFARM (AutoFarmTab)
--- =========================================================================
-Tabs.AutoFarmTab:AddSection("↳ Artifact Farming (Experimental)")
-Tabs.AutoFarmTab:AddToggle("ArtifactFarmToggle", {
-    Title = "Auto Artifact Farm",
-    Description = "Tự động dịch chuyển và nhặt Artifact (cần bật Click TP).",
-    Default = false,
-}):OnChanged(function(Value)
-    isArtifactFarming = Value
-    if Value and not artifactFarmingThread then
-        artifactFarmingThread = task.spawn(function()
-            while isArtifactFarming do
-                pcall(function()
-                    local target = findNearestObject(artifactsFolder, "Artifact")
-                    if target and target:FindFirstChild("PrimaryPart") then
-                        bringPlr(target:GetPivot())
-                        task.wait(1) 
-                    end
-                end)
-                task.wait(5) 
-            end
-            artifactFarmingThread = nil
-        end)
-    elseif not Value and artifactFarmingThread then
-        task.cancel(artifactFarmingThread)
-        artifactFarmingThread = nil
-    end
-end)
-
-
--- =========================================================================
--- NỘI DUNG TAB NOTIFICATIONS (ĐÃ FIX LỖI THIẾU TITLE)
--- =========================================================================
-Tabs.Notifications:AddSection("↳ Notification Toggles (FIXED)")
-Tabs.Notifications:AddToggle("NotifyPowerToggle_v4_EN", { 
-    Title = "Low Power (30%)", -- FIX: Đã thêm Title
-    Name = "Low Power (30%)", 
-    CurrentValue = notificationSettings.power 
-}):OnChanged(function(Value) notificationSettings.power = Value end)
-
-Tabs.Notifications:AddToggle("NotifyRoundTimeToggle_v4_EN", { 
-    Title = "End of Round (30s)", -- FIX: Đã thêm Title
-    Name = "End of Round (30s)", 
-    CurrentValue = notificationSettings.roundTime 
-}):OnChanged(function(Value) notificationSettings.roundTime = Value end)
-
-Tabs.Notifications:AddToggle("NotifyChainToggle_v4_EN", { 
-    Title = "CHAIN Spawn / Defeat", -- FIX: Đã thêm Title
-    Name = "CHAIN Spawn / Defeat", 
-    CurrentValue = notificationSettings.chain 
-}):OnChanged(function(Value) notificationSettings.chain = Value end)
-
-Tabs.Notifications:AddToggle("NotifyArtifactToggle_v4_EN", { 
-    Title = "Artifact Spawn", -- FIX: Đã thêm Title
-    Name = "Artifact Spawn", 
-    CurrentValue = notificationSettings.artifact 
-}):OnChanged(function(Value) notificationSettings.artifact = Value end)
-
-Tabs.Notifications:AddToggle("NotifyAirdropToggle_v1_EN", { 
-    Title = "Airdrop Spawn", -- FIX: Đã thêm Title
-    Name = "Airdrop Spawn", 
-    CurrentValue = notificationSettings.airdrop 
-}):OnChanged(function(Value) notificationSettings.airdrop = Value end)
-
-Tabs.Notifications:AddSection("↳ Options")
-Tabs.Notifications:AddToggle("PlaySoundToggle", { 
-    Title = "Play Sound on Notification", -- FIX: Đã thêm Title
-    Name = "Play Sound on Notification", 
-    CurrentValue = notificationSettings.playSound 
-}):OnChanged(function(Value) notificationSettings.playSound = Value end)
-
-
--- =========================================================================
--- NỘI DUNG TAB UTILITY / SERVER (Main4)
--- =========================================================================
-Tabs.Main4:AddSection("↳ Utility")
-Tabs.Main4:AddToggle("AntiAFKToggle", {
-    Title = "Anti-AFK (AFK Bypass)",
-    Description = "Ngăn chặn việc bị kick vì không hoạt động (Anti-Idle).",
-    Default = false,
-}):OnChanged(toggleAntiAFK)
-
-Tabs.Main4:AddSection("↳ Server Hopping")
-Tabs.Main4:AddToggle("SmallServerHopToggle", {
-    Title = "Look for a small server (<5 players)",
-    Description = "Tìm kiếm và dịch chuyển đến máy chủ có ít hơn 5 người chơi.",
-    Default = isHoppingForSmallServer,
-    Flag = "SmallServerHopToggle",
-    Callback = function(Value)
-        _G.isHoppingForSmallServer = Value
-        if _G.isHoppingForSmallServer then
-             Fluent:Notify({Title = "Search Engine Active", Content = "Đang tìm máy chủ có ít hơn 5 người chơi...", Duration = 6})
-             
-             if #Players:GetPlayers() < 5 then
-                 Fluent:Notify({Title = "Found!", Content = "Máy chủ này đã có ít người chơi. Dừng tìm kiếm.", Duration = 5})
-                 _G.isHoppingForSmallServer = false
-                 local toggle = Tabs.Main4:GetElement("SmallServerHopToggle")
-                 if toggle then toggle:SetValue(false) end
-                 return
-             end
-             
-             TeleportService:Teleport(game.PlaceId, LocalPlayer)
-        else
-            Fluent:Notify({Title = "Search Engine Stopped", Content = "Đã dừng tìm kiếm máy chủ nhỏ.", Duration = 5})
-        end
-    end,
-})
-
--- =========================================================================
--- NỘI DUNG TAB ENVIRONMENT (Main5)
--- =========================================================================
-Tabs.Main5:AddSection("↳ Visual & Effects")
-Tabs.Main5:AddToggle("FullBrightToggle", {
-    Title = "Full Bright (Sáng toàn cảnh)",
-    Description = "Tăng độ sáng tối đa, loại bỏ bóng tối (Bao gồm NoFog).",
-    Default = false,
-}):OnChanged(function(Value)
-    isFullbrightActive = Value
-    if Value then
-        originalEffectsState = {}
-        for _, effect in ipairs(Lighting:GetChildren()) do
-            if effect:IsA("ColorCorrectionEffect") or effect:IsA("BlurEffect") or effect:IsA("BloomEffect") or effect:IsA("AmbientSound") then
-                originalEffectsState[effect.Name] = effect.Enabled
-                effect.Enabled = false
-            end
-        end
-        Lighting.Ambient = Color3.fromRGB(255, 255, 255)
-        Lighting.OutdoorAmbient = Color3.fromRGB(255, 255, 255)
-        Lighting.Brightness = 3
-    else
-        Lighting.Ambient = Color3.fromRGB(120, 120, 120) 
-        Lighting.OutdoorAmbient = Color3.fromRGB(120, 120, 120) 
-        Lighting.Brightness = 1 
-        for _, effect in ipairs(Lighting:GetChildren()) do
-            if originalEffectsState[effect.Name] ~= nil then
-                effect.Enabled = originalEffectsState[effect.Name]
-            end
-        end
-        originalEffectsState = {}
-    end
-end)
-
-
--- =========================================================================
--- NỘI DUNG TAB SETTINGS (Settings)
--- =========================================================================
-Tabs.Settings:AddSection("↳ Config")
-
-Tabs.Settings:AddButton({
-    Title = "Destroy UI", 
-    Description = "Đóng và xóa toàn bộ giao diện Script.",
-    Callback = function() 
-        Window:Destroy()
-        if CoreGui:FindFirstChild("MinimizeUI") then CoreGui.MinimizeUI:Destroy() end
-        if CoreGui:FindFirstChild("FPS_Ping_Display") then CoreGui.FPS_Ping_Display:Destroy() end
-        if updateConnection then updateConnection:Disconnect(); updateConnection = nil end
-        
-        stopEspLogic() 
-        stopChainEspLogic()
-        NOFLY()
-        toggleNoclip(false)
-        toggleClickTeleport(false)
-        toggleInfStamina(false) 
-        toggleInfGas(false)
-        toggleAntiAFK(false) 
-    end,
-})
-
--- =========================================================================
--- KHỞI TẠO SAU KHI TẢI CONFIG 
--- =========================================================================
-task.spawn(function()
-    task.wait(2) 
-    pcall(function()
-        local savedFPS = SaveManager:GetConfig("DisplayFPSToggle", false) 
-        local savedPing = SaveManager:GetConfig("DisplayPingToggle", false)
-        local savedStamina = SaveManager:GetConfig("InfiniteStaminaToggle", false)
-        local savedGas = SaveManager:GetConfig("InfiniteGasToggle", false)
-
-        -- Kích hoạt logic hiển thị FPS/Ping với giá trị đã lưu
-        toggleFPSPingDisplay(savedFPS, savedPing) 
-
-        -- Kích hoạt logic Infinite Resource với giá trị đã lưu
-        if savedStamina then toggleInfStamina(true) end
-        if savedGas then toggleInfGas(true) end
-    end)
-end)
