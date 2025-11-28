@@ -1461,7 +1461,7 @@ Tabs.Tools:AddButton({
     Callback = function() unlockBlueprint("M1911") end
 })
 
-Tabs.Tools:AddSection({Title = "Toggle Game GUIs"})
+Tabs.Tools:AddSection("Toggle Game GUIs")
 
 Tabs.Tools:AddToggle("WorkbenchGui", {
     Title = "Toggle Workbench Gui",
