@@ -1,14 +1,12 @@
 -- =========================================================================
 -- KHAI BÁO THƯ VIỆN & SERVICE CHUNG 
--- SỬ DỤNG FLUENT PLUS (ĐÃ SỬA LỖI INFINITE DODGE VÀ UNIFIED ESP)
+-- SỬ DỤNG FLUENT PLUS (BẢN FIX LỖI EXECUTOR YẾU & UNIFIED ESP)
 -- =========================================================================
 
--- 1. Load Fluent UI Library
 local Fluent = loadstring(game:HttpGet("https://raw.githubusercontent.com/discoart/FluentPlus/refs/heads/main/release.lua"))()
 local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
 local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 
--- 2. Khai báo Services
 local TeleportService = game:GetService("TeleportService")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -21,7 +19,6 @@ local TweenService = game:GetService("TweenService")
 local HttpService = game:GetService("HttpService")
 local Stats = game:GetService("Stats")
 
--- 3. Biến Local Player và Chuột
 local LocalPlayer = Players.LocalPlayer
 local IYMouse = LocalPlayer:GetMouse()
 local CurrentCamera = Workspace.CurrentCamera
@@ -29,7 +26,78 @@ local defaultWalkSpeed = 16
 local defaultJumpPower = 50
 
 -- =========================================================================
--- GLOBAL FLAGS & CONFIGS 
+-- SETUP MINIMIZE BUTTON 
+-- =========================================================================
+local ExistingUI = CoreGui:FindFirstChild("ChainUI")
+if ExistingUI then ExistingUI:Destroy() end
+
+local DragUI = Instance.new("ScreenGui")
+DragUI.Name = "ChainUI"
+DragUI.ResetOnSpawn = false
+DragUI.Parent = CoreGui
+
+local Button = Instance.new("ImageButton")
+Button.Parent = DragUI
+Button.Size = UDim2.new(0, 50, 0, 50)
+Button.Position = UDim2.new(0, 10, 1, -85)
+Button.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+Button.BackgroundTransparency = 0.3
+Button.BorderSizePixel = 0
+Button.Image = "rbxassetid://93370012054262"
+Button.ScaleType = Enum.ScaleType.Fit
+Button.Active = true
+Button.ZIndex = 1000
+
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(1, 0)
+UICorner.Parent = Button
+
+local isDragging = false
+local dragStart, startPos
+
+local function ToggleUI()
+    if Window then Window:Minimize() end
+end
+
+Button.MouseButton1Click:Connect(function()
+    if isDragging then isDragging = false; return end
+    ToggleUI()
+end)
+
+Button.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        isDragging = false
+        dragStart = input.Position
+        startPos = Button.Position
+    end
+end)
+
+Button.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        if dragStart then
+            local delta = (input.Position - dragStart).Magnitude
+            if delta > 10 then 
+                isDragging = true
+                Button.Position = UDim2.new(
+                    startPos.X.Scale, 
+                    startPos.X.Offset + (input.Position.X - dragStart.X), 
+                    startPos.Y.Scale, 
+                    startPos.Y.Offset + (input.Position.Y - dragStart.Y)
+                )
+            end
+        end
+    end
+end)
+
+Button.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        dragStart = nil
+        startPos = nil
+    end
+end)
+
+-- =========================================================================
+-- GLOBAL FLAGS & ESP OPTIMIZATION SETTINGS
 -- =========================================================================
 local staminaLoopActive = false
 local gasLoopActive = false
@@ -46,8 +114,13 @@ local cancelRecoilActive = false
 local targetWalkSpeed = defaultWalkSpeed
 local infDodgeConnection 
 
+-- ESP OPTIMIZATION VARIABLES
+local MAX_ESP_DISTANCE = 1000 -- Khoảng cách tối đa để render ESP (Mặc định 1000m)
+local isLabelOnlyMode = false  -- Chế độ chỉ Label (Tắt Highlight)
+
+
 -- =========================================================================
--- LOGIC HÀM TÁCH RỜI (EXPLICIT & VERBOSE FUNCTIONS)
+-- LOGIC HÀM TÁCH RỜI (EXPLICIT FUNCTIONS)
 -- =========================================================================
 
 --- HÀM: INFINITE RESOURCES ---
@@ -113,31 +186,46 @@ local function toggleInfGas(Value)
     end
 end
 
---- HÀM: INFINITE DODGE (ĐÃ FIX LỖI) ---
+--- HÀM: INFINITE DODGE (AN TOÀN - CHECK EXECUTOR) ---
 local function enableInfDodge()
+    -- Kiểm tra xem Executor có hỗ trợ hookmetamethod không
+    if not hookmetamethod then
+        Fluent:Notify({
+            Title = "Lỗi Executor",
+            Content = "Executor của bạn không hỗ trợ 'hookmetamethod'. Không thể bật Inf Dodge.",
+            Duration = 5
+        })
+        return
+    end
+
     if infDodgeConnection and infDodgeConnection.Disconnect then infDodgeConnection:Disconnect() end
     
     local original_call_ref 
     
-    local hooked_result = hookmetamethod(game, "__namecall", function(self, ...)
-        if not original_call_ref then return end
-        
-        if not checkcaller() and getnamecallmethod() == "FireServer" then
-            if self.Name == "CTS" then
-                local args = {...}
-                if args[1] == "DoneDodge" then args[1] = "Dodge" end
-                return original_call_ref(self, unpack(args))
+    local success, err = pcall(function()
+        local hooked_result = hookmetamethod(game, "__namecall", function(self, ...)
+            if not original_call_ref then return end
+            
+            if not checkcaller() and getnamecallmethod() == "FireServer" then
+                if self.Name == "CTS" then
+                    local args = {...}
+                    if args[1] == "DoneDodge" then args[1] = "Dodge" end
+                    return original_call_ref(self, unpack(args))
+                end
             end
-        end
-        return original_call_ref(self, ...)
+            return original_call_ref(self, ...)
+        end)
+        
+        infDodgeConnection = hooked_result 
+        original_call_ref = hooked_result 
     end)
-    
-    infDodgeConnection = hooked_result 
-    original_call_ref = hooked_result 
+
+    if not success then
+        Fluent:Notify({Title = "Lỗi Hook", Content = "Không thể hook function. Lỗi: " .. tostring(err), Duration = 5})
+    end
 end
 
 --- HÀM: AIMBOT & RECOIL ---
-
 local cancelRecoilConnection
 local function toggleCancelRecoil(Value)
     cancelRecoilActive = Value
@@ -205,7 +293,6 @@ local function toggleAimbot(Value)
 end
 
 --- HÀM: UTILITY KHÁC ---
-
 local function toggleWorkbenchGui(Value)
     pcall(function()
         local Work = LocalPlayer:WaitForChild("PlayerGui"):WaitForChild("Ingame"):WaitForChild("Workbench")
@@ -222,8 +309,16 @@ end
 
 local function toggleShopGui(Value)
     pcall(function()
-        local Shop = LocalPlayer:WaitForChild("PlayerGui"):WaitForChild("Ingame"):FindFirstChild("Shop")
-        if Shop then Shop.Visible = Value end
+        -- Sử dụng FindFirstChild để tránh lỗi nếu Shop chưa load
+        local Ingame = LocalPlayer:WaitForChild("PlayerGui"):WaitForChild("Ingame")
+        local Shop = Ingame:FindFirstChild("Shop")
+        if Shop then 
+            Shop.Visible = Value 
+        else
+            if Value then -- Chỉ báo lỗi nếu người dùng cố bật
+                Fluent:Notify({ Title = "Lỗi", Content = "Shop GUI chưa tải hoặc không tồn tại.", Duration = 3 })
+            end
+        end
     end)
 end
 
@@ -314,7 +409,6 @@ local function toggleAntiAFK(Value)
 end
 
 --- HÀM: MOVEMENT & TELEPORT ---
-
 local noclipConnection
 local function toggleNoclip(enabled)
     noclipEnabled = enabled
@@ -340,8 +434,9 @@ local function toggleNoclip(enabled)
         end
     else
         if character:FindFirstChildOfClass("Humanoid") then
-            character:FindFirstChildOfClass("Humanoid").WalkSpeed = targetWalkSpeed
-            character:FindFirstChildOfClass("Humanoid").JumpPower = defaultJumpPower
+            local humanoid = character:FindFirstChildOfClass("Humanoid")
+            humanoid.WalkSpeed = targetWalkSpeed
+            humanoid.JumpPower = defaultJumpPower
         end
         if character then
             for _, part in ipairs(character:GetDescendants()) do
@@ -480,6 +575,21 @@ local function findAndTeleportToAirdrop()
     end
 end
 
+local function bringPlr(cframe) 
+    local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild('HumanoidRootPart')
+    if hrp then hrp.CFrame = cframe end
+end
+
+local function getChainBossCFrame()
+    local aiFolder = Workspace:FindFirstChild("Misc") and Workspace.Misc:FindFirstChild("AI")
+    if not aiFolder then return nil end
+    local chain = aiFolder:FindFirstChild("CHAIN")
+    if chain and chain:IsA("Model") and chain:FindFirstChild("HumanoidRootPart") then
+        return chain:GetPivot()
+    end
+    return nil
+end
+
 --- HÀM: VISUALS (ESP & GUI) ---
 
 local screenEffectConnection
@@ -594,10 +704,10 @@ local function toggleInfoGUI(Value)
 end
 
 -- =========================================================================
--- HỆ THỐNG ESP THỐNG NHẤT (UNIFIED ESP)
+-- HỆ THỐNG ESP THỐNG NHẤT (UNIFIED ESP) - LABEL + HIGHLIGHT
 -- =========================================================================
 local espSettings = {
-    Player = { Enabled = false, Color = Color3.fromRGB(255, 0, 0), Name = "Player" },
+    Player = { Enabled = false, Name = "Player" },
     Chain = { Enabled = false, Color = Color3.fromRGB(255, 21, 21), Name = "CHAIN BOSS" },
     Scrap = { Enabled = false, Color = Color3.fromRGB(255, 165, 0), Name = "Scrap" },
     Arctic = { Enabled = false, Color = Color3.fromRGB(0, 255, 255), Name = "Arctic" },
@@ -608,7 +718,6 @@ local espRenderStep
 
 local function createEspGui()
     if espGui then return end
-    
     espGui = Instance.new("ScreenGui")
     espGui.Name = "UniversalESPGUI"
     espGui.ResetOnSpawn = false
@@ -629,15 +738,29 @@ local function getAllEspTargets()
     local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
     if not hrp then return targets end
 
-    -- 1. Players
+    -- 1. Players (Màu sắc theo máu/giáp)
     if espSettings.Player.Enabled then
         for _, player in ipairs(Players:GetPlayers()) do
             if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                local humanoid = player.Character:FindFirstChildOfClass("Humanoid")
+                local health = humanoid and humanoid.Health or 100
+                local color = Color3.fromRGB(0, 255, 0) -- Mặc định Xanh Lime
+
+                if health > 100 then
+                    color = Color3.fromRGB(0, 0, 255) -- Xanh dương (>100)
+                elseif health == 100 then
+                    color = Color3.fromRGB(0, 255, 0) -- Xanh Lime (=100)
+                elseif health < 30 then
+                    color = Color3.fromRGB(255, 0, 0) -- Đỏ (<30)
+                elseif health < 50 then
+                    color = Color3.fromRGB(255, 165, 0) -- Vàng cam (<50)
+                end
+
                 table.insert(targets, { 
                     Instance = player.Character, 
                     Type = "Player", 
                     Name = player.Name, 
-                    Color = espSettings.Player.Color,
+                    Color = color,
                     isModel = true,
                 })
             end
@@ -668,14 +791,19 @@ local function getAllEspTargets()
             local itemName = item.Name
             local itemConfig = itemsToFind[itemName]
             
-            if itemConfig and itemConfig.Enabled and (item:IsA("Part") or item:IsA("Model")) then 
-                table.insert(targets, {
-                    Instance = item,
-                    Type = itemConfig.Type,
-                    Name = itemConfig.Name,
-                    Color = itemConfig.Color,
-                    isModel = item:IsA("Model")
-                })
+            if itemConfig and itemConfig.Enabled then
+                if item:IsA("Model") or item:IsA("Part") then
+                     -- Kiểm tra kỹ để tránh nhầm lẫn
+                     if item:FindFirstChild("Values") or item:FindFirstChildOfClass("ProximityPrompt") then
+                        table.insert(targets, {
+                            Instance = item,
+                            Type = itemConfig.Type,
+                            Name = itemConfig.Name,
+                            Color = itemConfig.Color,
+                            isModel = item:IsA("Model")
+                        })
+                     end
+                end
             end
         end
     end
@@ -683,7 +811,7 @@ local function getAllEspTargets()
     return targets
 end
 
--- HÀM ĐÃ SỬA: SỬ DỤNG IF NOT POS THEN RETURN/ELSE
+-- HÀM UPDATE ESP ĐÃ TỐI ƯU HIỆU SUẤT
 local function updateUniversalESP()
     local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart")
     if not hrp then return end
@@ -700,22 +828,20 @@ local function updateUniversalESP()
 
         local pos = getPartPosition(item)
         
-        -- FIX TƯƠNG THÍCH: Thay 'if not pos then continue end' bằng 'if pos then ... end'
         if pos then
+            -- TẠO MỚI NẾU CHƯA CÓ
             if not espElements[itemKey] then
                 local label = Instance.new("TextLabel")
                 label.Size = UDim2.new(0, 100, 0, 16) 
                 label.BackgroundTransparency = 1
                 label.Font = Enum.Font.SourceSansBold
                 label.TextSize = 12 
-                label.TextColor3 = data.Color
                 label.TextStrokeTransparency = 0.5 
                 label.Parent = espGui
 
                 local highlight = Instance.new("Highlight")
                 highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-                highlight.FillColor = data.Color
-                highlight.FillTransparency = 0.8
+                highlight.FillTransparency = 0.5
                 highlight.OutlineColor = Color3.new(1, 1, 1)
                 highlight.Enabled = false 
                 pcall(function() highlight.Parent = item end) 
@@ -735,40 +861,47 @@ local function updateUniversalESP()
             local label = elements.Label
             local highlight = elements.Highlight
             
+            -- CẬP NHẬT MÀU SẮC LIÊN TỤC (QUAN TRỌNG CHO MÁU)
+            label.TextColor3 = data.Color
+            highlight.FillColor = data.Color
+            
             local vec, onScreen = CurrentCamera:WorldToScreenPoint(pos)
             local distance = (pos - hrpPosition).Magnitude
 
-            highlight.Enabled = onScreen and distance < 1000 
-            
-            if distance < 10000 then 
+            -- Áp dụng giới hạn khoảng cách tối đa để giảm lag
+            if distance < MAX_ESP_DISTANCE then 
                 label.Visible = true
+
+                -- Highlight logic: Chỉ bật nếu KHÔNG phải chế độ Label Only (Low-Performance)
+                highlight.Enabled = onScreen and not isLabelOnlyMode
                 
                 local nameToDisplay = data.isModel and data.Name or data.Name .. " Loot"
 
                 if onScreen then
-                    label.Position = UDim2.new(0, vec.X - label.Size.X.Offset / 2, 0, vec.Y)
-                    label.Text = string.format("%s [~%.0fM]", nameToDisplay, distance)
+                    -- CẬP NHẬT VỊ TRÍ TRÊN MÀN HÌNH
+                    label.Position = UDim2.new(0, vec.X - label.Size.X.Offset / 2, 0, vec.Y - 20) 
+                    label.Text = string.format("%s [%.0fM]", nameToDisplay, distance)
                 else
+                    -- CẬP NHẬT VỊ TRÍ NGOÀI MÀN HÌNH
                     local viewPortSize = CurrentCamera.ViewportSize
                     local center = Vector2.new(viewPortSize.X / 2, viewPortSize.Y / 2)
                     local vector2 = Vector2.new(vec.X, vec.Y)
                     
                     local direction = (vector2 - center).unit
-                    local radius = math.min(center.X, center.Y) * 0.95 
+                    local radius = math.min(center.X, center.Y) * 0.9 
                     
                     local newPos = center + direction * radius
                     
                     label.Position = UDim2.new(0, newPos.X - label.Size.X.Offset / 2, 0, newPos.Y - label.Size.Y.Offset / 2)
-                    label.Text = string.format("-> %s [~%.0fM]", nameToDisplay, distance)
+                    label.Text = string.format("-> %s [%.0fM]", nameToDisplay, distance)
                     
-                    highlight.Enabled = false 
+                    highlight.Enabled = false -- Tắt highlight nếu ngoài màn hình
                 end
             else
                 label.Visible = false
                 highlight.Enabled = false
             end
         else
-            -- Trường hợp pos là nil, chúng ta vẫn cần đảm bảo ẩn Label và Highlight
              if espElements[itemKey] then
                 pcall(function() espElements[itemKey].Label.Visible = false end)
                 pcall(function() espElements[itemKey].Highlight.Enabled = false end)
@@ -776,13 +909,11 @@ local function updateUniversalESP()
         end
     end
     
-    -- Dọn dẹp các phần tử không còn trong danh sách mục tiêu
+    -- Dọn dẹp
     for itemKey, elements in pairs(espElements) do
-        if not currentTargets[itemKey] and elements.Label.Visible then
-            pcall(function() elements.Label.Visible = false end)
-            pcall(function() 
-                if elements.Highlight.Parent == itemKey then elements.Highlight.Enabled = false end 
-            end)
+        if not currentTargets[itemKey] then
+            if elements.Label then elements.Label.Visible = false end
+            if elements.Highlight then elements.Highlight.Enabled = false end
         end
     end
 end
@@ -819,13 +950,14 @@ local function toggleEspSetting(settingName, Value)
         startEspLoop()
     else
         for itemKey, elements in pairs(espElements) do
-            local item = itemKey
-            if item and (
-                (settingName == "Player" and item:IsA("Model") and item:FindFirstChildOfClass("Humanoid")) or 
-                (settingName == "Chain" and item.Name == "CHAIN") or
-                (settingName == "Scrap" and item.Name == "Scrap") or
-                (settingName == "Arctic" and item.Name == "Arctic")
-            ) then
+            -- Tắt ngay các element liên quan
+            local isType = false
+            if settingName == "Player" and itemKey:IsA("Model") and itemKey:FindFirstChildOfClass("Humanoid") then isType = true end
+            if settingName == "Chain" and itemKey.Name == "CHAIN" then isType = true end
+            if settingName == "Scrap" and itemKey.Name == "Scrap" then isType = true end
+            if settingName == "Arctic" and itemKey.Name == "Arctic" then isType = true end
+
+            if isType then
                 pcall(function() elements.Label.Visible = false end)
                 pcall(function() elements.Highlight.Enabled = false end)
             end
@@ -902,8 +1034,8 @@ local function playNotificationSound()
     if not notificationSettings.playSound then return end
     pcall(function()
         local sound = Instance.new("Sound")
-        sound.SoundId = "rbxassetid://15641323951"
-        sound.Volume = 8 
+        sound.SoundId = "rbxassetid://15544478080"
+        sound.Volume = 5 
         sound.Parent = Workspace
         sound:Play()
         Debris:AddItem(sound, 3)
@@ -995,7 +1127,7 @@ local Window = Fluent:CreateWindow({
     UserInfo = true,
     UserInfoTop = false,
     UserInfoTitle = game:GetService("Players").LocalPlayer.DisplayName,
-    UserInfoSubtitle = "Premuim User",
+    UserInfoSubtitle = "You Are Gay",
     UserInfoSubtitleColor = Color3.fromRGB(71, 123, 255)
 })
 
@@ -1014,76 +1146,7 @@ local Tabs = {
 -- =========================================================================
 -- SETUP MINIMIZE BUTTON 
 -- =========================================================================
-local ExistingUI = CoreGui:FindFirstChild("PuriumHubMinimizeUI")
-if ExistingUI then ExistingUI:Destroy() end
-
-local DragUI = Instance.new("ScreenGui")
-DragUI.Name = "PuriumHubMinimizeUI"
-DragUI.ResetOnSpawn = false
-DragUI.Parent = CoreGui
-
-local Button = Instance.new("ImageButton")
-Button.Parent = DragUI
-Button.Size = UDim2.new(0, 50, 0, 50)
-Button.Position = UDim2.new(0, 10, 1, -85)
-Button.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-Button.BackgroundTransparency = 0.3
-Button.BorderSizePixel = 0
-Button.Image = "rbxassetid://109647470925993" 
-Button.ScaleType = Enum.ScaleType.Fit
-Button.Active = true
-Button.ZIndex = 1000
-
-local UICorner = Instance.new("UICorner")
-UICorner.CornerRadius = UDim.new(1, 0)
-UICorner.Parent = Button
-
-local isDragging = false
-local dragStart, startPos
-
-local function ToggleUI()
-    if Window then Window:Minimize() end
-end
-
-Button.MouseButton1Click:Connect(function()
-    if isDragging then 
-        isDragging = false 
-        return 
-    end
-    ToggleUI()
-end)
-
-Button.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        isDragging = false
-        dragStart = input.Position
-        startPos = Button.Position
-    end
-end)
-
-Button.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
-        if dragStart then
-            local delta = (input.Position - dragStart).Magnitude
-            if delta > 10 then 
-                isDragging = true
-                Button.Position = UDim2.new(
-                    startPos.X.Scale, 
-                    startPos.X.Offset + (input.Position.X - dragStart.X), 
-                    startPos.Y.Scale, 
-                    startPos.Y.Offset + (input.Position.Y - dragStart.Y)
-                )
-            end
-        end
-    end
-end)
-
-Button.InputEnded:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-        dragStart = nil
-        startPos = nil
-    end
-end)
+-- (Phần này giữ nguyên)
 
 
 -- =========================================================================
@@ -1186,7 +1249,8 @@ Tabs.Character:AddToggle("InfDodge", {
             enableInfDodge()
             Fluent:Notify({ Title = "LƯU Ý", Content = "Chắc chắn đã gỡ Anti-Cheat trước khi bật!", Duration = 5 })
         else
-            if infDodgeConnection and infDodgeConnection.Disconnect then infDodgeConnection:Disconnect() end
+            -- Chỉ đổi cờ, không gọi Disconnect
+            infDodgeEnabled = false 
         end
     end
 })
@@ -1269,20 +1333,7 @@ Tabs.Movement:AddButton({
     Callback = simpleServerHop
 })
 
-local function bringPlr(cframe) 
-    local hrp = LocalPlayer.Character and LocalPlayer.Character:FindFirstChild('HumanoidRootPart')
-    if hrp then hrp.CFrame = cframe end
-end
-
-local function getChainBossCFrame()
-    local aiFolder = Workspace:FindFirstChild("Misc") and Workspace.Misc:FindFirstChild("AI")
-    if not aiFolder then return nil end
-    local chain = aiFolder:FindFirstChild("CHAIN")
-    if chain and chain:IsA("Model") and chain:FindFirstChild("HumanoidRootPart") then
-        return chain:GetPivot()
-    end
-    return nil
-end
+Tabs.Movement:AddSection("Others Teleport")
 
 local TELEPORT_LOCATIONS = {
     ["SafeHouse"] = CFrame.new(162.68, -94.26, 230.03),
@@ -1293,8 +1344,6 @@ local TELEPORT_LOCATIONS = {
     ["Ritual Site"] = CFrame.new(-18.60, -107.77, -229.89),
     ["LeaderBoard"] = CFrame.new(45.65, -97.96, 25.84),
 }
-
-Tabs.Movement:AddSection("Teleports")
 
 for name, cf in pairs(TELEPORT_LOCATIONS) do
     Tabs.Movement:AddButton({
@@ -1321,8 +1370,32 @@ Tabs.Movement:AddButton({
 })
 
 -- =========================================================================
--- TAB: VISUALS / ESP (SỬ DỤNG HỆ THỐNG UNIFIED ESP MỚI)
+-- TAB: VISUALS / ESP (ĐÃ TỐI ƯU)
 -- =========================================================================
+
+Tabs.Visuals:AddToggle("LabelOnlyMode", {
+    Title = "Low-Performance ESP (Chỉ Label)",
+    Description = "Chỉ hiển thị chữ (Label), tắt Highlight để giảm LAG (KHUYÊN DÙNG CHO ĐT)",
+    Default = false,
+    Callback = function(Value) 
+        isLabelOnlyMode = Value 
+        -- Cập nhật lại ESP để áp dụng thay đổi Highlight ngay lập tức
+        if espRenderStep then updateUniversalESP() end 
+    end
+})
+
+Tabs.Visuals:AddSlider("MaxESPDistance", {
+    Title = "Phạm vi hiển thị ESP (Meters)",
+    Default = MAX_ESP_DISTANCE,
+    Min = 100,
+    Max = 3000,
+    Rounding = 100,
+    Callback = function(Value)
+        MAX_ESP_DISTANCE = Value
+    end
+})
+
+Tabs.Visuals:AddSection("ESP Toggles")
 
 Tabs.Visuals:AddToggle("PlayerChams", {
     Title = "Player ESP (Chams + Label)",
@@ -1388,7 +1461,7 @@ Tabs.Tools:AddButton({
     Callback = function() unlockBlueprint("M1911") end
 })
 
-Tabs.Tools:AddSection("Toggle Game GUIs")
+Tabs.Tools:AddSection({Title = "Toggle Game GUIs"})
 
 Tabs.Tools:AddToggle("WorkbenchGui", {
     Title = "Toggle Workbench Gui",
@@ -1451,7 +1524,7 @@ Tabs.Notify:AddToggle("NotifySound", { Title = "Play Sounds for Notifications", 
 
 
 -- =========================================================================
--- FINAL INIT (QUẢN LÝ LƯU TRỮ VÀ CẤU HÌNG)
+-- FINAL INIT (QUẢN LÝ LƯU TRỮ VÀ CẤU HÌNH)
 -- =========================================================================
 
 SaveManager:SetLibrary(Fluent)
@@ -1459,12 +1532,12 @@ InterfaceManager:SetLibrary(Fluent)
 SaveManager:IgnoreThemeSettings()
 SaveManager:SetIgnoreIndexes({})
 InterfaceManager:SetFolder("Purium HUB")
-SaveManager:SetFolder("Purium HUB/Chain")
+SaveManager:SetFolder("Purium HUB/chain")
 InterfaceManager:BuildInterfaceSection(Tabs.Settings)
 SaveManager:BuildConfigSection(Tabs.Settings)
 Window:SelectTab(1)
 Fluent:Notify({ 
 Title = "Purium HUB",
-Content = "Chain script loaded successfully!",
+Content = "chain script loaded successfully!",
 Duration = 5 })
 SaveManager:LoadAutoloadConfig()
