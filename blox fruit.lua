@@ -21,31 +21,33 @@ local Window = Fluent:CreateWindow({
 local v16 = {
     Home=Window:AddTab({ Title="Infomation", Icon = "info" }),
     Main=Window:AddTab({ Title="Farming", Icon = "swords" }),
-    Sea=Window:AddTab({ Title="Sea Event", Icon = "shield-alert" }),
-    ITM=Window:AddTab({ Title="Farming Other", Icon = "shield-alert" }),
-    Setting=Window:AddTab({ Title="Setting Farm", Icon = "shield-alert" }),
-    Status=Window:AddTab({ Title="Status And Server", Icon = "shield-alert" }),
+    Sea=Window:AddTab({ Title="Sea Event", Icon = "waves" }),
+    ITM=Window:AddTab({ Title="Farming Other", Icon = "anchor" }),
+    Setting=Window:AddTab({ Title="Setting Farm", Icon = "settings" }),
+    Status=Window:AddTab({ Title="Status And Server", Icon = "moon" }),
     Stats=Window:AddTab({ Title="Stats", Icon = "shield-alert" }),
-    Player=Window:AddTab({ Title="Local Player", Icon = "shield-alert" }),
-    Teleport=Window:AddTab({ Title="Teleport", Icon = "shield-alert" }),
-    Visual=Window:AddTab({ Title="Visual", Icon = "shield-alert" }),
-    Fruit=Window:AddTab({ Title="Esp And Fruit", Icon = "shield-alert" }),
-    Raid=Window:AddTab({ Title="Raid", Icon = "shield-alert" }),
-    Race=Window:AddTab({ Title="Upgrade Race", Icon = "shield-alert" }),
-    Shop=Window:AddTab({ Title="Shop", Icon = "shield-alert" }),
-    Misc=Window:AddTab({ Title="Misc", Icon = "shield-alert" }),
+    Player=Window:AddTab({ Title="Local Player", Icon = "shield-close" }),
+    Teleport=Window:AddTab({ Title="Teleport", Icon = "shield-check" }),
+    Visual=Window:AddTab({ Title="Visual", Icon = "eye-off" }),
+    Fruit=Window:AddTab({ Title="Esp And Fruit", Icon = "eye" }),
+    Raid=Window:AddTab({ Title="Raid", Icon = "leaf" }),
+    Race=Window:AddTab({ Title="Upgrade Race", Icon = "puzzle" }),
+    Shop=Window:AddTab({ Title="Shop", Icon = "verified" }),
+    Misc=Window:AddTab({ Title="Misc", Icon = "box" }),
 };
+
 SaveManager:SetLibrary(Fluent)
 InterfaceManager:SetLibrary(Fluent)
 SaveManager:IgnoreThemeSettings()
 SaveManager:SetIgnoreIndexes({})
 InterfaceManager:SetFolder("Purium hub")
-SaveManager:SetFolder("Purium hub/blox fruit")
-InterfaceManager:BuildInterfaceSection(Tabs.Setting)
-SaveManager:BuildConfigSection(Tabs.Setting)
+SaveManager:SetFolder("Purium HUB/blox fruit")
+InterfaceManager:BuildInterfaceSection(v16.Misc)
+SaveManager:BuildConfigSection(v16.Misc)
 Window:SelectTab(1)
-Fluent:Notify({ Title = "Purium hub", Content = "blox fruit script loaded successfully!", Duration = 3.5 })
+Fluent:Notify({ Title = "Purium hub", Content = "Blox fruit script loaded successfully!", Duration = 5 })
 SaveManager:LoadAutoloadConfig()
+
 local v17 = v14.Options;
 local v18 = game.PlaceId;
 if (v18 == 2753915549) then
@@ -9014,5 +9016,4 @@ spawn(function()
         end
     end
 end);
-
 
