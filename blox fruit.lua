@@ -2,7 +2,7 @@ local Fluent = loadstring(game:HttpGet("https://raw.githubusercontent.com/discoa
 local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
 local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
 local Window = Fluent:CreateWindow({
-    Title = "Purium Hub [ Freemium ] | Universal |",
+    Title = "Purium Hub [ Freemium ] | Blox Fruit |",
     SubTitle = "Version 0.0.1",
     Search = true,
     Icon = "rbxassetid://121302760641013",
@@ -2300,78 +2300,122 @@ function to(v233)
         end
     end);
 end
-local v22 = Instance.new("ScreenGui");
-local v23 = Instance.new("ImageButton");
-local v24 = Instance.new("UICorner");
-local v25 = Instance.new("ParticleEmitter");
-local v26 = game:GetService("TweenService");
+local UserInputService = game:GetService("UserInputService")
+local CoreGui = game:GetService("CoreGui")
+local TweenService = game:GetService("TweenService")
 
-v22.Parent = game.CoreGui;
-v22.ZIndexBehavior = Enum.ZIndexBehavior.Sibling;
+local ExistingUI = CoreGui:FindFirstChild("PuriumHubMinimizeUI")
+if ExistingUI then
+    ExistingUI:Destroy()
+end
 
-v23.Parent = v22;
-v23.BackgroundColor3 = Color3.fromRGB(255, 255, 255);
-v23.BackgroundTransparency = 0.5
-v23.BorderSizePixel = 0;
-v23.Position = UDim2.new(0.120833337 - 0.1, 0, 0.0952890813 + 0.01, 0);
-v23.Size = UDim2.new(0, 50, 0, 50);
-v23.Draggable = true;
-v23.Image = "http://www.roblox.com/asset/?id=130947856929902";
+local DragUI = Instance.new("ScreenGui")
+DragUI.Name = "PuriumHubMinimizeUI"
+DragUI.ResetOnSpawn = false
+DragUI.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+DragUI.Parent = CoreGui
 
-v24.Parent = v23;
-v24.CornerRadius = UDim.new(1, 0);
 
-v25.Parent = v23;
-v25.LightEmission = 1;
-v25.Size = NumberSequence.new({
-    NumberSequenceKeypoint.new(0, 0.1),
-    NumberSequenceKeypoint.new(1, 0)
-});
-v25.Lifetime = NumberRange.new(0.5, 1);
-v25.Rate = 0;
-v25.Speed = NumberRange.new(5, 10);
-v25.Color = ColorSequence.new(Color3.fromRGB(255, 85, 255), Color3.fromRGB(85, 255, 255));
+local Button = Instance.new("ImageButton")
+Button.Parent = DragUI
+Button.Size = UDim2.new(0, 50, 0, 50)
+Button.Position = UDim2.new(0, 10, 1, -85)
+Button.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+Button.BackgroundTransparency = 0.3
+Button.BorderSizePixel = 0
+Button.ClipsDescendants = true
+Button.Image = "rbxassetid://109647470925993" -- Thay icon nếu muốn
+Button.ScaleType = Enum.ScaleType.Fit
+Button.Active = true
+Button.ZIndex = 1000
 
-local v47 = v26:Create(v23, TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), {
-    Rotation = 0
-});
 
--- 🟢 Toggle state
-local toggled = true
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(1, 0)
+UICorner.Parent = Button
 
-v23.MouseButton1Down:Connect(function()
-    v25.Rate = 100;
-    task.delay(1, function()
-        v25.Rate = 0;
-    end);
 
-    v47:Play();
-    game:GetService("VirtualInputManager"):SendKeyEvent(true, Enum.KeyCode.End, false, game);
+local tweenInfo = TweenInfo.new(0.1, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 
-    v47.Completed:Connect(function()
-        v23.Rotation = 0;
-    end);
-
-    if not toggled then
-        -- Bật trạng thái: to + trắng đặc
-        toggled = true
-        v23.BackgroundTransparency = 0
-        v23.BackgroundColor3 = Color3.fromRGB(255,255,255)
-        local v235 = v26:Create(v23, TweenInfo.new(0.2, Enum.EasingStyle.Bounce, Enum.EasingDirection.Out), {
-            Size = UDim2.new(0, 60, 0, 60)
-        });
-        v235:Play()
+local function ToggleUI()
+    if Window.Minimized then
+        Window:Minimize(false) 
     else
-        -- Tắt trạng thái: nhỏ + trong nhẹ
-        toggled = false
-        v23.BackgroundTransparency = 0.5
-        v23.BackgroundColor3 = Color3.fromRGB(255,255,255)
-        local v483 = v26:Create(v23, TweenInfo.new(0.2, Enum.EasingStyle.Bounce, Enum.EasingDirection.Out), {
-            Size = UDim2.new(0, 50, 0, 50)
-        });
-        v483:Play()
+        Window:Minimize(true) 
+    end
+end
+
+local isDragging = false
+local dragThreshold = 10
+
+Button.MouseButton1Click:Connect(function()
+    if isDragging then return end
+
+    TweenService:Create(Button, tweenInfo, {
+        BackgroundTransparency = 0.5,
+        Size = UDim2.new(0, 45, 0, 45),
+        Rotation = 5
+    }):Play()
+    task.wait(0.1)
+    TweenService:Create(Button, tweenInfo, {
+        BackgroundTransparency = 0.3,
+        Size = UDim2.new(0, 50, 0, 50),
+        Rotation = 0
+    }):Play()
+
+    ToggleUI()
+end)
+
+Button.MouseEnter:Connect(function()
+    TweenService:Create(Button, tweenInfo, {Size = UDim2.new(0, 55, 0, 55)}):Play()
+end)
+
+Button.MouseLeave:Connect(function()
+    TweenService:Create(Button, tweenInfo, {Size = UDim2.new(0, 50, 0, 50)}):Play()
+end)
+
+
+local dragging, dragStart, startPos
+
+local function StartDrag(input)
+    isDragging = false
+    dragging = true
+    dragStart = input.Position
+    startPos = Button.Position
+
+    input.Changed:Connect(function()
+        if input.UserInputState == Enum.UserInputState.End then
+            dragging = false
+        end
+    end)
+end
+
+local function OnDrag(input)
+    if dragging then
+        local delta = (input.Position - dragStart).Magnitude
+        if delta > dragThreshold then
+            isDragging = true
+        end
+        Button.Position = UDim2.new(
+            startPos.X.Scale,
+            startPos.X.Offset + (input.Position.X - dragStart.X),
+            startPos.Y.Scale,
+            startPos.Y.Offset + (input.Position.Y - dragStart.Y)
+        )
+    end
+end
+
+Button.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        StartDrag(input)
     end
 end)
+
+Button.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
+        OnDrag(input)
+    end
+end)  
 
 -- xoá effect mặc định
 if game:GetService("ReplicatedStorage").Effect.Container:FindFirstChild("Death") then
