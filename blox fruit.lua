@@ -35,6 +35,17 @@ local v16 = {
     Shop=Window:AddTab({ Title="Shop", Icon = "shield-alert" }),
     Misc=Window:AddTab({ Title="Misc", Icon = "shield-alert" }),
 };
+SaveManager:SetLibrary(Fluent)
+InterfaceManager:SetLibrary(Fluent)
+SaveManager:IgnoreThemeSettings()
+SaveManager:SetIgnoreIndexes({})
+InterfaceManager:SetFolder("Purium hub")
+SaveManager:SetFolder("Purium hub/blox fruit")
+InterfaceManager:BuildInterfaceSection(Tabs.Setting)
+SaveManager:BuildConfigSection(Tabs.Setting)
+Window:SelectTab(1)
+Fluent:Notify({ Title = "Purium hub", Content = "blox fruit script loaded successfully!", Duration = 3.5 })
+SaveManager:LoadAutoloadConfig()
 local v17 = v14.Options;
 local v18 = game.PlaceId;
 if (v18 == 2753915549) then
@@ -9003,4 +9014,5 @@ spawn(function()
         end
     end
 end);
+
 
