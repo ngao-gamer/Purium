@@ -2026,11 +2026,11 @@ function BTPZ(v209)
     task.wait();
     game.Players.LocalPlayer.Character.HumanoidRootPart.CFrame = v209;
 end
-TweenSpeed = 450;
+TweenSpeed = 350;
 function Tween(v211)
     local v212 = (v211.Position - game.Players.LocalPlayer.Character.HumanoidRootPart.Position).Magnitude;
     local v213 = TweenSpeed;
-    if (v212 >= 450) then
+    if (v212 >= 350) then
         v213 = TweenSpeed;
     end
     local v214 = TweenInfo.new(v212 / v213, Enum.EasingStyle.Linear);
@@ -2441,6 +2441,10 @@ v16.Home:AddButton({
 v16.Home:AddParagraph({
     Title = "Remember:",
     Content = "This Script Still On beta So WILL NOT SUPPORT NEW LEVELS  AND OTHERS YET !!",
+});
+v16.Home:AddParagraph({
+    Title = "erros",
+    Content = "If you execute script but it wont lag, dont worry this not from your executo.Just close script and execute again",
 });
 _G.FastAttackStrix_Mode = "Super Fast Attack";
 spawn(function()
