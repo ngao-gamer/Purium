@@ -48,7 +48,7 @@ Window:SelectTab(1)
 Fluent:Notify({ Title = "Purium hub", Content = "Blox fruit script loaded successfully!", Duration = 5 })
 SaveManager:LoadAutoloadConfig()
 
-local v17 = v14.Options;
+local v17 = Fluent.Options;
 local v18 = game.PlaceId;
 if (v18 == 2753915549) then
     Sea1 = true;
