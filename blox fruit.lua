@@ -1,6 +1,4 @@
-local Fluent = loadstring(game:HttpGet("https://raw.githubusercontent.com/discoart/FluentPlus/refs/heads/main/release.lua"))()
-local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
-local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
+local local Fluent, SaveManager, InterfaceManager = loadstring(Game:HttpGet("https://raw.githubusercontent.com/discoart/FluentPlus/refs/heads/main/Beta.lua"))()
 local Window = Fluent:CreateWindow({
     Title = "Purium Hub [ Freemium ] | Blox Fruit |",
     SubTitle = "Version 0.0.1",
@@ -45,7 +43,6 @@ SaveManager:SetFolder("Purium HUB/blox fruit")
 InterfaceManager:BuildInterfaceSection(v16.Misc)
 SaveManager:BuildConfigSection(v16.Misc)
 Window:SelectTab(1)
-Fluent:Notify({ Title = "Purium hub", Content = "Blox fruit script loaded successfully!", Duration = 5 })
 SaveManager:LoadAutoloadConfig()
 
 local v17 = Fluent.Options;
@@ -2439,12 +2436,12 @@ v16.Home:AddButton({
     end
 });
 v16.Home:AddParagraph({
-    Title = "Remember:",
+    Title = "Remember",
     Content = "This Script Still On beta So WILL NOT SUPPORT NEW LEVELS  AND OTHERS YET !!",
 });
 v16.Home:AddParagraph({
-    Title = "erros",
-    Content = "If you execute script but it wont lag, dont worry this not from your executo.Just close script and execute again",
+    Title = "Errors Detected",
+    Content = "If you execute script but it didn't load , don't worry this not from your executor , Just close script and execute again",
 });
 _G.FastAttackStrix_Mode = "Super Fast Attack";
 spawn(function()
@@ -2452,7 +2449,7 @@ spawn(function()
         if _G.FastAttackStrix_Mode then
             pcall(function()
                 if (_G.FastAttackStrix_Mode == "Super Fast Attack") then
-                    _G.Fast_Delay = 1e-6;
+                    _G.Fast_Delay = 1e-2;
                 end
             end);
         end
@@ -6689,21 +6686,21 @@ spawn(function()
     end
 end);
 v16.Teleport:AddButton({
-    Title = "Sea 1",
+    Title = "Teleport To Sea 1",
     Description = "",
     Callback = function()
         game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("TravelMain");
     end
 });
 v16.Teleport:AddButton({
-    Title = "Sea 2",
+    Title = " Teleport To Sea 2",
     Description = "",
     Callback = function()
         game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("TravelDressrosa");
     end
 });
 v16.Teleport:AddButton({
-    Title = "Sea 3",
+    Title = "Teleport To Sea 3",
     Description = "",
     Callback = function()
         game:GetService("ReplicatedStorage").Remotes.CommF_:InvokeServer("TravelZou");
@@ -9064,4 +9061,4 @@ spawn(function()
         end
     end
 end);
-
+Fluent:Notify({ Title = "Purium hub", Content = "Blox fruit script loaded successfully!", Duration = 5 })
