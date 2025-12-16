@@ -1,4 +1,4 @@
-local local Fluent, SaveManager, InterfaceManager = loadstring(Game:HttpGet("https://raw.githubusercontent.com/discoart/FluentPlus/refs/heads/main/Beta.lua"))()
+local Fluent, SaveManager, InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/discoart/FluentPlus/refs/heads/main/alpha.lua"))()
 local Window = Fluent:CreateWindow({
     Title = "Purium Hub [ Freemium ] | Blox Fruit |",
     SubTitle = "Version 0.0.1",
