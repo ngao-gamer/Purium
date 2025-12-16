@@ -73,7 +73,7 @@ elseif (v19 == 7449423635) then
     Sea3 = true;
 end
 function CheckLevel()
-    MyLevel = game:GetService("Players").LocalPlayer.Data.Level.Value
+    MyLevel = game:GetService("Players").LocalPlayer.Data.Level.Value;
     if Sea1 then
               if (MyLevel < 1 or MyLevel > 9) and SelectMonster ~= "Bandit" then
             if (MyLevel < 10 or MyLevel > 14) and SelectMonster ~= "Monkey" then
