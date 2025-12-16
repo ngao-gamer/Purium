@@ -1,9 +1,7 @@
-local Fluent = loadstring(game:HttpGet("https://raw.githubusercontent.com/ngao-gamer/Purium/refs/heads/main/Purium%20Gui"))()
-local SaveManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/SaveManager.lua"))()
-local InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/dawid-scripts/Fluent/master/Addons/InterfaceManager.lua"))()
+local Fluent, SaveManager, InterfaceManager = loadstring(game:HttpGet("https://raw.githubusercontent.com/discoart/FluentPlus/refs/heads/main/alpha.lua"))()
 local Window = Fluent:CreateWindow({
     Title = "Purium Hub [Premium] | Universal |",
-    SubTitle = "Version 1.2.1",
+    SubTitle = "Version 1.2.2",
     Search = true,
     Icon = "rbxassetid://121302760641013",
     TabWidth = 140,
@@ -15,7 +13,7 @@ local Window = Fluent:CreateWindow({
     UserInfo = true,
     UserInfoTop = false,
     UserInfoTitle = game:GetService("Players").LocalPlayer.DisplayName,
-    UserInfoSubtitle = "Premuim User",
+    UserInfoSubtitle = "Animals....",
     UserInfoSubtitleColor = Color3.fromRGB(71, 123, 255)
 })
 
@@ -41,15 +39,12 @@ SaveManager:SetLibrary(Fluent)
 InterfaceManager:SetLibrary(Fluent)
 SaveManager:IgnoreThemeSettings()
 SaveManager:SetIgnoreIndexes({})
-InterfaceManager:SetFolder("Purium HUB")
-SaveManager:SetFolder("Purium HUB/universal")
+InterfaceManager:SetFolder("purium hub")
+SaveManager:SetFolder("Purium hub/universal")
 InterfaceManager:BuildInterfaceSection(Tabs.Settings)
 SaveManager:BuildConfigSection(Tabs.Settings)
 Window:SelectTab(1)
-Fluent:Notify({ Title = "Purium HUB", Content = "Universal script loaded successfully!", Duration = 5 })
 SaveManager:LoadAutoloadConfig()
-
-
 
 local UserInputService = game:GetService("UserInputService")
 local CoreGui = game:GetService("CoreGui")
@@ -576,11 +571,20 @@ loadstring(game:HttpGet("https://raw.githubusercontent.com/TRANDUYTHINH/scriptdt
 })
 
 Tabs.Main1:AddButton({
-    Title="TDT Hub(Main)",
+    Title="TDT Hub(DOWN)",
     Description="",
     Callback=function()
 print("Successfully Executed Script")
 loadstring(game:HttpGet("https://raw.githubusercontent.com/ThinhNek343/tdthub/refs/heads/main/maintdt.lua"))()
+  end
+})
+
+Tabs.Main1:AddButton({
+    Title="Purium Hub(Beta)",
+    Description="",
+    Callback=function()
+        print("Successfully Executed Script")
+loadstring(game:HttpGet("https://raw.githubusercontent.com/PuriumHuB/Purium/refs/heads/main/blox%20fruit.lua"))()
   end
 })
 
@@ -1325,3 +1329,4 @@ Tabs.Main12:AddButton({
 Tabs.Main13:AddParagraph({
     Title = "More script support will comming soon !",
 })
+Fluent:Notify({ Title = "Purium HUB", Content = "Universal script loaded successfully!", Duration = 5 })
