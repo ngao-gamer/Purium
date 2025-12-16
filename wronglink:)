@@ -1,2 +1,4 @@
-loadstring(game:HttpGet("https://raw.githubusercontent.com/ngao-gamer/Purium/refs/heads/main/purium.lua"))()
+print("Loading...")
+loadstring(game:HttpGet("https://raw.githubusercontent.com/PuriumHuB/Purium/refs/heads/main/purium.lua"))()
 print("you are gay")
+print("Just kidding script loaded!")
