@@ -2301,13 +2301,13 @@ local UserInputService = game:GetService("UserInputService")
 local CoreGui = game:GetService("CoreGui")
 local TweenService = game:GetService("TweenService")
 
-local ExistingUI = CoreGui:FindFirstChild("PuriumHubMinimizeUI")
+local ExistingUI = CoreGui:FindFirstChild("BloxFruitUi")
 if ExistingUI then
     ExistingUI:Destroy()
 end
 
 local DragUI = Instance.new("ScreenGui")
-DragUI.Name = "PuriumHubMinimizeUI"
+DragUI.Name = "BloxFruitUi"
 DragUI.ResetOnSpawn = false
 DragUI.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
 DragUI.Parent = CoreGui
